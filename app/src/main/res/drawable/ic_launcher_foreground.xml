@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Centered within the 66x66 dp safe zone (from 21 to 87 on both axes) -->
+    <!-- A megaphone icon representing news and community updates -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M78,42L78,66L72,66L66,60L54,60L54,48L66,48L72,42ZM48,60L42,60L42,48L48,48ZM84,36L84,72L72,72L60,60L42,60C38.69,60 36,57.31 36,54C36,50.69 38.69,48 42,48L60,48L72,36Z" />
+    <!-- Added a '1' inside or near to represent 'Jamui One' -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M27,45L31,45L31,63L27,63ZM27,45L25,47L25,49L27,47Z" />
+</vector>

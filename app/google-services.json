@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "651764912534",
+    "project_id": "jamui-one",
+    "storage_bucket": "jamui-one.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:651764912534:android:bc307d9db5a492e999cdb7",
+        "android_client_info": {
+          "package_name": "com.example.jamuione"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "651764912534-cpq2vt98cnu8ukpeqjnbsube95c0okgp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.jamuione",
+            "certificate_hash": "5709bcfae1f1f4bb3b3195decaa1b6db2cdbfc26"
+          }
+        },
+        {
+          "client_id": "651764912534-4ipea7aiql5c5j61fomp1r4ou7ph89nj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrlSUHShm2tDLbhaDt7Ys7mf6fdeAsuIo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "651764912534-4ipea7aiql5c5j61fomp1r4ou7ph89nj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

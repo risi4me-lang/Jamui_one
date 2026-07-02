@@ -1,0 +1,12 @@
+package com.example.jamuione.domain.repository
+
+import com.example.jamuione.domain.model.User
+import com.example.jamuione.util.Resource
+import kotlinx.coroutines.flow.Flow
+
+interface UserRepository {
+    fun getUserProfile(uid: String): Flow<Resource<User?>>
+    fun createUserProfile(user: User): Flow<Resource<Boolean>>
+    fun saveUserProfile(user: User): Flow<Resource<Boolean>>
+    fun updateUserFcmToken(uid: String, token: String): Flow<Resource<Boolean>>
+}

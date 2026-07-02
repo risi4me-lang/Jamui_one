@@ -1,0 +1,4 @@
+<resources>
+
+    <style name="Theme.JamuiOne" parent="Theme.MaterialComponents.Light" />
+</resources>
