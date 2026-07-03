@@ -7,6 +7,7 @@ import com.example.jamuione.util.Resource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -46,7 +47,8 @@ class NoticeRepositoryImpl @Inject constructor(
         }
 
         query = query.orderBy("expiryDate", Query.Direction.ASCENDING)
-        query = query.orderBy("createdAt", Query.Direction.DESCENDING)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(30)
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -73,13 +75,16 @@ class NoticeRepositoryImpl @Inject constructor(
             val finalNotice = notice.copy(id = noticeId, createdAt = System.currentTimeMillis())
             
             Log.d("FIRESTORE_DEBUG", "createNotice: writing to firestore, id=$noticeId")
-            withTimeout(10000L) {
+            withTimeout(20000L) {
                 firestore.collection("notices").document(noticeId)
                     .set(finalNotice)
                     .await()
             }
             Log.d("NOTICE_DEBUG", "createNotice: success")
             emit(Resource.Success(true))
+        } catch (e: TimeoutCancellationException) {
+            Log.w("NOTICE_DEBUG", "createNotice timed out, likely syncing in background")
+            emit(Resource.Error("Posting notice is taking longer than usual — it'll finish syncing in the background."))
         } catch (e: Exception) {
             Log.e("NOTICE_DEBUG", "createNotice: failed", e)
             emit(Resource.Error(e.message ?: "Failed to create notice"))

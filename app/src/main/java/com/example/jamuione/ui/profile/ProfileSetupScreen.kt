@@ -7,7 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -109,9 +108,11 @@ fun ProfileSetupScreen(
 
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = { if (it.length <= 50) name = it },
                 label = { Text("Full Name") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                supportingText = { Text("${name.length}/50") },
+                isError = name.length > 50
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -158,15 +159,19 @@ fun ProfileSetupScreen(
 
             OutlinedTextField(
                 value = locality,
-                onValueChange = { locality = it },
+                onValueChange = { if (it.length <= 100) locality = it },
                 label = { Text("Locality (Ward/Mohalla/Village)") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                supportingText = { Text("${locality.length}/100") },
+                isError = locality.length > 100
             )
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = { 
-                    Log.d("AUTH_DEBUG", "Save Profile button clicked")
+                    if (BuildConfig.DEBUG) {
+                        Log.d("AUTH_DEBUG", "Save Profile button clicked")
+                    }
                     viewModel.saveProfile(name, state, district, locality) 
                 },
                 modifier = Modifier.fillMaxWidth(),

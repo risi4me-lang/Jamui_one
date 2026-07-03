@@ -12,6 +12,7 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -45,7 +46,7 @@ class PostRepositoryImpl @Inject constructor(
             query = query.whereEqualTo("state", state)
         }
         
-        query = query.orderBy("timestamp", Query.Direction.DESCENDING)
+        query = query.orderBy("timestamp", Query.Direction.DESCENDING).limit(20)
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -96,13 +97,16 @@ class PostRepositoryImpl @Inject constructor(
             )
 
             Log.d("FIRESTORE_DEBUG", "createPost: writing to firestore, id=$postId")
-            withTimeout(15000L) {
+            withTimeout(20000L) {
                 firestore.collection("posts").document(postId)
                     .set(finalPost)
                     .await()
             }
             Log.d("POST_DEBUG", "createPost: success")
             emit(Resource.Success(true))
+        } catch (e: TimeoutCancellationException) {
+            Log.w("POST_DEBUG", "createPost timed out, likely syncing in background")
+            emit(Resource.Error("Posting is taking longer than usual — it'll finish syncing in the background."))
         } catch (e: Exception) {
             Log.e("POST_DEBUG", "createPost: failed", e)
             emit(Resource.Error(e.message ?: "Failed to create post"))

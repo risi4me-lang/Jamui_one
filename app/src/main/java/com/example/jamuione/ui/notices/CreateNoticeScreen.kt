@@ -25,17 +25,22 @@ fun CreateNoticeScreen(
     var daysToExpiry by remember { mutableStateOf(7) } // Default 1 week
     
     val createResult by viewModel.createNoticeResult.collectAsState()
-    var expanded by remember { mutableStateOf(false) }
+    var categoryExpanded by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(createResult) {
         if (createResult is Resource.Success && createResult.data == true) {
             Log.d("NOTICE_DEBUG", "CreateNotice success in UI, navigating back")
+            snackbarHostState.showSnackbar("Notice posted successfully!")
             viewModel.resetCreateNoticeResult()
             onBack()
+        } else if (createResult is Resource.Error) {
+            snackbarHostState.showSnackbar(createResult.message ?: "Failed to post notice")
         }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Post a Notice") },
@@ -56,25 +61,15 @@ fun CreateNoticeScreen(
         ) {
             OutlinedTextField(
                 value = title,
-                onValueChange = { title = it },
+                onValueChange = { if (it.length <= 100) title = it },
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                supportingText = { Text("${title.length}/100") },
+                isError = title.length > 100
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !it }, // Correcting toggle logic
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // To fix the dropdown not opening, I'll use a standard toggle
-            }
-            
-            // Actually let's use a simpler implementation if ExposedDropdownMenuBox is tricky
-            
-            var categoryExpanded by remember { mutableStateOf(false) }
-            
             ExposedDropdownMenuBox(
                 expanded = categoryExpanded,
                 onExpandedChange = { categoryExpanded = !categoryExpanded },
@@ -111,19 +106,22 @@ fun CreateNoticeScreen(
 
             OutlinedTextField(
                 value = description,
-                onValueChange = { description = it },
+                onValueChange = { if (it.length <= 2000) description = it },
                 label = { Text("Description") },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 4
+                minLines = 4,
+                supportingText = { Text("${description.length}/2000") },
+                isError = description.length > 2000
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = contactNumber,
-                onValueChange = { contactNumber = it },
-                label = { Text("Contact Number") },
+                onValueChange = { if (it.length <= 15) contactNumber = it },
+                label = { Text("Contact Number (Optional)") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                supportingText = { Text("${contactNumber.length}/15") }
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -149,14 +147,6 @@ fun CreateNoticeScreen(
                 } else {
                     Text("Post Notice")
                 }
-            }
-
-            if (createResult is Resource.Error) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = createResult.message ?: "Error posting notice",
-                    color = MaterialTheme.colorScheme.error
-                )
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.example.jamuione.ui.feed
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -29,6 +30,7 @@ fun CreatePostScreen(
     var content by remember { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     val createResult by viewModel.createPostResult.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -38,12 +40,17 @@ fun CreatePostScreen(
 
     LaunchedEffect(createResult) {
         if (createResult is Resource.Success && createResult.data == true) {
+            Log.d("POST_DEBUG", "CreatePost success in UI, navigating back")
+            snackbarHostState.showSnackbar("Post created successfully!")
             viewModel.resetCreatePostResult()
             onBack()
+        } else if (createResult is Resource.Error) {
+            snackbarHostState.showSnackbar(createResult.message ?: "Failed to create post")
         }
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Create Post") },
@@ -76,11 +83,13 @@ fun CreatePostScreen(
         ) {
             OutlinedTextField(
                 value = content,
-                onValueChange = { content = it },
+                onValueChange = { if (it.length <= 1000) content = it },
                 placeholder = { Text("What's happening in your locality?") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 150.dp)
+                    .heightIn(min = 150.dp),
+                supportingText = { Text("${content.length}/1000") },
+                isError = content.length > 1000
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -111,11 +120,6 @@ fun CreatePostScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Add Image")
                 }
-            }
-
-            if (createResult is Resource.Error) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = createResult.message ?: "Error creating post", color = MaterialTheme.colorScheme.error)
             }
         }
     }

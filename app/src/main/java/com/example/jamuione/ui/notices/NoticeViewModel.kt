@@ -12,10 +12,7 @@ import com.example.jamuione.ui.feed.FeedScope
 import com.example.jamuione.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -53,41 +50,42 @@ class NoticeViewModel @Inject constructor(
     )
 
     init {
-        fetchUserProfile()
-        observeUserProfile()
-        loadNotices()
-        subscribeToLocationTopics()
+        fetchAndObserveUserProfile()
     }
 
-    private fun fetchUserProfile() {
-        val uid = authRepository.getCurrentUser()?.uid ?: return
-        viewModelScope.launch {
-            userRepository.getUserProfile(uid).collectLatest {
-                _userProfile.value = it
-            }
+    private fun fetchAndObserveUserProfile() {
+        val uid = authRepository.getCurrentUser()?.uid
+        if (uid == null) {
+            _userProfile.value = Resource.Success(null)
+            loadNotices() // Load guest notices
+            return
         }
-    }
 
-    private fun observeUserProfile() {
         viewModelScope.launch {
-            _userProfile.collectLatest { resource ->
+            userRepository.getUserProfile(uid).collectLatest { resource ->
+                _userProfile.value = resource
                 if (resource is Resource.Success) {
+                    val profileUpdated = currentUser?.uid != resource.data?.uid || 
+                                       currentUser?.locality != resource.data?.locality ||
+                                       currentUser?.district != resource.data?.district
+                    
                     currentUser = resource.data
+                    
+                    if (profileUpdated) {
+                        loadNotices()
+                        subscribeToLocationTopics()
+                    }
                 }
             }
         }
     }
 
     private fun subscribeToLocationTopics() {
+        val user = currentUser ?: return
         viewModelScope.launch {
-            val uid = authRepository.getCurrentUser()?.uid ?: return@launch
-            val userResource = userRepository.getUserProfile(uid).first { it !is Resource.Loading }
-            if (userResource is Resource.Success) {
-                val user = userResource.data ?: return@launch
-                val districtTopic = "notices_${user.district.lowercase().replace(" ", "_")}"
-                Log.d("NOTICE_DEBUG", "Subscribing to topic: $districtTopic")
-                noticeRepository.subscribeToTopic(districtTopic).collectLatest { }
-            }
+            val districtTopic = "notices_${user.district.lowercase().replace(" ", "_")}"
+            Log.d("NOTICE_DEBUG", "Subscribing to topic: $districtTopic")
+            noticeRepository.subscribeToTopic(districtTopic).collectLatest { }
         }
     }
 
@@ -108,30 +106,23 @@ class NoticeViewModel @Inject constructor(
     fun loadNotices() {
         noticesJob?.cancel()
         noticesJob = viewModelScope.launch {
-            val uid = authRepository.getCurrentUser()?.uid
-            if (uid == null) {
+            val user = currentUser
+            val category = _selectedCategory.value
+            
+            if (isGuest) {
                 Log.d("FIRESTORE_DEBUG", "loadNotices: guest mode")
-                val category = _selectedCategory.value
                 noticeRepository.getNotices(category).collectLatest {
                     _notices.value = it
                 }
-                return@launch
-            }
-
-            Log.d("FIRESTORE_DEBUG", "loadNotices: user mode, uid=$uid")
-            val userResource = userRepository.getUserProfile(uid).first { it !is Resource.Loading }
-            if (userResource is Resource.Success) {
-                currentUser = userResource.data
-                currentUser?.let { user ->
-                    val category = _selectedCategory.value
-                    Log.d("FIRESTORE_DEBUG", "loadNotices: user=${user.name}, scope=${_currentScope.value}, category=$category")
-                    when (_currentScope.value) {
-                        FeedScope.LOCALITY -> noticeRepository.getNotices(category, locality = user.locality)
-                        FeedScope.DISTRICT -> noticeRepository.getNotices(category, district = user.district)
-                        FeedScope.STATE -> noticeRepository.getNotices(category, state = user.state)
-                    }.collectLatest {
-                        _notices.value = it
-                    }
+            } else if (user != null) {
+                Log.d("FIRESTORE_DEBUG", "loadNotices: user mode, uid=${user.uid}")
+                Log.d("FIRESTORE_DEBUG", "loadNotices: user=${user.name}, scope=${_currentScope.value}, category=$category")
+                when (_currentScope.value) {
+                    FeedScope.LOCALITY -> noticeRepository.getNotices(category, locality = user.locality)
+                    FeedScope.DISTRICT -> noticeRepository.getNotices(category, district = user.district)
+                    FeedScope.STATE -> noticeRepository.getNotices(category, state = user.state)
+                }.collectLatest {
+                    _notices.value = it
                 }
             }
         }

@@ -12,10 +12,7 @@ import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -53,25 +50,31 @@ class FeedViewModel @Inject constructor(
 
     init {
         observeCachedPosts()
-        fetchUserProfile()
-        observeUserProfile()
-        loadPosts()
+        fetchAndObserveUserProfile()
     }
 
-    private fun fetchUserProfile() {
-        val uid = authRepository.getCurrentUser()?.uid ?: return
-        viewModelScope.launch {
-            userRepository.getUserProfile(uid).collectLatest {
-                _userProfile.value = it
-            }
+    private fun fetchAndObserveUserProfile() {
+        val uid = authRepository.getCurrentUser()?.uid
+        if (uid == null) {
+            _userProfile.value = Resource.Success(null)
+            loadPosts() // Load guest feed
+            return
         }
-    }
 
-    private fun observeUserProfile() {
         viewModelScope.launch {
-            _userProfile.collectLatest { resource ->
+            userRepository.getUserProfile(uid).collectLatest { resource ->
+                _userProfile.value = resource
                 if (resource is Resource.Success) {
+                    val profileUpdated = currentUser?.uid != resource.data?.uid || 
+                                       currentUser?.locality != resource.data?.locality ||
+                                       currentUser?.district != resource.data?.district
+                    
                     currentUser = resource.data
+                    
+                    // Reload posts if profile data changed (locality/district) or first load
+                    if (profileUpdated) {
+                        loadPosts()
+                    }
                 }
             }
         }
@@ -87,28 +90,21 @@ class FeedViewModel @Inject constructor(
     fun loadPosts() {
         postsJob?.cancel()
         postsJob = viewModelScope.launch {
-            val uid = authRepository.getCurrentUser()?.uid
-            if (uid == null) {
+            val user = currentUser
+            if (isGuest) {
                 Log.d("FIRESTORE_DEBUG", "loadPosts: guest mode")
                 postRepository.getPosts().collectLatest {
                     _posts.value = it
                 }
-                return@launch
-            }
-
-            Log.d("FIRESTORE_DEBUG", "loadPosts: user mode, uid=$uid")
-            val userResource = userRepository.getUserProfile(uid).first { it !is Resource.Loading }
-            if (userResource is Resource.Success) {
-                currentUser = userResource.data
-                currentUser?.let { user ->
-                    Log.d("FIRESTORE_DEBUG", "loadPosts: user=${user.name}, scope=${_currentScope.value}")
-                    when (_currentScope.value) {
-                        FeedScope.LOCALITY -> postRepository.getPosts(locality = user.locality)
-                        FeedScope.DISTRICT -> postRepository.getPosts(district = user.district)
-                        FeedScope.STATE -> postRepository.getPosts(state = user.state)
-                    }.collectLatest {
-                        _posts.value = it
-                    }
+            } else if (user != null) {
+                Log.d("FIRESTORE_DEBUG", "loadPosts: user mode, uid=${user.uid}")
+                Log.d("FIRESTORE_DEBUG", "loadPosts: user=${user.name}, scope=${_currentScope.value}")
+                when (_currentScope.value) {
+                    FeedScope.LOCALITY -> postRepository.getPosts(locality = user.locality)
+                    FeedScope.DISTRICT -> postRepository.getPosts(district = user.district)
+                    FeedScope.STATE -> postRepository.getPosts(state = user.state)
+                }.collectLatest {
+                    _posts.value = it
                 }
             }
         }
