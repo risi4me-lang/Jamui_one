@@ -3,7 +3,9 @@ package com.example.jamuione.data.repository
 import android.content.Context
 import android.util.Log
 import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import com.example.jamuione.BuildConfig
 import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.util.Resource
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
@@ -40,21 +42,38 @@ class AuthRepositoryImpl @Inject constructor(
         try {
             val result = credentialManager.getCredential(context, request)
             val credential = result.credential
-            Log.d("AUTH_TRACE", "Google credential received: ${credential::class.java.simpleName}")
+            Log.d("AUTH_TRACE", "Credential received: ${credential::class.java.simpleName}")
             
-            if (credential is GoogleIdTokenCredential) {
-                val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
-                val authResult = auth.signInWithCredential(firebaseCredential).await()
-                authResult.user?.let {
-                    Log.d("AUTH_TRACE", "Firebase Google signup success, UID: ${it.uid}")
-                    emit(Resource.Success(it))
-                } ?: run {
-                    Log.e("AUTH_TRACE", "Firebase Google signup failed: user is null")
-                    emit(Resource.Error("User not found after sign-in"))
+            when {
+                credential is GoogleIdTokenCredential -> {
+                    val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
+                    val authResult = auth.signInWithCredential(firebaseCredential).await()
+                    authResult.user?.let {
+                        Log.d("AUTH_TRACE", "Firebase Google signup success, UID: ${it.uid}")
+                        emit(Resource.Success(it))
+                    } ?: run {
+                        Log.e("AUTH_TRACE", "Firebase Google signup failed: user is null")
+                        emit(Resource.Error("User not found after sign-in"))
+                    }
                 }
-            } else {
-                Log.e("AUTH_TRACE", "Unexpected credential type: ${credential::class.java.name}")
-                emit(Resource.Error("Unexpected credential type: ${credential::class.java.simpleName}"))
+                credential is CustomCredential && 
+                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL -> {
+                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                    Log.d("AUTH_TRACE", "Google credential parsed from CustomCredential")
+
+                    val firebaseCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
+                    val authResult = auth.signInWithCredential(firebaseCredential).await()
+                    authResult.user?.let {
+                        Log.d("AUTH_TRACE", "Firebase Google signup success, UID: ${it.uid}")
+                        emit(Resource.Success(it))
+                    } ?: run {
+                        emit(Resource.Error("User not found after sign-in"))
+                    }
+                }
+                else -> {
+                    Log.e("AUTH_TRACE", "Unexpected credential type: ${credential::class.java.name}")
+                    emit(Resource.Error("Unexpected credential type: ${credential::class.java.simpleName}"))
+                }
             }
         } catch (e: Exception) {
             Log.e("AUTH_TRACE", "Firebase Google signup failed", e)
@@ -64,7 +83,9 @@ class AuthRepositoryImpl @Inject constructor(
 
     override fun signInWithEmail(email: String, password: String): Flow<Resource<FirebaseUser>> = flow {
         emit(Resource.Loading())
-        Log.d("AUTH_TRACE", "Firebase login started for: $email")
+        if (BuildConfig.DEBUG) {
+            Log.d("AUTH_TRACE", "Firebase login started for: $email")
+        }
         try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
             result.user?.let {
@@ -82,7 +103,9 @@ class AuthRepositoryImpl @Inject constructor(
 
     override fun signUpWithEmail(email: String, password: String): Flow<Resource<FirebaseUser>> = flow {
         emit(Resource.Loading())
-        Log.d("AUTH_TRACE", "Firebase signup started for: $email")
+        if (BuildConfig.DEBUG) {
+            Log.d("AUTH_TRACE", "Firebase signup started for: $email")
+        }
         try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             result.user?.let {

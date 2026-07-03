@@ -1,6 +1,7 @@
 package com.example.jamuione.ui.feed
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.jamuione.domain.model.Post
@@ -53,6 +54,7 @@ class FeedViewModel @Inject constructor(
     init {
         observeCachedPosts()
         fetchUserProfile()
+        observeUserProfile()
         loadPosts()
     }
 
@@ -61,6 +63,16 @@ class FeedViewModel @Inject constructor(
         viewModelScope.launch {
             userRepository.getUserProfile(uid).collectLatest {
                 _userProfile.value = it
+            }
+        }
+    }
+
+    private fun observeUserProfile() {
+        viewModelScope.launch {
+            _userProfile.collectLatest { resource ->
+                if (resource is Resource.Success) {
+                    currentUser = resource.data
+                }
             }
         }
     }
@@ -77,17 +89,19 @@ class FeedViewModel @Inject constructor(
         postsJob = viewModelScope.launch {
             val uid = authRepository.getCurrentUser()?.uid
             if (uid == null) {
-                // Guest mode: fetch global feed
+                Log.d("FIRESTORE_DEBUG", "loadPosts: guest mode")
                 postRepository.getPosts().collectLatest {
                     _posts.value = it
                 }
                 return@launch
             }
 
-            val userResource = userRepository.getUserProfile(uid).first()
+            Log.d("FIRESTORE_DEBUG", "loadPosts: user mode, uid=$uid")
+            val userResource = userRepository.getUserProfile(uid).first { it !is Resource.Loading }
             if (userResource is Resource.Success) {
                 currentUser = userResource.data
                 currentUser?.let { user ->
+                    Log.d("FIRESTORE_DEBUG", "loadPosts: user=${user.name}, scope=${_currentScope.value}")
                     when (_currentScope.value) {
                         FeedScope.LOCALITY -> postRepository.getPosts(locality = user.locality)
                         FeedScope.DISTRICT -> postRepository.getPosts(district = user.district)
@@ -109,7 +123,14 @@ class FeedViewModel @Inject constructor(
     }
 
     fun createPost(content: String, imageUri: Uri?) {
-        val user = currentUser ?: return
+        Log.d("POST_DEBUG", "createPost button clicked in ViewModel")
+        val user = currentUser
+        if (user == null) {
+            Log.e("POST_DEBUG", "createPost failed: currentUser is null")
+            _createPostResult.value = Resource.Error("User profile not loaded. Please try again.")
+            return
+        }
+        
         val post = Post(
             userId = user.uid,
             userName = user.name,
@@ -121,6 +142,7 @@ class FeedViewModel @Inject constructor(
         )
         viewModelScope.launch {
             postRepository.createPost(post, imageUri).collectLatest {
+                Log.d("POST_DEBUG", "createPost result in ViewModel: $it")
                 _createPostResult.value = it
             }
         }

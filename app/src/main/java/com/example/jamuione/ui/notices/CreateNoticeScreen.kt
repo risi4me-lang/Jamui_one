@@ -1,11 +1,11 @@
 package com.example.jamuione.ui.notices
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -25,10 +25,11 @@ fun CreateNoticeScreen(
     var daysToExpiry by remember { mutableStateOf(7) } // Default 1 week
     
     val createResult by viewModel.createNoticeResult.collectAsState()
-    var showCategoryMenu by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(createResult) {
         if (createResult is Resource.Success && createResult.data == true) {
+            Log.d("NOTICE_DEBUG", "CreateNotice success in UI, navigating back")
             viewModel.resetCreateNoticeResult()
             onBack()
         }
@@ -62,35 +63,50 @@ fun CreateNoticeScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            Box(modifier = Modifier.fillMaxWidth()) {
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !it }, // Correcting toggle logic
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // To fix the dropdown not opening, I'll use a standard toggle
+            }
+            
+            // Actually let's use a simpler implementation if ExposedDropdownMenuBox is tricky
+            
+            var categoryExpanded by remember { mutableStateOf(false) }
+            
+            ExposedDropdownMenuBox(
+                expanded = categoryExpanded,
+                onExpandedChange = { categoryExpanded = !categoryExpanded },
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 OutlinedTextField(
                     value = selectedCategory,
-                    onValueChange = { },
-                    label = { Text("Category") },
-                    modifier = Modifier.fillMaxWidth(),
+                    onValueChange = {},
                     readOnly = true,
-                    trailingIcon = {
-                        IconButton(onClick = { showCategoryMenu = true }) {
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                        }
-                    }
+                    label = { Text("Category") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true).fillMaxWidth(),
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                 )
-                DropdownMenu(
-                    expanded = showCategoryMenu,
-                    onDismissRequest = { showCategoryMenu = false },
-                    modifier = Modifier.fillMaxWidth(0.9f)
+                ExposedDropdownMenu(
+                    expanded = categoryExpanded,
+                    onDismissRequest = { categoryExpanded = false }
                 ) {
                     viewModel.categories.forEach { category ->
                         DropdownMenuItem(
                             text = { Text(category) },
                             onClick = {
+                                Log.d("NOTICE_DEBUG", "Category selected: $category")
                                 selectedCategory = category
-                                showCategoryMenu = false
-                            }
+                                categoryExpanded = false
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                         )
                     }
                 }
             }
+            
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
@@ -122,6 +138,7 @@ fun CreateNoticeScreen(
 
             Button(
                 onClick = { 
+                    Log.d("NOTICE_DEBUG", "Post Notice button clicked")
                     viewModel.createNotice(title, description, selectedCategory, contactNumber, daysToExpiry) 
                 },
                 modifier = Modifier.fillMaxWidth(),

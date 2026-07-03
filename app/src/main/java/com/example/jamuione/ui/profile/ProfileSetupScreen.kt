@@ -1,6 +1,7 @@
 package com.example.jamuione.ui.profile
 
 import android.util.Log
+import com.example.jamuione.BuildConfig
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -57,7 +58,10 @@ fun ProfileSetupScreen(
 
     LaunchedEffect(profileSavedState) {
         if (profileSavedState is Resource.Success && profileSavedState.data == true) {
-            Log.d("PROFILE_DEBUG", "Navigation triggered")
+            if (BuildConfig.DEBUG) {
+                Log.d("AUTH_DEBUG", "Navigation triggered")
+            }
+            snackbarHostState.showSnackbar("Profile saved!")
             onProfileSaved()
         } else if (profileSavedState is Resource.Error) {
             snackbarHostState.showSnackbar(profileSavedState.message ?: "Failed to save profile")
@@ -131,7 +135,7 @@ fun ProfileSetupScreen(
                     readOnly = true,
                     label = { Text("District") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true).fillMaxWidth(),
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                 )
                 ExposedDropdownMenu(

@@ -1,10 +1,13 @@
 package com.example.jamuione.ui.auth
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
@@ -32,6 +35,7 @@ fun LoginScreen(
     val userProfile by viewModel.userProfile.collectAsState()
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -39,11 +43,14 @@ fun LoginScreen(
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Authenticated) {
+            snackbarHostState.showSnackbar("Welcome back!")
             onAuthSuccess()
         }
     }
 
-    Scaffold { innerPadding ->
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -103,6 +110,16 @@ fun LoginScreen(
                 singleLine = true
             )
 
+            AnimatedVisibility(visible = isSignUp) {
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    Text("Password Requirements:", style = MaterialTheme.typography.labelSmall)
+                    RequirementItem("Minimum 8 characters", password.length >= 8)
+                    RequirementItem("Uppercase & Lowercase", password.any { it.isUpperCase() } && password.any { it.isLowerCase() })
+                    RequirementItem("Numeric character", password.any { it.isDigit() })
+                    RequirementItem("Special character", password.any { !it.isLetterOrDigit() })
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Login/Sign Up Button
@@ -115,7 +132,7 @@ fun LoginScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled = authState !is AuthState.Loading && email.isNotBlank() && password.length >= 6
+                enabled = authState !is AuthState.Loading && email.isNotBlank() && password.isNotBlank()
             ) {
                 if (authState is AuthState.Loading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
@@ -124,7 +141,7 @@ fun LoginScreen(
                 }
             }
 
-            TextButton(onClick = { isSignUp = !isSignUp }) {
+            TextButton(onClick = { isSignUp = !isSignUp; viewModel.resetAuthState() }) {
                 Text(if (isSignUp) "Already have an account? Login" else "Don't have an account? Sign Up")
             }
 
@@ -160,5 +177,19 @@ fun LoginScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun RequirementItem(text: String, isMet: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = if (isMet) Icons.Default.Check else Icons.Default.Close,
+            contentDescription = null,
+            modifier = Modifier.size(12.dp),
+            tint = if (isMet) Color.Green else Color.Red
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = text, style = MaterialTheme.typography.labelSmall, color = if (isMet) Color.Green else Color.Red)
     }
 }

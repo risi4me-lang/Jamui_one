@@ -2,6 +2,7 @@ package com.example.jamuione.ui.auth
 
 import android.content.Context
 import android.util.Log
+import com.example.jamuione.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.jamuione.domain.model.User
@@ -59,12 +60,25 @@ class AuthViewModel @Inject constructor(
     }
 
     fun signUpEmail(email: String, password: String) {
+        if (!isPasswordValid(password)) {
+            _authState.value = AuthState.Error("Password must be at least 8 characters, include uppercase, lowercase, number, and special character.")
+            return
+        }
         viewModelScope.launch {
             Log.d("AUTH_TRACE", "Signup button clicked (Email)")
             authRepository.signUpWithEmail(email, password).collectLatest { resource ->
                 handleAuthResource(resource, "Email Sign-Up")
             }
         }
+    }
+
+    fun isPasswordValid(password: String): Boolean {
+        if (password.length < 8) return false
+        if (!password.any { it.isUpperCase() }) return false
+        if (!password.any { it.isLowerCase() }) return false
+        if (!password.any { it.isDigit() }) return false
+        if (!password.any { !it.isLetterOrDigit() }) return false
+        return true
     }
 
     private suspend fun handleAuthResource(resource: Resource<FirebaseUser>, method: String) {
@@ -75,7 +89,9 @@ class AuthViewModel @Inject constructor(
             }
             is Resource.Success -> {
                 val firebaseUser = resource.data!!
-                Log.d("AUTH_TRACE", "$method: Firebase Auth success, UID: ${firebaseUser.uid}")
+                if (BuildConfig.DEBUG) {
+                    Log.d("AUTH_TRACE", "$method: Firebase Auth success, UID: ${firebaseUser.uid}")
+                }
                 
                 // First, check if user profile exists to avoid overwriting or unnecessary writes
                 Log.d("AUTH_TRACE", "$method: Checking if user profile exists in Firestore")
@@ -100,7 +116,7 @@ class AuthViewModel @Inject constructor(
                         when (createResult) {
                             is Resource.Loading -> Log.d("AUTH_TRACE", "$method: Firestore write started")
                             is Resource.Success -> {
-                                Log.d("AUTH_TRACE", "$method: Firestore write success")
+                                Log.d("AUTH_TRACE", "$method: Firestore Success, Repository emitted Success")
                                 Log.d("AUTH_TRACE", "$method: ViewModel received Success, transitioning to Authenticated")
                                 _authState.value = AuthState.Authenticated
                                 fetchUserProfile()
@@ -128,7 +144,9 @@ class AuthViewModel @Inject constructor(
     fun fetchUserProfile() {
         val firebaseUser = authRepository.getCurrentUser()
         if (firebaseUser != null) {
-            Log.d("AUTH_TRACE", "Fetching user profile for UID: ${firebaseUser.uid}")
+            if (BuildConfig.DEBUG) {
+                Log.d("AUTH_TRACE", "Fetching user profile for UID: ${firebaseUser.uid}")
+            }
             viewModelScope.launch {
                 userRepository.getUserProfile(firebaseUser.uid).collectLatest {
                     Log.d("AUTH_TRACE", "User profile emission received: $it")
@@ -147,7 +165,9 @@ class AuthViewModel @Inject constructor(
             Log.e("AUTH_TRACE", "No current user during saveProfile")
             return
         }
-        Log.d("AUTH_TRACE", "Saving profile for UID: ${firebaseUser.uid}")
+        if (BuildConfig.DEBUG) {
+            Log.d("AUTH_TRACE", "Saving profile for UID: ${firebaseUser.uid}")
+        }
         val user = User(
             uid = firebaseUser.uid,
             name = name,

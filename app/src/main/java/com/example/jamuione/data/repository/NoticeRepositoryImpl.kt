@@ -1,5 +1,6 @@
 package com.example.jamuione.data.repository
 
+import android.util.Log
 import com.example.jamuione.domain.model.Notice
 import com.example.jamuione.domain.repository.NoticeRepository
 import com.example.jamuione.util.Resource
@@ -9,7 +10,9 @@ import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import java.util.UUID
 import javax.inject.Inject
 
@@ -25,6 +28,7 @@ class NoticeRepositoryImpl @Inject constructor(
         state: String?
     ): Flow<Resource<List<Notice>>> = callbackFlow {
         trySend(Resource.Loading())
+        Log.d("FIRESTORE_DEBUG", "getNotices: category=$category, locality=$locality, district=$district, state=$state")
 
         var query: Query = firestore.collection("notices")
             .whereGreaterThan("expiryDate", System.currentTimeMillis())
@@ -46,12 +50,14 @@ class NoticeRepositoryImpl @Inject constructor(
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
+                Log.e("FIRESTORE_DEBUG", "getNotices: failed", error)
                 trySend(Resource.Error(error.message ?: "Failed to fetch notices"))
                 return@addSnapshotListener
             }
 
             if (snapshot != null) {
                 val notices = snapshot.toObjects(Notice::class.java)
+                Log.d("FIRESTORE_DEBUG", "getNotices: success, count=${notices.size}")
                 trySend(Resource.Success(notices))
             }
         }
@@ -59,31 +65,37 @@ class NoticeRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    override fun createNotice(notice: Notice): Flow<Resource<Boolean>> = callbackFlow {
-        trySend(Resource.Loading())
+    override fun createNotice(notice: Notice): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        Log.d("NOTICE_DEBUG", "createNotice: started")
         try {
             val noticeId = UUID.randomUUID().toString()
             val finalNotice = notice.copy(id = noticeId, createdAt = System.currentTimeMillis())
-            firestore.collection("notices").document(noticeId)
-                .set(finalNotice)
-                .await()
-            trySend(Resource.Success(true))
+            
+            Log.d("FIRESTORE_DEBUG", "createNotice: writing to firestore, id=$noticeId")
+            withTimeout(10000L) {
+                firestore.collection("notices").document(noticeId)
+                    .set(finalNotice)
+                    .await()
+            }
+            Log.d("NOTICE_DEBUG", "createNotice: success")
+            emit(Resource.Success(true))
         } catch (e: Exception) {
-            trySend(Resource.Error(e.message ?: "Failed to create notice"))
+            Log.e("NOTICE_DEBUG", "createNotice: failed", e)
+            emit(Resource.Error(e.message ?: "Failed to create notice"))
         }
-        awaitClose {}
     }
 
-    override fun subscribeToTopic(topic: String): Flow<Resource<Unit>> = callbackFlow {
-        trySend(Resource.Loading())
-        fcm.subscribeToTopic(topic)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    trySend(Resource.Success(Unit))
-                } else {
-                    trySend(Resource.Error(task.exception?.message ?: "Topic subscription failed"))
-                }
-            }
-        awaitClose {}
+    override fun subscribeToTopic(topic: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        Log.d("NOTICE_DEBUG", "subscribeToTopic: $topic")
+        try {
+            fcm.subscribeToTopic(topic).await()
+            Log.d("NOTICE_DEBUG", "subscribeToTopic: success")
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            Log.e("NOTICE_DEBUG", "subscribeToTopic: failed", e)
+            emit(Resource.Error(e.message ?: "Topic subscription failed"))
+        }
     }
 }

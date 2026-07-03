@@ -1,6 +1,7 @@
 package com.example.jamuione.data.repository
 
 import android.util.Log
+import com.example.jamuione.BuildConfig
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
@@ -19,7 +21,9 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun getUserProfile(uid: String): Flow<Resource<User?>> = callbackFlow {
         trySend(Resource.Loading())
-        Log.d("AUTH_TRACE", "Fetching Firestore user: $uid")
+        if (BuildConfig.DEBUG) {
+            Log.d("AUTH_TRACE", "Fetching Firestore user: $uid")
+        }
         val docRef = firestore.collection("users").document(uid)
         val listener = docRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -41,16 +45,21 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun createUserProfile(user: User): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
-        Log.d("AUTH_TRACE", "Creating Firestore user: ${user.uid}")
+        if (BuildConfig.DEBUG) {
+            Log.d("AUTH_TRACE", "Creating Firestore user: ${user.uid}")
+        }
         try {
             Log.d("AUTH_TRACE", "Firestore write started")
-            withTimeout(10000L) {
+            withTimeout(15000L) {
                 firestore.collection("users").document(user.uid)
                     .set(user)
                     .await()
             }
             Log.d("AUTH_TRACE", "Firestore write success")
             emit(Resource.Success(true))
+        } catch (e: TimeoutCancellationException) {
+            Log.w("AUTH_TRACE", "Firestore write timed out, likely syncing in background")
+            emit(Resource.Error("Taking longer than usual — it'll finish syncing in the background."))
         } catch (e: Exception) {
             Log.e("AUTH_TRACE", "Firestore write failed", e)
             emit(Resource.Error(e.message ?: "Failed to create profile"))
@@ -59,15 +68,20 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun saveUserProfile(user: User): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
-        Log.d("AUTH_TRACE", "Firestore profile save started for UID: ${user.uid}")
+        if (BuildConfig.DEBUG) {
+            Log.d("AUTH_TRACE", "Firestore profile save started for UID: ${user.uid}")
+        }
         try {
-            withTimeout(10000L) {
+            withTimeout(15000L) {
                 firestore.collection("users").document(user.uid)
                     .set(user)
                     .await()
             }
             Log.d("AUTH_TRACE", "Firestore profile save success")
             emit(Resource.Success(true))
+        } catch (e: TimeoutCancellationException) {
+            Log.w("AUTH_TRACE", "Firestore profile save timed out, likely syncing in background")
+            emit(Resource.Error("Taking longer than usual — it'll finish syncing in the background."))
         } catch (e: Exception) {
             Log.e("AUTH_TRACE", "Firestore profile save failed", e)
             emit(Resource.Error(e.message ?: "Failed to save profile"))

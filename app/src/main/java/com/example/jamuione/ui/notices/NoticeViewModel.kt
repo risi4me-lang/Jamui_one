@@ -1,5 +1,6 @@
 package com.example.jamuione.ui.notices
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.jamuione.domain.model.Notice
@@ -53,6 +54,7 @@ class NoticeViewModel @Inject constructor(
 
     init {
         fetchUserProfile()
+        observeUserProfile()
         loadNotices()
         subscribeToLocationTopics()
     }
@@ -66,13 +68,24 @@ class NoticeViewModel @Inject constructor(
         }
     }
 
+    private fun observeUserProfile() {
+        viewModelScope.launch {
+            _userProfile.collectLatest { resource ->
+                if (resource is Resource.Success) {
+                    currentUser = resource.data
+                }
+            }
+        }
+    }
+
     private fun subscribeToLocationTopics() {
         viewModelScope.launch {
             val uid = authRepository.getCurrentUser()?.uid ?: return@launch
-            val userResource = userRepository.getUserProfile(uid).first()
+            val userResource = userRepository.getUserProfile(uid).first { it !is Resource.Loading }
             if (userResource is Resource.Success) {
                 val user = userResource.data ?: return@launch
                 val districtTopic = "notices_${user.district.lowercase().replace(" ", "_")}"
+                Log.d("NOTICE_DEBUG", "Subscribing to topic: $districtTopic")
                 noticeRepository.subscribeToTopic(districtTopic).collectLatest { }
             }
         }
@@ -97,7 +110,7 @@ class NoticeViewModel @Inject constructor(
         noticesJob = viewModelScope.launch {
             val uid = authRepository.getCurrentUser()?.uid
             if (uid == null) {
-                // Guest mode: fetch global notices
+                Log.d("FIRESTORE_DEBUG", "loadNotices: guest mode")
                 val category = _selectedCategory.value
                 noticeRepository.getNotices(category).collectLatest {
                     _notices.value = it
@@ -105,11 +118,13 @@ class NoticeViewModel @Inject constructor(
                 return@launch
             }
 
-            val userResource = userRepository.getUserProfile(uid).first()
+            Log.d("FIRESTORE_DEBUG", "loadNotices: user mode, uid=$uid")
+            val userResource = userRepository.getUserProfile(uid).first { it !is Resource.Loading }
             if (userResource is Resource.Success) {
                 currentUser = userResource.data
                 currentUser?.let { user ->
                     val category = _selectedCategory.value
+                    Log.d("FIRESTORE_DEBUG", "loadNotices: user=${user.name}, scope=${_currentScope.value}, category=$category")
                     when (_currentScope.value) {
                         FeedScope.LOCALITY -> noticeRepository.getNotices(category, locality = user.locality)
                         FeedScope.DISTRICT -> noticeRepository.getNotices(category, district = user.district)
@@ -123,7 +138,14 @@ class NoticeViewModel @Inject constructor(
     }
 
     fun createNotice(title: String, description: String, category: String, contact: String, daysToExpiry: Int) {
-        val user = currentUser ?: return
+        Log.d("NOTICE_DEBUG", "createNotice button clicked in ViewModel")
+        val user = currentUser
+        if (user == null) {
+            Log.e("NOTICE_DEBUG", "createNotice failed: currentUser is null")
+            _createNoticeResult.value = Resource.Error("User profile not loaded. Please try again.")
+            return
+        }
+        
         val expiryDate = System.currentTimeMillis() + (daysToExpiry * 24 * 60 * 60 * 1000L)
         val notice = Notice(
             userId = user.uid,
@@ -140,6 +162,7 @@ class NoticeViewModel @Inject constructor(
         )
         viewModelScope.launch {
             noticeRepository.createNotice(notice).collectLatest {
+                Log.d("NOTICE_DEBUG", "createNotice result in ViewModel: $it")
                 _createNoticeResult.value = it
             }
         }

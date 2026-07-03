@@ -1,6 +1,7 @@
 package com.example.jamuione.data.repository
 
 import android.net.Uri
+import android.util.Log
 import com.example.jamuione.data.local.dao.PostDao
 import com.example.jamuione.data.local.entity.PostEntity
 import com.example.jamuione.domain.model.Post
@@ -14,9 +15,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import java.util.UUID
 import javax.inject.Inject
 
@@ -30,6 +33,7 @@ class PostRepositoryImpl @Inject constructor(
 
     override fun getPosts(locality: String?, district: String?, state: String?): Flow<Resource<List<Post>>> = callbackFlow {
         trySend(Resource.Loading())
+        Log.d("FIRESTORE_DEBUG", "getPosts: locality=$locality, district=$district, state=$state")
         
         var query: Query = firestore.collection("posts")
         
@@ -45,12 +49,14 @@ class PostRepositoryImpl @Inject constructor(
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
+                Log.e("FIRESTORE_DEBUG", "getPosts: failed", error)
                 trySend(Resource.Error(error.message ?: "Failed to fetch posts"))
                 return@addSnapshotListener
             }
 
             if (snapshot != null) {
                 val posts = snapshot.toObjects(Post::class.java)
+                Log.d("FIRESTORE_DEBUG", "getPosts: success, count=${posts.size}")
                 
                 if (locality != null) {
                     repositoryScope.launch {
@@ -67,16 +73,19 @@ class PostRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    override fun createPost(post: Post, imageUri: Uri?): Flow<Resource<Boolean>> = callbackFlow {
-        trySend(Resource.Loading())
+    override fun createPost(post: Post, imageUri: Uri?): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        Log.d("POST_DEBUG", "createPost: started")
         
         try {
             var imageUrl: String? = null
             if (imageUri != null) {
+                Log.d("POST_DEBUG", "createPost: uploading image")
                 val fileName = UUID.randomUUID().toString()
                 val ref = storage.reference.child("post_images/$fileName")
                 ref.putFile(imageUri).await()
                 imageUrl = ref.downloadUrl.await().toString()
+                Log.d("POST_DEBUG", "createPost: image uploaded, url=$imageUrl")
             }
 
             val postId = UUID.randomUUID().toString()
@@ -86,16 +95,18 @@ class PostRepositoryImpl @Inject constructor(
                 timestamp = System.currentTimeMillis()
             )
 
-            firestore.collection("posts").document(postId)
-                .set(finalPost)
-                .await()
-
-            trySend(Resource.Success(true))
+            Log.d("FIRESTORE_DEBUG", "createPost: writing to firestore, id=$postId")
+            withTimeout(15000L) {
+                firestore.collection("posts").document(postId)
+                    .set(finalPost)
+                    .await()
+            }
+            Log.d("POST_DEBUG", "createPost: success")
+            emit(Resource.Success(true))
         } catch (e: Exception) {
-            trySend(Resource.Error(e.message ?: "Failed to create post"))
+            Log.e("POST_DEBUG", "createPost: failed", e)
+            emit(Resource.Error(e.message ?: "Failed to create post"))
         }
-        
-        awaitClose {}
     }
 
     override fun getCachedPosts(): Flow<List<Post>> {
