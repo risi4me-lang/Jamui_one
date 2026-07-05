@@ -88,7 +88,14 @@ fun CreatePostScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 150.dp),
-                supportingText = { Text("${content.length}/1000") },
+                supportingText = {
+                    Text(
+                        text = "${content.length}/1000",
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                },
                 isError = content.length > 1000
             )
 

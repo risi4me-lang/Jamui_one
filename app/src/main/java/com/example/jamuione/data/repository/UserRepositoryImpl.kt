@@ -6,13 +6,13 @@ import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.TimeoutCancellationException
 import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
@@ -50,7 +50,7 @@ class UserRepositoryImpl @Inject constructor(
         }
         try {
             Log.d("AUTH_TRACE", "Firestore write started")
-            withTimeout(15000L) {
+            withTimeout(20000L) {
                 firestore.collection("users").document(user.uid)
                     .set(user)
                     .await()
@@ -72,7 +72,7 @@ class UserRepositoryImpl @Inject constructor(
             Log.d("AUTH_TRACE", "Firestore profile save started for UID: ${user.uid}")
         }
         try {
-            withTimeout(15000L) {
+            withTimeout(20000L) {
                 firestore.collection("users").document(user.uid)
                     .set(user)
                     .await()

@@ -65,7 +65,13 @@ fun CreateNoticeScreen(
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                supportingText = { Text("${title.length}/100") },
+                supportingText = {
+                    Text(
+                        text = "${title.length}/100",
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                    )
+                },
                 isError = title.length > 100
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -110,7 +116,13 @@ fun CreateNoticeScreen(
                 label = { Text("Description") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 4,
-                supportingText = { Text("${description.length}/2000") },
+                supportingText = {
+                    Text(
+                        text = "${description.length}/2000",
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                    )
+                },
                 isError = description.length > 2000
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -136,11 +148,16 @@ fun CreateNoticeScreen(
 
             Button(
                 onClick = { 
-                    Log.d("NOTICE_DEBUG", "Post Notice button clicked")
-                    viewModel.createNotice(title, description, selectedCategory, contactNumber, daysToExpiry) 
+                    if (contactNumber.isNotBlank() && !contactNumber.all { it.isDigit() || it == '+' || it == ' ' }) {
+                        // Basic validation failed
+                    } else {
+                        Log.d("NOTICE_DEBUG", "Post Notice button clicked")
+                        viewModel.createNotice(title, description, selectedCategory, contactNumber, daysToExpiry)
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = title.isNotBlank() && description.isNotBlank() && createResult !is Resource.Loading
+                enabled = title.isNotBlank() && description.isNotBlank() && createResult !is Resource.Loading &&
+                    (contactNumber.isBlank() || contactNumber.all { it.isDigit() || it == '+' || it == ' ' })
             ) {
                 if (createResult is Resource.Loading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))

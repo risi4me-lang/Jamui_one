@@ -93,6 +93,12 @@ fun FeedScreen(
                             color = MaterialTheme.colorScheme.secondary
                         )
                     }
+                } else if (postsResource is Resource.Error) {
+                    Text(
+                        text = postsResource.message ?: "Failed to load posts",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp).align(Alignment.Center)
+                    )
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(displayPosts) { post ->

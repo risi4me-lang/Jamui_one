@@ -51,6 +51,13 @@ class NoticeViewModel @Inject constructor(
 
     init {
         fetchAndObserveUserProfile()
+        cleanupExpiredNotices()
+    }
+
+    private fun cleanupExpiredNotices() {
+        viewModelScope.launch {
+            noticeRepository.deleteExpiredNotices().collectLatest { }
+        }
     }
 
     private fun fetchAndObserveUserProfile() {
@@ -161,5 +168,11 @@ class NoticeViewModel @Inject constructor(
 
     fun resetCreateNoticeResult() {
         _createNoticeResult.value = Resource.Idle()
+    }
+
+    fun deleteNotice(noticeId: String) {
+        viewModelScope.launch {
+            noticeRepository.deleteNotice(noticeId).collectLatest { }
+        }
     }
 }

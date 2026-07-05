@@ -113,4 +113,32 @@ class NoticeRepositoryImpl @Inject constructor(
             emit(Resource.Error(e.message ?: "Topic subscription failed"))
         }
     }
+
+    override fun deleteNotice(noticeId: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            firestore.collection("notices").document(noticeId).delete().await()
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to delete notice"))
+        }
+    }
+
+    override fun deleteExpiredNotices(): Flow<Resource<Int>> = flow {
+        emit(Resource.Loading())
+        try {
+            val snapshot = firestore.collection("notices")
+                .whereLessThan("expiryDate", System.currentTimeMillis())
+                .get()
+                .await()
+            
+            val batch = firestore.batch()
+            snapshot.documents.forEach { batch.delete(it.reference) }
+            batch.commit().await()
+            
+            emit(Resource.Success(snapshot.size()))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to clear expired notices"))
+        }
+    }
 }

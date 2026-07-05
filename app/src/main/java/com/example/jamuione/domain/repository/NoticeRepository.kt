@@ -14,4 +14,6 @@ interface NoticeRepository {
     
     fun createNotice(notice: Notice): Flow<Resource<Boolean>>
     fun subscribeToTopic(topic: String): Flow<Resource<Unit>>
+    fun deleteNotice(noticeId: String): Flow<Resource<Boolean>>
+    fun deleteExpiredNotices(): Flow<Resource<Int>>
 }

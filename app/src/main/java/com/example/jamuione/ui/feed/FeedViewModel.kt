@@ -147,4 +147,12 @@ class FeedViewModel @Inject constructor(
     fun resetCreatePostResult() {
         _createPostResult.value = Resource.Idle()
     }
+
+    fun deletePost(postId: String) {
+        viewModelScope.launch {
+            postRepository.deletePost(postId).collectLatest {
+                // Could observe deletion state if needed
+            }
+        }
+    }
 }

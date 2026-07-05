@@ -126,6 +126,16 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun deletePost(postId: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            firestore.collection("posts").document(postId).delete().await()
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to delete post"))
+        }
+    }
+
     private fun Post.toEntity() = PostEntity(
         id = id,
         authorId = userId,

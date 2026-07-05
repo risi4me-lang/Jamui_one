@@ -9,4 +9,5 @@ interface PostRepository {
     fun getPosts(locality: String? = null, district: String? = null, state: String? = null): Flow<Resource<List<Post>>>
     fun createPost(post: Post, imageUri: Uri?): Flow<Resource<Boolean>>
     fun getCachedPosts(): Flow<List<Post>>
+    fun deletePost(postId: String): Flow<Resource<Boolean>>
 }
