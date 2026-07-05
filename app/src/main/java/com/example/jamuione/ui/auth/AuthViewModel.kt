@@ -105,8 +105,8 @@ class AuthViewModel @Inject constructor(
                     Log.d("AUTH_TRACE", "$method: No existing profile, creating new one")
                     val user = User(
                         uid = firebaseUser.uid,
-                        name = firebaseUser.displayName ?: "",
-                        email = firebaseUser.email ?: "",
+                        name = (firebaseUser.displayName ?: "").trim(),
+                        email = (firebaseUser.email ?: "").trim(),
                         profileImage = firebaseUser.photoUrl?.toString(),
                         createdAt = System.currentTimeMillis(),
                         updatedAt = System.currentTimeMillis()
@@ -170,11 +170,11 @@ class AuthViewModel @Inject constructor(
         }
         val user = User(
             uid = firebaseUser.uid,
-            name = name,
-            email = firebaseUser.email ?: "",
-            state = state,
-            district = district,
-            locality = locality,
+            name = name.trim(),
+            email = (firebaseUser.email ?: "").trim(),
+            state = state.trim(),
+            district = district.trim(),
+            locality = locality.trim(),
             profileImage = firebaseUser.photoUrl?.toString(),
             profileCompleted = true,
             updatedAt = System.currentTimeMillis()

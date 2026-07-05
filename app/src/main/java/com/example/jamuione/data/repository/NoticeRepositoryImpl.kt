@@ -29,7 +29,11 @@ class NoticeRepositoryImpl @Inject constructor(
         state: String?
     ): Flow<Resource<List<Notice>>> = callbackFlow {
         trySend(Resource.Loading())
-        Log.d("FIRESTORE_DEBUG", "getNotices: category=$category, locality=$locality, district=$district, state=$state")
+        val trimmedLocality = locality?.trim()
+        val trimmedDistrict = district?.trim()
+        val trimmedState = state?.trim()
+        
+        Log.d("FIRESTORE_DEBUG", "getNotices: category=$category, locality=$trimmedLocality, district=$trimmedDistrict, state=$trimmedState")
 
         var query: Query = firestore.collection("notices")
             .whereGreaterThan("expiryDate", System.currentTimeMillis())
@@ -38,12 +42,12 @@ class NoticeRepositoryImpl @Inject constructor(
             query = query.whereEqualTo("category", category)
         }
 
-        if (locality != null) {
-            query = query.whereEqualTo("locality", locality)
-        } else if (district != null) {
-            query = query.whereEqualTo("district", district)
-        } else if (state != null) {
-            query = query.whereEqualTo("state", state)
+        if (trimmedLocality != null) {
+            query = query.whereEqualTo("locality", trimmedLocality)
+        } else if (trimmedDistrict != null) {
+            query = query.whereEqualTo("district", trimmedDistrict)
+        } else if (trimmedState != null) {
+            query = query.whereEqualTo("state", trimmedState)
         }
 
         query = query.orderBy("expiryDate", Query.Direction.ASCENDING)
@@ -72,7 +76,13 @@ class NoticeRepositoryImpl @Inject constructor(
         Log.d("NOTICE_DEBUG", "createNotice: started")
         try {
             val noticeId = UUID.randomUUID().toString()
-            val finalNotice = notice.copy(id = noticeId, createdAt = System.currentTimeMillis())
+            val finalNotice = notice.copy(
+                id = noticeId, 
+                locality = notice.locality.trim(),
+                district = notice.district.trim(),
+                state = notice.state.trim(),
+                createdAt = System.currentTimeMillis()
+            )
             
             Log.d("FIRESTORE_DEBUG", "createNotice: writing to firestore, id=$noticeId")
             withTimeout(20000L) {

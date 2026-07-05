@@ -34,16 +34,20 @@ class PostRepositoryImpl @Inject constructor(
 
     override fun getPosts(locality: String?, district: String?, state: String?): Flow<Resource<List<Post>>> = callbackFlow {
         trySend(Resource.Loading())
-        Log.d("FIRESTORE_DEBUG", "getPosts: locality=$locality, district=$district, state=$state")
+        val trimmedLocality = locality?.trim()
+        val trimmedDistrict = district?.trim()
+        val trimmedState = state?.trim()
+        
+        Log.d("FIRESTORE_DEBUG", "getPosts: locality=$trimmedLocality, district=$trimmedDistrict, state=$trimmedState")
         
         var query: Query = firestore.collection("posts")
         
-        if (locality != null) {
-            query = query.whereEqualTo("locality", locality)
-        } else if (district != null) {
-            query = query.whereEqualTo("district", district)
-        } else if (state != null) {
-            query = query.whereEqualTo("state", state)
+        if (trimmedLocality != null) {
+            query = query.whereEqualTo("locality", trimmedLocality)
+        } else if (trimmedDistrict != null) {
+            query = query.whereEqualTo("district", trimmedDistrict)
+        } else if (trimmedState != null) {
+            query = query.whereEqualTo("state", trimmedState)
         }
         
         query = query.orderBy("timestamp", Query.Direction.DESCENDING).limit(20)
@@ -93,6 +97,9 @@ class PostRepositoryImpl @Inject constructor(
             val finalPost = post.copy(
                 id = postId,
                 imageUrl = imageUrl,
+                locality = post.locality.trim(),
+                district = post.district.trim(),
+                state = post.state.trim(),
                 timestamp = System.currentTimeMillis()
             )
 
