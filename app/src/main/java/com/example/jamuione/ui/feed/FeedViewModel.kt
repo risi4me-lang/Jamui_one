@@ -10,10 +10,12 @@ import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.domain.repository.PostRepository
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 enum class FeedScope {
@@ -36,6 +38,9 @@ class FeedViewModel @Inject constructor(
     private val _createPostResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val createPostResult: StateFlow<Resource<Boolean>> = _createPostResult
 
+    private val _deletePostResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
+    val deletePostResult: StateFlow<Resource<Boolean>> = _deletePostResult
+
     private val _currentScope = MutableStateFlow(FeedScope.LOCALITY)
     val currentScope: StateFlow<FeedScope> = _currentScope
 
@@ -49,8 +54,11 @@ class FeedViewModel @Inject constructor(
     private var postsJob: Job? = null
 
     init {
-        observeCachedPosts()
-        fetchAndObserveUserProfile()
+        viewModelScope.launch {
+            FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()
+            observeCachedPosts()
+            fetchAndObserveUserProfile()
+        }
     }
 
     private fun fetchAndObserveUserProfile() {
@@ -151,8 +159,12 @@ class FeedViewModel @Inject constructor(
     fun deletePost(postId: String) {
         viewModelScope.launch {
             postRepository.deletePost(postId).collectLatest {
-                // Could observe deletion state if needed
+                _deletePostResult.value = it
             }
         }
+    }
+
+    fun resetDeletePostResult() {
+        _deletePostResult.value = Resource.Idle()
     }
 }

@@ -107,6 +107,9 @@ class AuthViewModel @Inject constructor(
                         uid = firebaseUser.uid,
                         name = (firebaseUser.displayName ?: "").trim(),
                         email = (firebaseUser.email ?: "").trim(),
+                        state = "bihar", // Default state normalized
+                        district = "jamui", // Default district normalized
+                        locality = "unknown", // Placeholder normalized
                         profileImage = firebaseUser.photoUrl?.toString(),
                         createdAt = System.currentTimeMillis(),
                         updatedAt = System.currentTimeMillis()
@@ -172,9 +175,9 @@ class AuthViewModel @Inject constructor(
             uid = firebaseUser.uid,
             name = name.trim(),
             email = (firebaseUser.email ?: "").trim(),
-            state = state.trim(),
-            district = district.trim(),
-            locality = locality.trim(),
+            state = state.trim().lowercase(),
+            district = district.trim().lowercase(),
+            locality = locality.trim().lowercase(),
             profileImage = firebaseUser.photoUrl?.toString(),
             profileCompleted = true,
             updatedAt = System.currentTimeMillis()

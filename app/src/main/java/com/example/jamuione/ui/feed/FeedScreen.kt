@@ -12,10 +12,9 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -39,9 +38,23 @@ fun FeedScreen(
     val cachedPosts by viewModel.cachedPosts.collectAsState()
     val currentScope by viewModel.currentScope.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val deleteResult by viewModel.deletePostResult.collectAsState()
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(deleteResult) {
+        if (deleteResult is Resource.Success && deleteResult.data == true) {
+            snackbarHostState.showSnackbar("Post deleted")
+            viewModel.resetDeletePostResult()
+        } else if (deleteResult is Resource.Error) {
+            snackbarHostState.showSnackbar(deleteResult.message ?: "Failed to delete post")
+            viewModel.resetDeletePostResult()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(communityName) },
@@ -102,7 +115,13 @@ fun FeedScreen(
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(displayPosts) { post ->
-                            PostItem(post = post)
+                            PostItem(
+                                post = post,
+                                currentUserId = userProfile.data?.uid,
+                                onDeleteClick = { 
+                                    viewModel.deletePost(post.id)
+                                }
+                            )
                         }
                     }
                 }
@@ -148,7 +167,35 @@ fun ScopeSelector(
 }
 
 @Composable
-fun PostItem(post: Post) {
+fun PostItem(
+    post: Post,
+    currentUserId: String? = null,
+    onDeleteClick: () -> Unit = {}
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Post") },
+            text = { Text("Are you sure you want to delete this post?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDeleteClick()
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -184,14 +231,36 @@ fun PostItem(post: Post) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = post.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    val displayLocality = post.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
                     Text(
-                        text = "${post.locality} • ${formatTimestamp(post.timestamp)}",
+                        text = "$displayLocality • ${formatTimestamp(post.timestamp)}",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.secondary
                     )
                 }
-                IconButton(onClick = { /* Report/Options */ }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Options")
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Options")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        if (post.userId == currentUserId) {
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteDialog = true
+                                }
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("Report") },
+                                onClick = { showMenu = false }
+                            )
+                        }
+                    }
                 }
             }
 

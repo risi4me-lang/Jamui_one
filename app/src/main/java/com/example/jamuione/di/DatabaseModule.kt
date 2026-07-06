@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.example.jamuione.data.local.AppDatabase
 import com.example.jamuione.data.local.dao.PostDao
+import com.example.jamuione.data.local.dao.UserDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,5 +29,10 @@ object DatabaseModule {
     @Provides
     fun providePostDao(database: AppDatabase): PostDao {
         return database.postDao()
+    }
+
+    @Provides
+    fun provideUserDao(database: AppDatabase): UserDao {
+        return database.userDao()
     }
 }

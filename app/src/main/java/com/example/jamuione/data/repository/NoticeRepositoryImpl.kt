@@ -29,9 +29,9 @@ class NoticeRepositoryImpl @Inject constructor(
         state: String?
     ): Flow<Resource<List<Notice>>> = callbackFlow {
         trySend(Resource.Loading())
-        val trimmedLocality = locality?.trim()
-        val trimmedDistrict = district?.trim()
-        val trimmedState = state?.trim()
+        val trimmedLocality = locality?.trim()?.lowercase()
+        val trimmedDistrict = district?.trim()?.lowercase()
+        val trimmedState = state?.trim()?.lowercase()
         
         Log.d("FIRESTORE_DEBUG", "getNotices: category=$category, locality=$trimmedLocality, district=$trimmedDistrict, state=$trimmedState")
 
@@ -78,9 +78,9 @@ class NoticeRepositoryImpl @Inject constructor(
             val noticeId = UUID.randomUUID().toString()
             val finalNotice = notice.copy(
                 id = noticeId, 
-                locality = notice.locality.trim(),
-                district = notice.district.trim(),
-                state = notice.state.trim(),
+                locality = notice.locality.trim().lowercase(),
+                district = notice.district.trim().lowercase(),
+                state = notice.state.trim().lowercase(),
                 createdAt = System.currentTimeMillis()
             )
             

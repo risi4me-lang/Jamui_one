@@ -9,8 +9,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.jamuione.util.NetworkUtils
 import com.example.jamuione.util.Resource
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -146,9 +149,15 @@ fun CreateNoticeScreen(
             )
             Spacer(modifier = Modifier.height(32.dp))
 
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
             Button(
                 onClick = { 
-                    if (contactNumber.isNotBlank() && !contactNumber.all { it.isDigit() || it == '+' || it == ' ' }) {
+                    if (!NetworkUtils.isNetworkAvailable(context)) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("You're offline. Please check your connection and try again.")
+                        }
+                    } else if (contactNumber.isNotBlank() && !contactNumber.all { it.isDigit() || it == '+' || it == ' ' }) {
                         // Basic validation failed
                     } else {
                         Log.d("NOTICE_DEBUG", "Post Notice button clicked")

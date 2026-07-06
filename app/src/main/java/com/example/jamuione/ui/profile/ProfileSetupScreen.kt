@@ -11,12 +11,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.jamuione.ui.auth.AuthViewModel
 import com.example.jamuione.util.BrandingUtil
+import com.example.jamuione.util.NetworkUtils
 import com.example.jamuione.util.Resource
+import kotlinx.coroutines.launch
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,8 +53,19 @@ fun ProfileSetupScreen(
     LaunchedEffect(userProfileState) {
         if (userProfileState is Resource.Success) {
             val user = (userProfileState as Resource.Success).data
-            if (user != null && name.isEmpty()) {
-                name = user.name
+            if (user != null) {
+                if (name.isEmpty()) {
+                    name = user.name
+                }
+                if (locality.isEmpty() && user.locality.isNotEmpty()) {
+                    locality = user.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                }
+                if (user.district.isNotEmpty()) {
+                    val formattedDistrict = user.district.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                    if (districts.contains(formattedDistrict)) {
+                        district = formattedDistrict
+                    }
+                }
             }
         }
     }
@@ -91,8 +106,9 @@ fun ProfileSetupScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            val displayCommunityName = communityName.split(" ").joinToString(" ") { it.replaceFirstChar { char -> if (char.isLowerCase()) char.titlecase(Locale.getDefault()) else char.toString() } }
             Text(
-                text = "Welcome to $communityName!",
+                text = "Welcome to $displayCommunityName!",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.Start)
@@ -167,12 +183,20 @@ fun ProfileSetupScreen(
             )
             Spacer(modifier = Modifier.height(32.dp))
 
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
             Button(
                 onClick = { 
-                    if (BuildConfig.DEBUG) {
-                        Log.d("AUTH_DEBUG", "Save Profile button clicked")
+                    if (NetworkUtils.isNetworkAvailable(context)) {
+                        if (BuildConfig.DEBUG) {
+                            Log.d("AUTH_DEBUG", "Save Profile button clicked")
+                        }
+                        viewModel.saveProfile(name, state, district, locality)
+                    } else {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("You're offline. Please check your connection and try again.")
+                        }
                     }
-                    viewModel.saveProfile(name, state, district, locality) 
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = name.isNotBlank() && locality.isNotBlank() && profileSavedState !is Resource.Loading

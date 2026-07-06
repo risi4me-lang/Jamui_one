@@ -9,11 +9,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -39,9 +39,23 @@ fun NoticeBoardScreen(
     val currentScope by viewModel.currentScope.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val deleteResult by viewModel.deleteNoticeResult.collectAsState()
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(deleteResult) {
+        if (deleteResult is Resource.Success && deleteResult.data == true) {
+            snackbarHostState.showSnackbar("Notice deleted")
+            viewModel.resetDeleteNoticeResult()
+        } else if (deleteResult is Resource.Error) {
+            snackbarHostState.showSnackbar(deleteResult.message ?: "Failed to delete notice")
+            viewModel.resetDeleteNoticeResult()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(communityName) },
@@ -98,7 +112,13 @@ fun NoticeBoardScreen(
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(notices) { notice ->
-                                NoticeItem(notice = notice)
+                                NoticeItem(
+                                    notice = notice,
+                                    currentUserId = userProfile.data?.uid,
+                                    onDeleteClick = {
+                                        viewModel.deleteNotice(notice.id)
+                                    }
+                                )
                             }
                         }
                     }
@@ -145,7 +165,36 @@ fun CategorySelector(
 }
 
 @Composable
-fun NoticeItem(notice: Notice) {
+fun NoticeItem(
+    notice: Notice,
+    currentUserId: String? = null,
+    onDeleteClick: () -> Unit = {}
+) {
+    val displayCategory = notice.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Notice") },
+            text = { Text("Are you sure you want to delete this notice?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDeleteClick()
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -155,14 +204,45 @@ fun NoticeItem(notice: Notice) {
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Badge { Text(notice.category) }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Expires: ${formatDate(notice.expiryDate)}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.error
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Badge { Text(displayCategory) }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Expires: ${formatDate(notice.expiryDate)}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Options")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        if (notice.userId == currentUserId) {
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteDialog = true
+                                }
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("Report") },
+                                onClick = { showMenu = false }
+                            )
+                        }
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(

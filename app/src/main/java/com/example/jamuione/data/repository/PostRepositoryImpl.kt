@@ -34,9 +34,9 @@ class PostRepositoryImpl @Inject constructor(
 
     override fun getPosts(locality: String?, district: String?, state: String?): Flow<Resource<List<Post>>> = callbackFlow {
         trySend(Resource.Loading())
-        val trimmedLocality = locality?.trim()
-        val trimmedDistrict = district?.trim()
-        val trimmedState = state?.trim()
+        val trimmedLocality = locality?.trim()?.lowercase()
+        val trimmedDistrict = district?.trim()?.lowercase()
+        val trimmedState = state?.trim()?.lowercase()
         
         Log.d("FIRESTORE_DEBUG", "getPosts: locality=$trimmedLocality, district=$trimmedDistrict, state=$trimmedState")
         
@@ -97,9 +97,9 @@ class PostRepositoryImpl @Inject constructor(
             val finalPost = post.copy(
                 id = postId,
                 imageUrl = imageUrl,
-                locality = post.locality.trim(),
-                district = post.district.trim(),
-                state = post.state.trim(),
+                locality = post.locality.trim().lowercase(),
+                district = post.district.trim().lowercase(),
+                state = post.state.trim().lowercase(),
                 timestamp = System.currentTimeMillis()
             )
 

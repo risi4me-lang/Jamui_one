@@ -2,22 +2,31 @@ package com.example.jamuione.data.repository
 
 import android.util.Log
 import com.example.jamuione.BuildConfig
+import com.example.jamuione.data.local.dao.UserDao
+import com.example.jamuione.data.local.entity.UserEntity
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val userDao: UserDao
 ) : UserRepository {
+
+    private val repositoryScope = CoroutineScope(Dispatchers.IO)
 
     override fun getUserProfile(uid: String): Flow<Resource<User?>> = callbackFlow {
         trySend(Resource.Loading())
@@ -34,6 +43,13 @@ class UserRepositoryImpl @Inject constructor(
             if (snapshot != null && snapshot.exists()) {
                 val user = snapshot.toObject(User::class.java)
                 Log.d("AUTH_TRACE", "Firestore fetch success: profileCompleted=${user?.profileCompleted}")
+                
+                user?.let {
+                    repositoryScope.launch {
+                        userDao.upsertUser(it.toEntity())
+                    }
+                }
+                
                 trySend(Resource.Success(user))
             } else {
                 Log.d("AUTH_TRACE", "Firestore fetch success: document not found")
@@ -56,6 +72,9 @@ class UserRepositoryImpl @Inject constructor(
                     .await()
             }
             Log.d("AUTH_TRACE", "Firestore write success")
+            
+            userDao.upsertUser(user.toEntity())
+            
             emit(Resource.Success(true))
         } catch (e: TimeoutCancellationException) {
             Log.w("AUTH_TRACE", "Firestore write timed out, likely syncing in background")
@@ -78,6 +97,9 @@ class UserRepositoryImpl @Inject constructor(
                     .await()
             }
             Log.d("AUTH_TRACE", "Firestore profile save success")
+            
+            userDao.upsertUser(user.toEntity())
+            
             emit(Resource.Success(true))
         } catch (e: TimeoutCancellationException) {
             Log.w("AUTH_TRACE", "Firestore profile save timed out, likely syncing in background")
@@ -99,4 +121,30 @@ class UserRepositoryImpl @Inject constructor(
             emit(Resource.Error(e.message ?: "Failed to update FCM token"))
         }
     }
+
+    override fun getCachedUser(uid: String): Flow<User?> {
+        return userDao.getUser(uid).map { it?.toDomain() }
+    }
+
+    private fun User.toEntity() = UserEntity(
+        uid = uid,
+        name = name,
+        email = email,
+        state = state,
+        district = district,
+        locality = locality,
+        profileImage = profileImage,
+        profileCompleted = profileCompleted
+    )
+
+    private fun UserEntity.toDomain() = User(
+        uid = uid,
+        name = name,
+        email = email,
+        state = state,
+        district = district,
+        locality = locality,
+        profileImage = profileImage,
+        profileCompleted = profileCompleted
+    )
 }

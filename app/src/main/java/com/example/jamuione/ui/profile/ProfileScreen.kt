@@ -18,6 +18,7 @@ import coil.compose.AsyncImage
 import com.example.jamuione.ui.auth.AuthViewModel
 import com.example.jamuione.util.BrandingUtil
 import com.example.jamuione.util.Resource
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,14 +114,18 @@ fun ProfileScreen(
                             
                             Spacer(modifier = Modifier.height(8.dp))
                             
+                            val displayLocality = user.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                            val displayDistrict = user.district.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                            val displayState = user.state.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                            
                             Text(
-                                text = "${user.locality}, ${user.district}",
+                                text = "$displayLocality, $displayDistrict",
                                 fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.secondary
                             )
                             
                             Text(
-                                text = user.state,
+                                text = displayState,
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.secondary
                             )

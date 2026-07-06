@@ -10,10 +10,12 @@ import com.example.jamuione.domain.repository.NoticeRepository
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.ui.feed.FeedScope
 import com.example.jamuione.util.Resource
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,6 +30,9 @@ class NoticeViewModel @Inject constructor(
 
     private val _createNoticeResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val createNoticeResult: StateFlow<Resource<Boolean>> = _createNoticeResult
+
+    private val _deleteNoticeResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
+    val deleteNoticeResult: StateFlow<Resource<Boolean>> = _deleteNoticeResult
 
     private val _currentScope = MutableStateFlow(FeedScope.LOCALITY)
     val currentScope: StateFlow<FeedScope> = _currentScope
@@ -50,8 +55,11 @@ class NoticeViewModel @Inject constructor(
     )
 
     init {
-        fetchAndObserveUserProfile()
-        cleanupExpiredNotices()
+        viewModelScope.launch {
+            FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()
+            fetchAndObserveUserProfile()
+            cleanupExpiredNotices()
+        }
     }
 
     private fun cleanupExpiredNotices() {
@@ -172,7 +180,13 @@ class NoticeViewModel @Inject constructor(
 
     fun deleteNotice(noticeId: String) {
         viewModelScope.launch {
-            noticeRepository.deleteNotice(noticeId).collectLatest { }
+            noticeRepository.deleteNotice(noticeId).collectLatest {
+                _deleteNoticeResult.value = it
+            }
         }
+    }
+
+    fun resetDeleteNoticeResult() {
+        _deleteNoticeResult.value = Resource.Idle()
     }
 }

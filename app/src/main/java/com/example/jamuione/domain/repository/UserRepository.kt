@@ -9,4 +9,5 @@ interface UserRepository {
     fun createUserProfile(user: User): Flow<Resource<Boolean>>
     fun saveUserProfile(user: User): Flow<Resource<Boolean>>
     fun updateUserFcmToken(uid: String, token: String): Flow<Resource<Boolean>>
+    fun getCachedUser(uid: String): Flow<User?>
 }

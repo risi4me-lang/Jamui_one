@@ -15,10 +15,13 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.jamuione.util.NetworkUtils
 import com.example.jamuione.util.Resource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,8 +63,18 @@ fun CreatePostScreen(
                     }
                 },
                 actions = {
+                    val context = LocalContext.current
+                    val scope = rememberCoroutineScope()
                     TextButton(
-                        onClick = { viewModel.createPost(content, selectedImageUri) },
+                        onClick = { 
+                            if (NetworkUtils.isNetworkAvailable(context)) {
+                                viewModel.createPost(content, selectedImageUri)
+                            } else {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("You're offline. Please check your connection and try again.")
+                                }
+                            }
+                        },
                         enabled = content.isNotBlank() && createResult !is Resource.Loading
                     ) {
                         if (createResult is Resource.Loading) {
