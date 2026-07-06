@@ -1,5 +1,6 @@
 package com.example.jamuione.ui.feed
 
+import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,6 +37,8 @@ fun PostCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -166,7 +170,16 @@ fun PostCard(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(text = "${post.commentsCount}", fontSize = 12.sp)
                 }
-                IconButton(onClick = { /* Share */ }, modifier = Modifier.size(24.dp)) {
+                IconButton(
+                    onClick = {
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, "${post.content}\n\nShared from Jamui One")
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share post"))
+                    },
+                    modifier = Modifier.size(24.dp)
+                ) {
                     Icon(Icons.Default.Share, contentDescription = "Share")
                 }
             }
