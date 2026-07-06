@@ -24,12 +24,13 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.example.jamuione.ui.auth.AuthViewModel
 import com.example.jamuione.ui.auth.LoginScreen
-import com.example.jamuione.ui.auth.AuthState
 import com.example.jamuione.ui.profile.ProfileSetupScreen
 import com.example.jamuione.ui.profile.ProfileScreen
 import com.example.jamuione.ui.feed.FeedScreen
 import com.example.jamuione.ui.feed.FeedViewModel
 import com.example.jamuione.ui.feed.CreatePostScreen
+import com.example.jamuione.ui.feed.PostDetailScreen
+import com.example.jamuione.ui.feed.PostDetailViewModel
 import com.example.jamuione.ui.notices.NoticeBoardScreen
 import com.example.jamuione.ui.notices.NoticeViewModel
 import com.example.jamuione.ui.notices.CreateNoticeScreen
@@ -55,6 +56,8 @@ sealed interface Destination : NavKey {
     data object CreateNotice : Destination
     @Serializable
     data object Profile : Destination
+    @Serializable
+    data class PostDetail(val postId: String) : Destination
 }
 
 @Composable
@@ -104,11 +107,15 @@ fun JamuiOneNavigation() {
             val feedViewModel: FeedViewModel = viewModel()
             AdaptiveScaffoldWrapper(
                 currentDestination = Destination.MainFeed,
-                onNavigate = { backStack.clear(); backStack.add(it) }
+                onNavigate = { 
+                    backStack.clear()
+                    backStack.add(it) 
+                }
             ) {
                 FeedScreen(
                     viewModel = feedViewModel,
-                    onCreatePostClick = { backStack.add(Destination.CreatePost) }
+                    onCreatePostClick = { backStack.add(Destination.CreatePost) },
+                    onNavigateToDetail = { postId -> backStack.add(Destination.PostDetail(postId)) }
                 )
             }
         }
@@ -116,7 +123,10 @@ fun JamuiOneNavigation() {
             val noticeViewModel: NoticeViewModel = viewModel()
             AdaptiveScaffoldWrapper(
                 currentDestination = Destination.NoticeBoard,
-                onNavigate = { backStack.clear(); backStack.add(it) }
+                onNavigate = { 
+                    backStack.clear()
+                    backStack.add(it) 
+                }
             ) {
                 NoticeBoardScreen(
                     viewModel = noticeViewModel,
@@ -128,7 +138,10 @@ fun JamuiOneNavigation() {
             val authViewModel: AuthViewModel = viewModel()
             AdaptiveScaffoldWrapper(
                 currentDestination = Destination.Profile,
-                onNavigate = { backStack.clear(); backStack.add(it) }
+                onNavigate = { 
+                    backStack.clear()
+                    backStack.add(it) 
+                }
             ) {
                 ProfileScreen(
                     viewModel = authViewModel,
@@ -151,6 +164,16 @@ fun JamuiOneNavigation() {
             val noticeViewModel: NoticeViewModel = viewModel()
             CreateNoticeScreen(
                 viewModel = noticeViewModel,
+                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+            )
+        }
+        entry<Destination.PostDetail> { key ->
+            val postDetailViewModel: PostDetailViewModel = viewModel()
+            val feedViewModel: FeedViewModel = viewModel()
+            PostDetailScreen(
+                postId = key.postId,
+                viewModel = postDetailViewModel,
+                feedViewModel = feedViewModel,
                 onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
             )
         }

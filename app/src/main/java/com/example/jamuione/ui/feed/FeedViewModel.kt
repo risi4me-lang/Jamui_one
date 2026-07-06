@@ -32,6 +32,9 @@ class FeedViewModel @Inject constructor(
     private val _posts = MutableStateFlow<Resource<List<Post>>>(Resource.Idle())
     val posts: StateFlow<Resource<List<Post>>> = _posts
 
+    private val _likedPosts = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val likedPosts: StateFlow<Map<String, Boolean>> = _likedPosts
+
     private val _cachedPosts = MutableStateFlow<List<Post>>(emptyList())
     val cachedPosts: StateFlow<List<Post>> = _cachedPosts
 
@@ -111,9 +114,23 @@ class FeedViewModel @Inject constructor(
                     FeedScope.LOCALITY -> postRepository.getPosts(locality = user.locality)
                     FeedScope.DISTRICT -> postRepository.getPosts(district = user.district)
                     FeedScope.STATE -> postRepository.getPosts(state = user.state)
-                }.collectLatest {
-                    _posts.value = it
+                }.collectLatest { resource ->
+                    _posts.value = resource
+                    if (resource is Resource.Success) {
+                        resource.data?.forEach { post ->
+                            observeLikeState(post.id, user.uid)
+                        }
+                    }
                 }
+            }
+        }
+    }
+
+    private fun observeLikeState(postId: String, userId: String) {
+        if (_likedPosts.value.containsKey(postId)) return
+        viewModelScope.launch {
+            postRepository.observeIsLikedByUser(postId, userId).collectLatest { isLiked ->
+                _likedPosts.value = _likedPosts.value + (postId to isLiked)
             }
         }
     }
@@ -149,6 +166,13 @@ class FeedViewModel @Inject constructor(
                 Log.d("POST_DEBUG", "createPost result in ViewModel: $it")
                 _createPostResult.value = it
             }
+        }
+    }
+
+    fun toggleLike(postId: String) {
+        val user = currentUser ?: return
+        viewModelScope.launch {
+            postRepository.toggleLike(postId, user.uid, user.name, user.profileImage).collectLatest { }
         }
     }
 

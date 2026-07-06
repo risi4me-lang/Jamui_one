@@ -4,9 +4,12 @@ import android.net.Uri
 import android.util.Log
 import com.example.jamuione.data.local.dao.PostDao
 import com.example.jamuione.data.local.entity.PostEntity
+import com.example.jamuione.domain.model.Comment
+import com.example.jamuione.domain.model.Like
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.domain.repository.PostRepository
 import com.example.jamuione.util.Resource
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
@@ -134,6 +137,104 @@ class PostRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to delete post"))
         }
+    }
+
+    override fun toggleLike(
+        postId: String,
+        userId: String,
+        userName: String,
+        userProfileImage: String?
+    ): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            withTimeout(20000L) {
+                firestore.runTransaction { transaction ->
+                    val postRef = firestore.collection("posts").document(postId)
+                    val likeRef = postRef.collection("likes").document(userId)
+                    
+                    val likeSnapshot = transaction.get(likeRef)
+                    if (likeSnapshot.exists()) {
+                        transaction.delete(likeRef)
+                        transaction.update(postRef, "likesCount", FieldValue.increment(-1))
+                    } else {
+                        val like = Like(userId, userName, userProfileImage, System.currentTimeMillis())
+                        transaction.set(likeRef, like)
+                        transaction.update(postRef, "likesCount", FieldValue.increment(1))
+                    }
+                }.await()
+            }
+            emit(Resource.Success(true))
+        } catch (e: TimeoutCancellationException) {
+            emit(Resource.Error("Action timed out. Please try again."))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to toggle like"))
+        }
+    }
+
+    override fun observeIsLikedByUser(postId: String, userId: String): Flow<Boolean> = callbackFlow {
+        val likeRef = firestore.collection("posts").document(postId)
+            .collection("likes").document(userId)
+        
+        val listener = likeRef.addSnapshotListener { snapshot, _ ->
+            trySend(snapshot?.exists() == true)
+        }
+        awaitClose { listener.remove() }
+    }
+
+    override fun getLikers(postId: String): Flow<Resource<List<Like>>> = flow {
+        emit(Resource.Loading())
+        try {
+            val snapshot = firestore.collection("posts").document(postId)
+                .collection("likes")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            val likers = snapshot.toObjects(Like::class.java)
+            emit(Resource.Success(likers))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to fetch likers"))
+        }
+    }
+
+    override fun addComment(postId: String, comment: Comment): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            val commentId = UUID.randomUUID().toString()
+            val finalComment = comment.copy(id = commentId, postId = postId, timestamp = System.currentTimeMillis())
+            
+            withTimeout(20000L) {
+                firestore.runTransaction { transaction ->
+                    val postRef = firestore.collection("posts").document(postId)
+                    val commentRef = postRef.collection("comments").document(commentId)
+                    
+                    transaction.set(commentRef, finalComment)
+                    transaction.update(postRef, "commentsCount", FieldValue.increment(1))
+                }.await()
+            }
+            emit(Resource.Success(true))
+        } catch (e: TimeoutCancellationException) {
+            emit(Resource.Error("Comment failed to sync. It will appear once you are online."))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to add comment"))
+        }
+    }
+
+    override fun getComments(postId: String): Flow<Resource<List<Comment>>> = callbackFlow {
+        trySend(Resource.Loading())
+        val listener = firestore.collection("posts").document(postId)
+            .collection("comments")
+            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(Resource.Error(error.message ?: "Failed to fetch comments"))
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val comments = snapshot.toObjects(Comment::class.java)
+                    trySend(Resource.Success(comments))
+                }
+            }
+        awaitClose { listener.remove() }
     }
 
     private fun Post.toEntity() = PostEntity(
