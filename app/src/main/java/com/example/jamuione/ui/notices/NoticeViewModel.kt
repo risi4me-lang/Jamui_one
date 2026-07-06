@@ -34,6 +34,9 @@ class NoticeViewModel @Inject constructor(
     private val _deleteNoticeResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val deleteNoticeResult: StateFlow<Resource<Boolean>> = _deleteNoticeResult
 
+    private val _reportNoticeResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
+    val reportNoticeResult: StateFlow<Resource<Boolean>> = _reportNoticeResult
+
     private val _currentScope = MutableStateFlow(FeedScope.LOCALITY)
     val currentScope: StateFlow<FeedScope> = _currentScope
 
@@ -188,5 +191,18 @@ class NoticeViewModel @Inject constructor(
 
     fun resetDeleteNoticeResult() {
         _deleteNoticeResult.value = Resource.Idle()
+    }
+
+    fun reportNotice(noticeId: String, reason: String) {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            noticeRepository.reportNotice(noticeId, uid, reason).collectLatest {
+                _reportNoticeResult.value = it
+            }
+        }
+    }
+
+    fun resetReportNoticeResult() {
+        _reportNoticeResult.value = Resource.Idle()
     }
 }

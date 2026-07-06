@@ -2,6 +2,7 @@ package com.example.jamuione.data.repository
 
 import android.util.Log
 import com.example.jamuione.domain.model.Notice
+import com.example.jamuione.domain.model.Report
 import com.example.jamuione.domain.repository.NoticeRepository
 import com.example.jamuione.util.Resource
 import com.google.firebase.firestore.FirebaseFirestore
@@ -139,6 +140,25 @@ class NoticeRepositoryImpl @Inject constructor(
             emit(Resource.Success(snapshot.size()))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to clear expired notices"))
+        }
+    }
+
+    override fun reportNotice(noticeId: String, userId: String, reason: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            val reportId = UUID.randomUUID().toString()
+            val report = Report(
+                id = reportId,
+                userId = userId,
+                contentId = noticeId,
+                contentType = "notice",
+                reason = reason,
+                timestamp = System.currentTimeMillis()
+            )
+            firestore.collection("reports").document(reportId).set(report).await()
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to submit report"))
         }
     }
 }

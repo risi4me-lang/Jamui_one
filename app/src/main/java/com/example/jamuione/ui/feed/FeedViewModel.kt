@@ -44,6 +44,9 @@ class FeedViewModel @Inject constructor(
     private val _deletePostResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val deletePostResult: StateFlow<Resource<Boolean>> = _deletePostResult
 
+    private val _reportPostResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
+    val reportPostResult: StateFlow<Resource<Boolean>> = _reportPostResult
+
     private val _currentScope = MutableStateFlow(FeedScope.LOCALITY)
     val currentScope: StateFlow<FeedScope> = _currentScope
 
@@ -190,5 +193,18 @@ class FeedViewModel @Inject constructor(
 
     fun resetDeletePostResult() {
         _deletePostResult.value = Resource.Idle()
+    }
+
+    fun reportPost(postId: String, reason: String) {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            postRepository.reportPost(postId, uid, reason).collectLatest {
+                _reportPostResult.value = it
+            }
+        }
+    }
+
+    fun resetReportPostResult() {
+        _reportPostResult.value = Resource.Idle()
     }
 }

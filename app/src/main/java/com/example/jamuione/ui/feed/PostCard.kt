@@ -33,12 +33,53 @@ fun PostCard(
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
+    onReportClick: (String) -> Unit = {},
     onDetailClick: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var reportReason by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+
+    if (showReportDialog) {
+        AlertDialog(
+            onDismissRequest = { showReportDialog = false },
+            title = { Text("Report Post") },
+            text = {
+                Column {
+                    Text("Please provide a reason for reporting this post:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = reportReason,
+                        onValueChange = { reportReason = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Reason (e.g. Spam, Harassment)") }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (reportReason.isNotBlank()) {
+                            onReportClick(reportReason)
+                            showReportDialog = false
+                            reportReason = ""
+                        }
+                    },
+                    enabled = reportReason.isNotBlank()
+                ) {
+                    Text("Report")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReportDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -120,12 +161,15 @@ fun PostCard(
                                     showDeleteDialog = true
                                 }
                             )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text("Report") },
-                                onClick = { showMenu = false }
-                            )
                         }
+                        
+                        DropdownMenuItem(
+                            text = { Text("Report") },
+                            onClick = {
+                                showMenu = false
+                                showReportDialog = true
+                            }
+                        )
                     }
                 }
             }

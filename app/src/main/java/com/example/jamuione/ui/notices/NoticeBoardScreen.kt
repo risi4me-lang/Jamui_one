@@ -40,6 +40,7 @@ fun NoticeBoardScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val deleteResult by viewModel.deleteNoticeResult.collectAsState()
+    val reportResult by viewModel.reportNoticeResult.collectAsState()
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -51,6 +52,16 @@ fun NoticeBoardScreen(
         } else if (deleteResult is Resource.Error) {
             snackbarHostState.showSnackbar(deleteResult.message ?: "Failed to delete notice")
             viewModel.resetDeleteNoticeResult()
+        }
+    }
+
+    LaunchedEffect(reportResult) {
+        if (reportResult is Resource.Success && reportResult.data == true) {
+            snackbarHostState.showSnackbar("Report submitted. Thank you.")
+            viewModel.resetReportNoticeResult()
+        } else if (reportResult is Resource.Error) {
+            snackbarHostState.showSnackbar(reportResult.message ?: "Failed to submit report")
+            viewModel.resetReportNoticeResult()
         }
     }
 
@@ -117,6 +128,9 @@ fun NoticeBoardScreen(
                                     currentUserId = userProfile.data?.uid,
                                     onDeleteClick = {
                                         viewModel.deleteNotice(notice.id)
+                                    },
+                                    onReportClick = { reason ->
+                                        viewModel.reportNotice(notice.id, reason)
                                     }
                                 )
                             }
@@ -168,11 +182,52 @@ fun CategorySelector(
 fun NoticeItem(
     notice: Notice,
     currentUserId: String? = null,
-    onDeleteClick: () -> Unit = {}
+    onDeleteClick: () -> Unit = {},
+    onReportClick: (String) -> Unit = {}
 ) {
     val displayCategory = notice.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var reportReason by remember { mutableStateOf("") }
+
+    if (showReportDialog) {
+        AlertDialog(
+            onDismissRequest = { showReportDialog = false },
+            title = { Text("Report Notice") },
+            text = {
+                Column {
+                    Text("Please provide a reason for reporting this notice:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = reportReason,
+                        onValueChange = { reportReason = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Reason (e.g. Inaccurate, Spam)") }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (reportReason.isNotBlank()) {
+                            onReportClick(reportReason)
+                            showReportDialog = false
+                            reportReason = ""
+                        }
+                    },
+                    enabled = reportReason.isNotBlank()
+                ) {
+                    Text("Report")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReportDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -235,12 +290,15 @@ fun NoticeItem(
                                     showDeleteDialog = true
                                 }
                             )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text("Report") },
-                                onClick = { showMenu = false }
-                            )
                         }
+
+                        DropdownMenuItem(
+                            text = { Text("Report") },
+                            onClick = {
+                                showMenu = false
+                                showReportDialog = true
+                            }
+                        )
                     }
                 }
             }

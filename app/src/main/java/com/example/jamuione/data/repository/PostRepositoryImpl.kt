@@ -7,6 +7,7 @@ import com.example.jamuione.data.local.entity.PostEntity
 import com.example.jamuione.domain.model.Comment
 import com.example.jamuione.domain.model.Like
 import com.example.jamuione.domain.model.Post
+import com.example.jamuione.domain.model.Report
 import com.example.jamuione.domain.repository.PostRepository
 import com.example.jamuione.util.Resource
 import com.google.firebase.firestore.FieldValue
@@ -235,6 +236,25 @@ class PostRepositoryImpl @Inject constructor(
                 }
             }
         awaitClose { listener.remove() }
+    }
+
+    override fun reportPost(postId: String, userId: String, reason: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            val reportId = UUID.randomUUID().toString()
+            val report = Report(
+                id = reportId,
+                userId = userId,
+                contentId = postId,
+                contentType = "post",
+                reason = reason,
+                timestamp = System.currentTimeMillis()
+            )
+            firestore.collection("reports").document(reportId).set(report).await()
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to submit report"))
+        }
     }
 
     private fun Post.toEntity() = PostEntity(

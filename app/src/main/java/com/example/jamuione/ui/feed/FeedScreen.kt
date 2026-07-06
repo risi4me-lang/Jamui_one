@@ -30,6 +30,7 @@ fun FeedScreen(
     val currentScope by viewModel.currentScope.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val deleteResult by viewModel.deletePostResult.collectAsState()
+    val reportResult by viewModel.reportPostResult.collectAsState()
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -41,6 +42,16 @@ fun FeedScreen(
         } else if (deleteResult is Resource.Error) {
             snackbarHostState.showSnackbar(deleteResult.message ?: "Failed to delete post")
             viewModel.resetDeletePostResult()
+        }
+    }
+
+    LaunchedEffect(reportResult) {
+        if (reportResult is Resource.Success && reportResult.data == true) {
+            snackbarHostState.showSnackbar("Report submitted. Thank you.")
+            viewModel.resetReportPostResult()
+        } else if (reportResult is Resource.Error) {
+            snackbarHostState.showSnackbar(reportResult.message ?: "Failed to submit report")
+            viewModel.resetReportPostResult()
         }
     }
 
@@ -112,6 +123,9 @@ fun FeedScreen(
                                 isLiked = likedPosts[post.id] ?: false,
                                 onDeleteClick = {
                                     viewModel.deletePost(post.id)
+                                },
+                                onReportClick = { reason ->
+                                    viewModel.reportPost(post.id, reason)
                                 },
                                 onDetailClick = {
                                     onNavigateToDetail(post.id)

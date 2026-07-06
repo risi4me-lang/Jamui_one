@@ -37,6 +37,9 @@ fun PostDetailScreen(
     val commentsResource by viewModel.comments.collectAsState()
     val isLiked by viewModel.isLiked.collectAsState()
     val likersResource by viewModel.likers.collectAsState()
+    val reportResult by viewModel.reportPostResult.collectAsState()
+    val userProfile by feedViewModel.userProfile.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     
     val post = remember(postsResource) {
         if (postsResource is Resource.Success) {
@@ -52,6 +55,16 @@ fun PostDetailScreen(
         viewModel.loadPostDetails(postId)
     }
 
+    LaunchedEffect(reportResult) {
+        if (reportResult is Resource.Success && reportResult.data == true) {
+            snackbarHostState.showSnackbar("Report submitted. Thank you.")
+            viewModel.resetReportPostResult()
+        } else if (reportResult is Resource.Error) {
+            snackbarHostState.showSnackbar(reportResult.message ?: "Failed to submit report")
+            viewModel.resetReportPostResult()
+        }
+    }
+
     if (showLikersSheet) {
         ModalBottomSheet(
             onDismissRequest = { showLikersSheet = false }
@@ -61,6 +74,7 @@ fun PostDetailScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Post Details") },
@@ -101,7 +115,9 @@ fun PostDetailScreen(
                     PostCard(
                         post = post,
                         isLiked = isLiked,
+                        currentUserId = userProfile.data?.uid,
                         onLikeClick = { viewModel.toggleLike(postId) },
+                        onReportClick = { reason -> viewModel.reportPost(postId, reason) },
                         onCommentClick = { /* Already here */ },
                         onDetailClick = { /* Already here */ }
                     )

@@ -17,4 +17,5 @@ interface PostRepository {
     fun getLikers(postId: String): Flow<Resource<List<Like>>>
     fun addComment(postId: String, comment: Comment): Flow<Resource<Boolean>>
     fun getComments(postId: String): Flow<Resource<List<Comment>>>
+    fun reportPost(postId: String, userId: String, reason: String): Flow<Resource<Boolean>>
 }
