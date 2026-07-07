@@ -163,14 +163,24 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun saveProfile(name: String, state: String, district: String, locality: String) {
+    fun saveProfile(
+        name: String, 
+        state: String, 
+        district: String, 
+        locality: String,
+        nativeState: String = "",
+        nativeDistrict: String = "",
+        profession: String = "",
+        company: String? = null,
+        showInCommunity: Boolean = true
+    ) {
         val firebaseUser = authRepository.getCurrentUser() ?: run {
             Log.e("AUTH_TRACE", "No current user during saveProfile")
             return
         }
-        if (BuildConfig.DEBUG) {
-            Log.d("AUTH_TRACE", "Saving profile for UID: ${firebaseUser.uid}")
-        }
+        
+        val currentProfile = (_userProfile.value as? Resource.Success)?.data
+        
         val user = User(
             uid = firebaseUser.uid,
             name = name.trim(),
@@ -178,8 +188,16 @@ class AuthViewModel @Inject constructor(
             state = state.trim().lowercase(),
             district = district.trim().lowercase(),
             locality = locality.trim().lowercase(),
+            nativeState = nativeState.trim().lowercase(),
+            nativeDistrict = nativeDistrict.trim().lowercase(),
+            profession = profession.trim(),
+            company = company?.trim(),
+            showInCommunity = showInCommunity,
             profileImage = firebaseUser.photoUrl?.toString(),
             profileCompleted = true,
+            isVerified = currentProfile?.isVerified ?: false,
+            joinedAt = currentProfile?.joinedAt ?: System.currentTimeMillis(),
+            lastSeen = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
         )
         viewModelScope.launch {

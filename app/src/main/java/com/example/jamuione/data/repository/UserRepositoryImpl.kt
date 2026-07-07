@@ -8,6 +8,7 @@ import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -66,14 +67,19 @@ class UserRepositoryImpl @Inject constructor(
         }
         try {
             Log.d("AUTH_TRACE", "Firestore write started")
+            val finalUser = user.copy(
+                joinedAt = System.currentTimeMillis(),
+                lastSeen = System.currentTimeMillis(),
+                createdAt = System.currentTimeMillis()
+            )
             withTimeout(20000L) {
-                firestore.collection("users").document(user.uid)
-                    .set(user)
+                firestore.collection("users").document(finalUser.uid)
+                    .set(finalUser)
                     .await()
             }
             Log.d("AUTH_TRACE", "Firestore write success")
             
-            userDao.upsertUser(user.toEntity())
+            userDao.upsertUser(finalUser.toEntity())
             
             emit(Resource.Success(true))
         } catch (e: TimeoutCancellationException) {
@@ -91,14 +97,15 @@ class UserRepositoryImpl @Inject constructor(
             Log.d("AUTH_TRACE", "Firestore profile save started for UID: ${user.uid}")
         }
         try {
+            val finalUser = user.copy(updatedAt = System.currentTimeMillis())
             withTimeout(20000L) {
-                firestore.collection("users").document(user.uid)
-                    .set(user)
+                firestore.collection("users").document(finalUser.uid)
+                    .set(finalUser)
                     .await()
             }
             Log.d("AUTH_TRACE", "Firestore profile save success")
             
-            userDao.upsertUser(user.toEntity())
+            userDao.upsertUser(finalUser.toEntity())
             
             emit(Resource.Success(true))
         } catch (e: TimeoutCancellationException) {
@@ -122,20 +129,65 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getNativeCommunityMembers(
+        nativeDistrict: String,
+        currentDistrict: String
+    ): Flow<Resource<List<User>>> = callbackFlow {
+        trySend(Resource.Loading())
+        
+        val query = firestore.collection("users")
+            .whereEqualTo("nativeDistrict", nativeDistrict.trim().lowercase())
+            .whereEqualTo("district", currentDistrict.trim().lowercase())
+            .whereEqualTo("showInCommunity", true)
+            .orderBy("joinedAt", Query.Direction.DESCENDING)
+            .limit(50)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(Resource.Error(error.message ?: "Failed to fetch community"))
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val users = snapshot.toObjects(User::class.java)
+                repositoryScope.launch {
+                    userDao.clearNativeCommunity()
+                    users.forEach {
+                        userDao.upsertUser(it.toEntity(isMember = true))
+                    }
+                }
+                trySend(Resource.Success(users))
+            }
+        }
+        awaitClose { listener.remove() }
+    }
+
+    override fun getCachedNativeCommunity(): Flow<List<User>> {
+        return userDao.getNativeCommunityMembers().map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
     override fun getCachedUser(uid: String): Flow<User?> {
         return userDao.getUser(uid).map { it?.toDomain() }
     }
 
-    private fun User.toEntity() = UserEntity(
+    private fun User.toEntity(isMember: Boolean = false) = UserEntity(
         uid = uid,
         name = name,
         email = email,
         state = state,
         district = district,
         locality = locality,
+        nativeState = nativeState,
+        nativeDistrict = nativeDistrict,
+        profession = profession,
+        company = company,
         profileImage = profileImage,
         profileCompleted = profileCompleted,
-        isVerified = isVerified
+        isVerified = isVerified,
+        showInCommunity = showInCommunity,
+        joinedAt = joinedAt,
+        isNativeCommunityMember = isMember
     )
 
     private fun UserEntity.toDomain() = User(
@@ -145,8 +197,14 @@ class UserRepositoryImpl @Inject constructor(
         state = state,
         district = district,
         locality = locality,
+        nativeState = nativeState,
+        nativeDistrict = nativeDistrict,
+        profession = profession,
+        company = company,
         profileImage = profileImage,
         profileCompleted = profileCompleted,
-        isVerified = isVerified
+        isVerified = isVerified,
+        showInCommunity = showInCommunity,
+        joinedAt = joinedAt
     )
 }

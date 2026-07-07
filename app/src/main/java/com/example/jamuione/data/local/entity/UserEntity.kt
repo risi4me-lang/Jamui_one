@@ -11,7 +11,14 @@ data class UserEntity(
     val state: String,
     val district: String,
     val locality: String,
+    val nativeState: String = "",
+    val nativeDistrict: String = "",
+    val profession: String = "",
+    val company: String? = null,
     val profileImage: String? = null,
     val profileCompleted: Boolean = false,
-    val isVerified: Boolean = false
+    val isVerified: Boolean = false,
+    val showInCommunity: Boolean = true,
+    val joinedAt: Long = 0L,
+    val isNativeCommunityMember: Boolean = false // Flag to differentiate cached hometown members
 )

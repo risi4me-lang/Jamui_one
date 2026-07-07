@@ -12,6 +12,12 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE uid = :uid")
     fun getUser(uid: String): Flow<UserEntity?>
 
+    @Query("SELECT * FROM users WHERE isNativeCommunityMember = 1 ORDER BY joinedAt DESC")
+    fun getNativeCommunityMembers(): Flow<List<UserEntity>>
+
+    @Query("DELETE FROM users WHERE isNativeCommunityMember = 1")
+    suspend fun clearNativeCommunity()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertUser(user: UserEntity)
 

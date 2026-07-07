@@ -35,7 +35,15 @@ fun ProfileSetupScreen(
     var district by remember { mutableStateOf("Jamui") }
     var locality by remember { mutableStateOf("") }
 
-    var expanded by remember { mutableStateOf(false) }
+    var nativeState by remember { mutableStateOf("Bihar") }
+    var nativeDistrict by remember { mutableStateOf("Jamui") }
+    var profession by remember { mutableStateOf("") }
+    var company by remember { mutableStateOf("") }
+    var showInCommunity by remember { mutableStateOf(true) }
+
+    var expandedDistrict by remember { mutableStateOf(false) }
+    var expandedNativeDistrict by remember { mutableStateOf(false) }
+
     val districts = listOf(
         "Araria", "Arwal", "Aurangabad", "Banka", "Begusarai", "Bhagalpur", "Bhojpur", "Buxar",
         "Darbhanga", "East Champaran", "Gaya", "Gopalganj", "Jamui", "Jehanabad", "Kaimur",
@@ -49,32 +57,32 @@ fun ProfileSetupScreen(
     val communityName = BrandingUtil.getCommunityName(district)
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Pre-fill name from Google profile
+    // Pre-fill from existing profile
     LaunchedEffect(userProfileState) {
         if (userProfileState is Resource.Success) {
             val user = (userProfileState as Resource.Success).data
             if (user != null) {
-                if (name.isEmpty()) {
-                    name = user.name
-                }
+                if (name.isEmpty()) name = user.name
                 if (locality.isEmpty() && user.locality.isNotEmpty()) {
                     locality = user.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
                 }
                 if (user.district.isNotEmpty()) {
                     val formattedDistrict = user.district.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-                    if (districts.contains(formattedDistrict)) {
-                        district = formattedDistrict
-                    }
+                    if (districts.contains(formattedDistrict)) district = formattedDistrict
                 }
+                if (user.nativeDistrict.isNotEmpty()) {
+                    val formattedNative = user.nativeDistrict.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                    if (districts.contains(formattedNative)) nativeDistrict = formattedNative
+                }
+                if (profession.isEmpty()) profession = user.profession
+                if (company.isEmpty()) company = user.company ?: ""
+                showInCommunity = user.showInCommunity
             }
         }
     }
 
     LaunchedEffect(profileSavedState) {
         if (profileSavedState is Resource.Success && profileSavedState.data == true) {
-            if (BuildConfig.DEBUG) {
-                Log.d("AUTH_DEBUG", "Navigation triggered")
-            }
             snackbarHostState.showSnackbar("Profile saved!")
             onProfileSaved()
         } else if (profileSavedState is Resource.Error) {
@@ -90,7 +98,7 @@ fun ProfileSetupScreen(
                 actions = {
                     IconButton(onClick = { 
                         viewModel.logout()
-                        onProfileSaved() // This usually triggers navigation to login
+                        onProfileSaved()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
                     }
@@ -106,81 +114,142 @@ fun ProfileSetupScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val displayCommunityName = communityName.split(" ").joinToString(" ") { it.replaceFirstChar { char -> if (char.isLowerCase()) char.titlecase(Locale.getDefault()) else char.toString() } }
             Text(
-                text = "Welcome to $displayCommunityName!",
+                text = "Personalize your experience",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.Start)
             )
-            Text(
-                text = "Let's personalize your experience.",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.align(Alignment.Start)
-            )
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
+            // SECTION: IDENTITY
+            Text("Basic Info", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = name,
                 onValueChange = { if (it.length <= 50) name = it },
                 label = { Text("Full Name") },
-                modifier = Modifier.fillMaxWidth(),
-                supportingText = { Text("${name.length}/50") },
-                isError = name.length > 50
+                modifier = Modifier.fillMaxWidth()
             )
+            
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = state,
-                onValueChange = { },
-                label = { Text("State") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = false
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
+            // SECTION: CURRENT LOCATION
+            Text("Current Location", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded },
+                expanded = expandedDistrict,
+                onExpandedChange = { expandedDistrict = !expandedDistrict },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
                     value = district,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("District") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true).fillMaxWidth(),
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    label = { Text("Current District") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDistrict) },
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true).fillMaxWidth()
                 )
                 ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    expanded = expandedDistrict,
+                    onDismissRequest = { expandedDistrict = false }
                 ) {
                     districts.forEach { selectionOption ->
                         DropdownMenuItem(
                             text = { Text(selectionOption) },
                             onClick = {
                                 district = selectionOption
-                                expanded = false
-                            },
-                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                                expandedDistrict = false
+                            }
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-
+            Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = locality,
                 onValueChange = { if (it.length <= 100) locality = it },
                 label = { Text("Locality (Ward/Mohalla/Village)") },
-                modifier = Modifier.fillMaxWidth(),
-                supportingText = { Text("${locality.length}/100") },
-                isError = locality.length > 100
+                modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // SECTION: NATIVE PLACE
+            Text("Native Place (Hometown)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Spacer(modifier = Modifier.height(8.dp))
+            ExposedDropdownMenuBox(
+                expanded = expandedNativeDistrict,
+                onExpandedChange = { expandedNativeDistrict = !expandedNativeDistrict },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = nativeDistrict,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Native District") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedNativeDistrict) },
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true).fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedNativeDistrict,
+                    onDismissRequest = { expandedNativeDistrict = false }
+                ) {
+                    districts.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(selectionOption) },
+                            onClick = {
+                                nativeDistrict = selectionOption
+                                expandedNativeDistrict = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // SECTION: PROFESSION
+            Text("Professional Info", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = profession,
+                onValueChange = { profession = it },
+                label = { Text("Profession (e.g. Teacher, Engineer, Student)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = company,
+                onValueChange = { company = it },
+                label = { Text("Company (Optional)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // SECTION: VISIBILITY
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Checkbox(
+                    checked = showInCommunity,
+                    onCheckedChange = { showInCommunity = it }
+                )
+                Text(
+                    text = "Show me in Native Community",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Text(
+                text = "Help people from $nativeDistrict find you in $district",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(start = 48.dp)
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
             val context = LocalContext.current
@@ -188,36 +257,31 @@ fun ProfileSetupScreen(
             Button(
                 onClick = { 
                     if (NetworkUtils.isNetworkAvailable(context)) {
-                        if (BuildConfig.DEBUG) {
-                            Log.d("AUTH_DEBUG", "Save Profile button clicked")
-                        }
-                        viewModel.saveProfile(name, state, district, locality)
+                        viewModel.saveProfile(
+                            name = name,
+                            state = state,
+                            district = district,
+                            locality = locality,
+                            nativeState = nativeState,
+                            nativeDistrict = nativeDistrict,
+                            profession = profession,
+                            company = company.takeIf { it.isNotBlank() },
+                            showInCommunity = showInCommunity
+                        )
                     } else {
                         scope.launch {
-                            snackbarHostState.showSnackbar("You're offline. Please check your connection and try again.")
+                            snackbarHostState.showSnackbar("You're offline.")
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = name.isNotBlank() && locality.isNotBlank() && profileSavedState !is Resource.Loading
+                enabled = name.isNotBlank() && locality.isNotBlank() && profession.isNotBlank() && profileSavedState !is Resource.Loading
             ) {
                 if (profileSavedState is Resource.Loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
                     Text("Save & Continue")
                 }
-            }
-
-            if (profileSavedState is Resource.Error) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = profileSavedState.message ?: "Failed to save profile",
-                    color = MaterialTheme.colorScheme.error
-                )
             }
         }
     }

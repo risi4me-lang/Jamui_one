@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Verified
@@ -30,6 +31,7 @@ import java.util.Locale
 fun ProfileScreen(
     viewModel: AuthViewModel,
     onNavigateToSavedPosts: () -> Unit,
+    onNavigateToNativeCommunity: () -> Unit,
     onLogout: () -> Unit
 ) {
     val userProfileState by viewModel.userProfile.collectAsState()
@@ -185,6 +187,18 @@ fun ProfileScreen(
                                 Icon(Icons.Default.Bookmark, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Saved Posts")
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedButton(
+                                onClick = onNavigateToNativeCommunity,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                val nativeDistrictName = user.nativeDistrict.replaceFirstChar { it.uppercase() }
+                                Icon(Icons.Default.People, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("People From $nativeDistrictName")
                             }
                             
                             Spacer(modifier = Modifier.height(24.dp))
