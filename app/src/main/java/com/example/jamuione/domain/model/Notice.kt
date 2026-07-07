@@ -10,6 +10,7 @@ data class Notice(
     val userProfileImage: String? = null,
     val isVerified: Boolean = false,
     val title: String = "",
+    val searchableTitle: String = "",
     val description: String = "",
     val category: String = "", // Announcement, Jobs, Rent/Flatmate, Buy & Sell, Lost & Found, Blood Donation, Help Needed
     val state: String = "",

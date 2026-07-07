@@ -27,14 +27,16 @@ class NoticeRepositoryImpl @Inject constructor(
         category: String?,
         locality: String?,
         district: String?,
-        state: String?
+        state: String?,
+        searchQuery: String?
     ): Flow<Resource<List<Notice>>> = callbackFlow {
         trySend(Resource.Loading())
         val trimmedLocality = locality?.trim()?.lowercase()
         val trimmedDistrict = district?.trim()?.lowercase()
         val trimmedState = state?.trim()?.lowercase()
+        val normalizedSearch = searchQuery?.trim()?.lowercase()
         
-        Log.d("FIRESTORE_DEBUG", "getNotices: category=$category, locality=$trimmedLocality, district=$trimmedDistrict, state=$trimmedState")
+        Log.d("FIRESTORE_DEBUG", "getNotices: category=$category, locality=$trimmedLocality, district=$trimmedDistrict, state=$trimmedState, search=$normalizedSearch")
 
         var query: Query = firestore.collection("notices")
             .whereGreaterThan("expiryDate", System.currentTimeMillis())
@@ -51,9 +53,16 @@ class NoticeRepositoryImpl @Inject constructor(
             query = query.whereEqualTo("state", trimmedState)
         }
 
-        query = query.orderBy("expiryDate", Query.Direction.ASCENDING)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(30)
+        if (!normalizedSearch.isNullOrBlank()) {
+            query = query.orderBy("searchableTitle")
+                .startAt(normalizedSearch)
+                .endAt(normalizedSearch + "\uf8ff")
+        } else {
+            query = query.orderBy("expiryDate", Query.Direction.ASCENDING)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+        }
+
+        query = query.limit(30)
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -79,6 +88,7 @@ class NoticeRepositoryImpl @Inject constructor(
             val noticeId = UUID.randomUUID().toString()
             val finalNotice = notice.copy(
                 id = noticeId, 
+                searchableTitle = notice.title.trim().lowercase(),
                 locality = notice.locality.trim().lowercase(),
                 district = notice.district.trim().lowercase(),
                 state = notice.state.trim().lowercase(),

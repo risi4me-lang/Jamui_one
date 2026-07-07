@@ -43,6 +43,9 @@ class NoticeViewModel @Inject constructor(
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
     private val _userProfile = MutableStateFlow<Resource<User?>>(Resource.Idle())
     val userProfile: StateFlow<Resource<User?>> = _userProfile
 
@@ -121,24 +124,30 @@ class NoticeViewModel @Inject constructor(
         }
     }
 
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+        loadNotices()
+    }
+
     fun loadNotices() {
         noticesJob?.cancel()
         noticesJob = viewModelScope.launch {
             val user = currentUser
             val category = _selectedCategory.value
+            val search = _searchQuery.value
             
             if (isGuest) {
                 Log.d("FIRESTORE_DEBUG", "loadNotices: guest mode")
-                noticeRepository.getNotices(category).collectLatest {
+                noticeRepository.getNotices(category, searchQuery = search).collectLatest {
                     _notices.value = it
                 }
             } else if (user != null) {
                 Log.d("FIRESTORE_DEBUG", "loadNotices: user mode, uid=${user.uid}")
-                Log.d("FIRESTORE_DEBUG", "loadNotices: user=${user.name}, scope=${_currentScope.value}, category=$category")
+                Log.d("FIRESTORE_DEBUG", "loadNotices: user=${user.name}, scope=${_currentScope.value}, category=$category, search=$search")
                 when (_currentScope.value) {
-                    FeedScope.LOCALITY -> noticeRepository.getNotices(category, locality = user.locality)
-                    FeedScope.DISTRICT -> noticeRepository.getNotices(category, district = user.district)
-                    FeedScope.STATE -> noticeRepository.getNotices(category, state = user.state)
+                    FeedScope.LOCALITY -> noticeRepository.getNotices(category, locality = user.locality, searchQuery = search)
+                    FeedScope.DISTRICT -> noticeRepository.getNotices(category, district = user.district, searchQuery = search)
+                    FeedScope.STATE -> noticeRepository.getNotices(category, state = user.state, searchQuery = search)
                 }.collectLatest {
                     _notices.value = it
                 }

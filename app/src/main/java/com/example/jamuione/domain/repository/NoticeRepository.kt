@@ -9,7 +9,8 @@ interface NoticeRepository {
         category: String? = null,
         locality: String? = null,
         district: String? = null,
-        state: String? = null
+        state: String? = null,
+        searchQuery: String? = null
     ): Flow<Resource<List<Notice>>>
     
     fun createNotice(notice: Notice): Flow<Resource<Boolean>>
