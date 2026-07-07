@@ -5,11 +5,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,8 +33,10 @@ fun PostCard(
     post: Post,
     currentUserId: String? = null,
     isLiked: Boolean = false,
+    isSaved: Boolean = false,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
+    onSaveClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
     onReportClick: (String) -> Unit = {},
     onDetailClick: () -> Unit = {}
@@ -137,7 +142,18 @@ fun PostCard(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = post.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = post.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        if (post.isVerified) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Verified,
+                                contentDescription = "Verified",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                     val displayLocality = post.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
                     Text(
                         text = "$displayLocality • ${formatTimestamp(post.timestamp)}",
@@ -193,7 +209,8 @@ fun PostCard(
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onLikeClick, modifier = Modifier.size(24.dp)) {
@@ -214,17 +231,28 @@ fun PostCard(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(text = "${post.commentsCount}", fontSize = 12.sp)
                 }
-                IconButton(
-                    onClick = {
-                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, "${post.content}\n\nShared from Jamui One")
-                        }
-                        context.startActivity(Intent.createChooser(sendIntent, "Share post"))
-                    },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(Icons.Default.Share, contentDescription = "Share")
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onSaveClick, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                            contentDescription = "Save",
+                            tint = if (isSaved) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    IconButton(
+                        onClick = {
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "${post.content}\n\nShared from Jamui One")
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "Share post"))
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = "Share")
+                    }
                 }
             }
         }

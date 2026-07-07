@@ -134,7 +134,8 @@ class UserRepositoryImpl @Inject constructor(
         district = district,
         locality = locality,
         profileImage = profileImage,
-        profileCompleted = profileCompleted
+        profileCompleted = profileCompleted,
+        isVerified = isVerified
     )
 
     private fun UserEntity.toDomain() = User(
@@ -145,6 +146,7 @@ class UserRepositoryImpl @Inject constructor(
         district = district,
         locality = locality,
         profileImage = profileImage,
-        profileCompleted = profileCompleted
+        profileCompleted = profileCompleted,
+        isVerified = isVerified
     )
 }

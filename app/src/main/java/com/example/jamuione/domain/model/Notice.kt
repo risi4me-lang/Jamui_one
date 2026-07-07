@@ -8,6 +8,7 @@ data class Notice(
     val userId: String = "",
     val userName: String = "",
     val userProfileImage: String? = null,
+    val isVerified: Boolean = false,
     val title: String = "",
     val description: String = "",
     val category: String = "", // Announcement, Jobs, Rent/Flatmate, Buy & Sell, Lost & Found, Blood Donation, Help Needed

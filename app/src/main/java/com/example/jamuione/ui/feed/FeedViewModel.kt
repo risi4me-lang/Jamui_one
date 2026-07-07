@@ -47,6 +47,12 @@ class FeedViewModel @Inject constructor(
     private val _reportPostResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val reportPostResult: StateFlow<Resource<Boolean>> = _reportPostResult
 
+    private val _savedPosts = MutableStateFlow<Resource<List<Post>>>(Resource.Idle())
+    val savedPosts: StateFlow<Resource<List<Post>>> = _savedPosts
+
+    private val _isSavedMap = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val isSavedMap: StateFlow<Map<String, Boolean>> = _isSavedMap
+
     private val _currentScope = MutableStateFlow(FeedScope.LOCALITY)
     val currentScope: StateFlow<FeedScope> = _currentScope
 
@@ -122,6 +128,7 @@ class FeedViewModel @Inject constructor(
                     if (resource is Resource.Success) {
                         resource.data?.forEach { post ->
                             observeLikeState(post.id, user.uid)
+                            observeSaveState(post.id, user.uid)
                         }
                     }
                 }
@@ -134,6 +141,30 @@ class FeedViewModel @Inject constructor(
         viewModelScope.launch {
             postRepository.observeIsLikedByUser(postId, userId).collectLatest { isLiked ->
                 _likedPosts.value = _likedPosts.value + (postId to isLiked)
+            }
+        }
+    }
+
+    private fun observeSaveState(postId: String, userId: String) {
+        if (_isSavedMap.value.containsKey(postId)) return
+        viewModelScope.launch {
+            postRepository.observeIsSavedByUser(postId, userId).collectLatest { isSaved ->
+                _isSavedMap.value = _isSavedMap.value + (postId to isSaved)
+            }
+        }
+    }
+
+    fun loadSavedPosts() {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            postRepository.getSavedPosts(uid).collectLatest { resource ->
+                _savedPosts.value = resource
+                if (resource is Resource.Success) {
+                    resource.data?.forEach { post ->
+                        observeLikeState(post.id, uid)
+                        observeSaveState(post.id, uid)
+                    }
+                }
             }
         }
     }
@@ -159,6 +190,7 @@ class FeedViewModel @Inject constructor(
             userId = user.uid,
             userName = user.name,
             userProfileImage = user.profileImage,
+            isVerified = user.isVerified,
             content = content,
             state = user.state,
             district = user.district,
@@ -175,7 +207,14 @@ class FeedViewModel @Inject constructor(
     fun toggleLike(postId: String) {
         val user = currentUser ?: return
         viewModelScope.launch {
-            postRepository.toggleLike(postId, user.uid, user.name, user.profileImage).collectLatest { }
+            postRepository.toggleLike(postId, user.uid, user.name, user.profileImage, user.isVerified).collectLatest { }
+        }
+    }
+
+    fun toggleSavePost(postId: String) {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            postRepository.toggleSavePost(postId, uid).collectLatest { }
         }
     }
 

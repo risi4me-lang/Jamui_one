@@ -12,5 +12,6 @@ data class UserEntity(
     val district: String,
     val locality: String,
     val profileImage: String? = null,
-    val profileCompleted: Boolean = false
+    val profileCompleted: Boolean = false,
+    val isVerified: Boolean = false
 )

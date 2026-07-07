@@ -12,10 +12,13 @@ interface PostRepository {
     fun createPost(post: Post, imageUri: Uri?): Flow<Resource<Boolean>>
     fun getCachedPosts(): Flow<List<Post>>
     fun deletePost(postId: String): Flow<Resource<Boolean>>
-    fun toggleLike(postId: String, userId: String, userName: String, userProfileImage: String?): Flow<Resource<Boolean>>
+    fun toggleLike(postId: String, userId: String, userName: String, userProfileImage: String?, isVerified: Boolean): Flow<Resource<Boolean>>
     fun observeIsLikedByUser(postId: String, userId: String): Flow<Boolean>
     fun getLikers(postId: String): Flow<Resource<List<Like>>>
     fun addComment(postId: String, comment: Comment): Flow<Resource<Boolean>>
     fun getComments(postId: String): Flow<Resource<List<Comment>>>
     fun reportPost(postId: String, userId: String, reason: String): Flow<Resource<Boolean>>
+    fun toggleSavePost(postId: String, userId: String): Flow<Resource<Boolean>>
+    fun observeIsSavedByUser(postId: String, userId: String): Flow<Boolean>
+    fun getSavedPosts(userId: String): Flow<Resource<List<Post>>>
 }

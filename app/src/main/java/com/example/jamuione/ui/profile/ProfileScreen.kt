@@ -1,15 +1,20 @@
 package com.example.jamuione.ui.profile
 
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -24,11 +29,13 @@ import java.util.Locale
 @Composable
 fun ProfileScreen(
     viewModel: AuthViewModel,
+    onNavigateToSavedPosts: () -> Unit,
     onLogout: () -> Unit
 ) {
     val userProfileState by viewModel.userProfile.collectAsState()
     val communityName = BrandingUtil.getCommunityName(userProfileState.data?.district)
     var showLogoutDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.fetchUserProfile()
@@ -106,11 +113,22 @@ fun ProfileScreen(
                             
                             Spacer(modifier = Modifier.height(24.dp))
                             
-                            Text(
-                                text = user.name,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = user.name,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (user.isVerified) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Verified,
+                                        contentDescription = "Verified",
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                             
                             Spacer(modifier = Modifier.height(8.dp))
                             
@@ -129,8 +147,47 @@ fun ProfileScreen(
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.secondary
                             )
+
+                            Spacer(modifier = Modifier.height(32.dp))
+
+                            Button(
+                                onClick = {
+                                    val inviteMessage = "Join me on Jamui One — the local community app for staying connected! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
+                                    // TODO: update with actual Play Store link once published
+                                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, inviteMessage)
+                                        setPackage("com.whatsapp")
+                                    }
+                                    try {
+                                        context.startActivity(sendIntent)
+                                    } catch (e: Exception) {
+                                        val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, inviteMessage)
+                                        }
+                                        context.startActivity(Intent.createChooser(fallbackIntent, "Invite via"))
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Invite Neighbors")
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedButton(
+                                onClick = onNavigateToSavedPosts,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Bookmark, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Saved Posts")
+                            }
                             
-                            Spacer(modifier = Modifier.height(48.dp))
+                            Spacer(modifier = Modifier.height(24.dp))
                             
                             Button(
                                 onClick = { showLogoutDialog = true },

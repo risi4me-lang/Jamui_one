@@ -27,6 +27,7 @@ fun FeedScreen(
     val postsResource by viewModel.posts.collectAsState()
     val cachedPosts by viewModel.cachedPosts.collectAsState()
     val likedPosts by viewModel.likedPosts.collectAsState()
+    val isSavedMap by viewModel.isSavedMap.collectAsState()
     val currentScope by viewModel.currentScope.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val deleteResult by viewModel.deletePostResult.collectAsState()
@@ -121,8 +122,12 @@ fun FeedScreen(
                                 post = post,
                                 currentUserId = userProfile.data?.uid,
                                 isLiked = likedPosts[post.id] ?: false,
+                                isSaved = isSavedMap[post.id] ?: false,
                                 onDeleteClick = {
                                     viewModel.deletePost(post.id)
+                                },
+                                onSaveClick = {
+                                    viewModel.toggleSavePost(post.id)
                                 },
                                 onReportClick = { reason ->
                                     viewModel.reportPost(post.id, reason)

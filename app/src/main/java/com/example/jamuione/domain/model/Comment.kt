@@ -10,6 +10,7 @@ data class Comment(
     val userId: String = "",
     val userName: String = "",
     val userProfileImage: String? = null,
+    val isVerified: Boolean = false,
     val content: String = "",
     val timestamp: Long = 0L
 )

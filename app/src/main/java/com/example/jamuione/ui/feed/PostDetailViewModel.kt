@@ -75,7 +75,7 @@ class PostDetailViewModel @Inject constructor(
     fun toggleLike(postId: String) {
         val user = _currentUser.value ?: return
         viewModelScope.launch {
-            postRepository.toggleLike(postId, user.uid, user.name, user.profileImage).collectLatest { }
+            postRepository.toggleLike(postId, user.uid, user.name, user.profileImage, user.isVerified).collectLatest { }
         }
     }
 
@@ -85,6 +85,7 @@ class PostDetailViewModel @Inject constructor(
             userId = user.uid,
             userName = user.name,
             userProfileImage = user.profileImage,
+            isVerified = user.isVerified,
             content = content,
             parentCommentId = parentCommentId
         )

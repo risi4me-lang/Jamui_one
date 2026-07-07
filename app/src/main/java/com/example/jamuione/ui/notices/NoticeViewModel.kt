@@ -160,6 +160,7 @@ class NoticeViewModel @Inject constructor(
             userId = user.uid,
             userName = user.name,
             userProfileImage = user.profileImage,
+            isVerified = user.isVerified,
             title = title,
             description = description,
             category = category,

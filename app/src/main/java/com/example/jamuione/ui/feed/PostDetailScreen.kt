@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ fun PostDetailScreen(
     val postsResource by feedViewModel.posts.collectAsState()
     val commentsResource by viewModel.comments.collectAsState()
     val isLiked by viewModel.isLiked.collectAsState()
+    val isSavedMap by feedViewModel.isSavedMap.collectAsState()
     val likersResource by viewModel.likers.collectAsState()
     val reportResult by viewModel.reportPostResult.collectAsState()
     val userProfile by feedViewModel.userProfile.collectAsState()
@@ -115,8 +117,10 @@ fun PostDetailScreen(
                     PostCard(
                         post = post,
                         isLiked = isLiked,
+                        isSaved = isSavedMap[postId] ?: false,
                         currentUserId = userProfile.data?.uid,
                         onLikeClick = { viewModel.toggleLike(postId) },
+                        onSaveClick = { feedViewModel.toggleSavePost(postId) },
                         onReportClick = { reason -> viewModel.reportPost(postId, reason) },
                         onCommentClick = { /* Already here */ },
                         onDetailClick = { /* Already here */ }
@@ -193,7 +197,18 @@ fun CommentItem(
             UserAvatar(imageUrl = comment.userProfileImage, name = comment.userName, size = 32.dp)
             Spacer(modifier = Modifier.width(8.dp))
             Column {
-                Text(text = comment.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = comment.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    if (comment.isVerified) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Verified,
+                            contentDescription = "Verified",
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
                 Text(text = comment.content, fontSize = 14.sp)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = formatTime(comment.timestamp), fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
@@ -213,7 +228,18 @@ fun CommentItem(
                 UserAvatar(imageUrl = reply.userProfileImage, name = reply.userName, size = 24.dp)
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
-                    Text(text = reply.userName, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = reply.userName, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        if (reply.isVerified) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Verified,
+                                contentDescription = "Verified",
+                                modifier = Modifier.size(10.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                     Text(text = reply.content, fontSize = 13.sp)
                     Text(text = formatTime(reply.timestamp), fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
                 }
@@ -302,6 +328,15 @@ fun LikersList(likersResource: Resource<List<Like>>) {
                             UserAvatar(imageUrl = like.userProfileImage, name = like.userName, size = 40.dp)
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(text = like.userName, fontWeight = FontWeight.Bold)
+                            if (like.isVerified) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Verified,
+                                    contentDescription = "Verified",
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }

@@ -26,6 +26,7 @@ import com.example.jamuione.ui.auth.AuthViewModel
 import com.example.jamuione.ui.auth.LoginScreen
 import com.example.jamuione.ui.profile.ProfileSetupScreen
 import com.example.jamuione.ui.profile.ProfileScreen
+import com.example.jamuione.ui.profile.SavedPostsScreen
 import com.example.jamuione.ui.feed.FeedScreen
 import com.example.jamuione.ui.feed.FeedViewModel
 import com.example.jamuione.ui.feed.CreatePostScreen
@@ -56,6 +57,8 @@ sealed interface Destination : NavKey {
     data object CreateNotice : Destination
     @Serializable
     data object Profile : Destination
+    @Serializable
+    data object SavedPosts : Destination
     @Serializable
     data class PostDetail(val postId: String) : Destination
 }
@@ -145,6 +148,7 @@ fun JamuiOneNavigation() {
             ) {
                 ProfileScreen(
                     viewModel = authViewModel,
+                    onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
                     onLogout = {
                         Log.d("AUTH_TRACE", "Logout triggered from Profile, returning to Login")
                         backStack.clear()
@@ -152,6 +156,14 @@ fun JamuiOneNavigation() {
                     }
                 )
             }
+        }
+        entry<Destination.SavedPosts> {
+            val feedViewModel: FeedViewModel = viewModel()
+            SavedPostsScreen(
+                viewModel = feedViewModel,
+                onNavigateToDetail = { postId -> backStack.add(Destination.PostDetail(postId)) },
+                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+            )
         }
         entry<Destination.CreatePost> {
             val feedViewModel: FeedViewModel = viewModel()

@@ -15,6 +15,9 @@ data class User(
     val role: String = "user",
     val profileCompleted: Boolean = false,
     val fcmToken: String? = null,
+    @get:PropertyName("isVerified")
+    @set:PropertyName("isVerified")
+    var isVerified: Boolean = false,
     @get:PropertyName("isActive")
     @set:PropertyName("isActive")
     var isActive: Boolean = true,

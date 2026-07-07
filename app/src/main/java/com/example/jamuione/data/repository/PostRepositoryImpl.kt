@@ -144,7 +144,8 @@ class PostRepositoryImpl @Inject constructor(
         postId: String,
         userId: String,
         userName: String,
-        userProfileImage: String?
+        userProfileImage: String?,
+        isVerified: Boolean
     ): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
@@ -158,7 +159,7 @@ class PostRepositoryImpl @Inject constructor(
                         transaction.delete(likeRef)
                         transaction.update(postRef, "likesCount", FieldValue.increment(-1))
                     } else {
-                        val like = Like(userId, userName, userProfileImage, System.currentTimeMillis())
+                        val like = Like(userId, userName, userProfileImage, isVerified, System.currentTimeMillis())
                         transaction.set(likeRef, like)
                         transaction.update(postRef, "likesCount", FieldValue.increment(1))
                     }
@@ -254,6 +255,71 @@ class PostRepositoryImpl @Inject constructor(
             emit(Resource.Success(true))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to submit report"))
+        }
+    }
+
+    override fun toggleSavePost(postId: String, userId: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            withTimeout(20000L) {
+                firestore.runTransaction { transaction ->
+                    val savedPostRef = firestore.collection("users").document(userId)
+                        .collection("savedPosts").document(postId)
+                    
+                    if (transaction.get(savedPostRef).exists()) {
+                        transaction.delete(savedPostRef)
+                    } else {
+                        val data = mapOf("postId" to postId, "savedAt" to System.currentTimeMillis())
+                        transaction.set(savedPostRef, data)
+                    }
+                }.await()
+            }
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to save post"))
+        }
+    }
+
+    override fun observeIsSavedByUser(postId: String, userId: String): Flow<Boolean> = callbackFlow {
+        val savedPostRef = firestore.collection("users").document(userId)
+            .collection("savedPosts").document(postId)
+        val listener = savedPostRef.addSnapshotListener { snapshot, _ ->
+            trySend(snapshot?.exists() == true)
+        }
+        awaitClose { listener.remove() }
+    }
+
+    override fun getSavedPosts(userId: String): Flow<Resource<List<Post>>> = flow {
+        emit(Resource.Loading())
+        try {
+            val savedSnapshot = firestore.collection("users").document(userId)
+                .collection("savedPosts")
+                .orderBy("savedAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            
+            val postIds = savedSnapshot.documents.mapNotNull { it.getString("postId") }
+            if (postIds.isEmpty()) {
+                emit(Resource.Success(emptyList()))
+                return@flow
+            }
+
+            // Batch fetch posts using whereIn (up to 30)
+            val posts = mutableListOf<Post>()
+            val chunks = postIds.chunked(30)
+            for (chunk in chunks) {
+                val postSnapshot = firestore.collection("posts")
+                    .whereIn("id", chunk)
+                    .get()
+                    .await()
+                posts.addAll(postSnapshot.toObjects(Post::class.java))
+            }
+            
+            // Sort to match saved order
+            val sortedPosts = postIds.mapNotNull { id -> posts.find { it.id == id } }
+            emit(Resource.Success(sortedPosts))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to fetch saved posts"))
         }
     }
 
