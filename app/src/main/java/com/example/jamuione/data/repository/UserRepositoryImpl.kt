@@ -198,6 +198,21 @@ class UserRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    override fun getDistrictMemberCount(district: String): Flow<Resource<Long>> = flow {
+        emit(Resource.Loading())
+        try {
+            val count = firestore.collection("users")
+                .whereEqualTo("district", district.trim().lowercase())
+                .count()
+                .get(AggregateSource.SERVER)
+                .await()
+                .count
+            emit(Resource.Success(count))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to fetch count"))
+        }
+    }
+
     override fun getCachedUser(uid: String): Flow<User?> {
         return userDao.getUser(uid).map { it?.toDomain() }
     }

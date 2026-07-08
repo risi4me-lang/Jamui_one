@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
@@ -18,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -110,24 +112,28 @@ fun PostCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .clickable { onDetailClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (post.userProfileImage != null) {
                     AsyncImage(
                         model = post.userProfileImage,
                         contentDescription = "Profile Picture",
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(44.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Surface(
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(44.dp),
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
@@ -135,7 +141,7 @@ fun PostCard(
                             Text(
                                 text = post.userName.take(1).uppercase(),
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.titleMedium
                             )
                         }
                     }
@@ -143,7 +149,11 @@ fun PostCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = post.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(
+                            text = post.userName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                         if (post.isVerified) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
@@ -157,13 +167,17 @@ fun PostCard(
                     val displayLocality = post.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
                     Text(
                         text = "$displayLocality • ${formatTimestamp(post.timestamp)}",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.secondary
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
                     )
                 }
                 Box {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Options")
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Options",
+                            tint = MaterialTheme.colorScheme.outline
+                        )
                     }
                     DropdownMenu(
                         expanded = showMenu,
@@ -191,7 +205,11 @@ fun PostCard(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-            Text(text = post.content, fontSize = 14.sp)
+            Text(
+                text = post.content,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
             if (!post.imageUrl.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -200,47 +218,60 @@ fun PostCard(
                     contentDescription = "Post Image",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 300.dp)
-                        .clip(MaterialTheme.shapes.medium),
+                        .heightIn(max = 400.dp)
+                        .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            Spacer(modifier = Modifier.height(8.dp))
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onLikeClick, modifier = Modifier.size(24.dp)) {
+                    IconButton(onClick = onLikeClick, modifier = Modifier.size(36.dp)) {
                         Icon(
                             imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Like",
-                            tint = if (isLiked) MaterialTheme.colorScheme.error else LocalContentColor.current
+                            tint = if (isLiked) Color(0xFFE91E63) else MaterialTheme.colorScheme.outline
                         )
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "${post.likesCount}", fontSize = 12.sp)
+                    Text(
+                        text = "${post.likesCount}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.outline
+                    )
                     
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(20.dp))
                     
-                    IconButton(onClick = onCommentClick, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Comment")
+                    IconButton(onClick = onCommentClick, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.ChatBubbleOutline,
+                            contentDescription = "Comment",
+                            tint = MaterialTheme.colorScheme.outline
+                        )
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "${post.commentsCount}", fontSize = 12.sp)
+                    Text(
+                        text = "${post.commentsCount}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.outline
+                    )
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onSaveClick, modifier = Modifier.size(24.dp)) {
+                    IconButton(onClick = onSaveClick, modifier = Modifier.size(36.dp)) {
                         Icon(
                             imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                             contentDescription = "Save",
-                            tint = if (isSaved) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                            tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                         )
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
+                    
                     IconButton(
                         onClick = {
                             val sendIntent = Intent(Intent.ACTION_SEND).apply {
@@ -249,9 +280,13 @@ fun PostCard(
                             }
                             context.startActivity(Intent.createChooser(sendIntent, "Share post"))
                         },
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = MaterialTheme.colorScheme.outline
+                        )
                     }
                 }
             }

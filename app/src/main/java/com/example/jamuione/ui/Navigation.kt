@@ -1,7 +1,9 @@
 package com.example.jamuione.ui
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Home
@@ -14,6 +16,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -128,7 +132,11 @@ fun JamuiOneNavigation() {
                 FeedScreen(
                     viewModel = feedViewModel,
                     onCreatePostClick = { backStack.add(Destination.CreatePost) },
-                    onNavigateToDetail = { postId -> backStack.add(Destination.PostDetail(postId)) }
+                    onNavigateToDetail = { postId -> backStack.add(Destination.PostDetail(postId)) },
+                    onProfileClick = { 
+                        backStack.clear()
+                        backStack.add(Destination.Profile)
+                    }
                 )
             }
         }
@@ -143,7 +151,11 @@ fun JamuiOneNavigation() {
             ) {
                 NoticeBoardScreen(
                     viewModel = noticeViewModel,
-                    onCreateNoticeClick = { backStack.add(Destination.CreateNotice) }
+                    onCreateNoticeClick = { backStack.add(Destination.CreateNotice) },
+                    onProfileClick = {
+                        backStack.clear()
+                        backStack.add(Destination.Profile)
+                    }
                 )
             }
         }
@@ -160,6 +172,7 @@ fun JamuiOneNavigation() {
                     viewModel = authViewModel,
                     onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
                     onNavigateToCommunities = { backStack.add(Destination.Communities) },
+                    onEditProfile = { backStack.add(Destination.ProfileSetup) },
                     onLogout = {
                         Log.d("AUTH_TRACE", "Logout triggered from Profile, returning to Login")
                         backStack.clear()
@@ -311,11 +324,43 @@ fun SplashScreen(
 
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = communityName, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Surface(
+                modifier = Modifier.size(100.dp),
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.2f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = null,
+                        modifier = Modifier.size(56.dp),
+                        tint = Color.White
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = communityName,
+                style = MaterialTheme.typography.displaySmall,
+                color = Color.White,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Spacer(modifier = Modifier.height(48.dp))
+            CircularProgressIndicator(color = Color.White, strokeWidth = 3.dp)
         }
     }
 }

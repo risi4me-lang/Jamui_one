@@ -49,6 +49,9 @@ class NoticeViewModel @Inject constructor(
     private val _userProfile = MutableStateFlow<Resource<User?>>(Resource.Idle())
     val userProfile: StateFlow<Resource<User?>> = _userProfile
 
+    private val _memberCount = MutableStateFlow<Resource<Long>>(Resource.Idle())
+    val memberCount: StateFlow<Resource<Long>> = _memberCount
+
     val isGuest: Boolean
         get() = authRepository.getCurrentUser() == null
 
@@ -92,11 +95,23 @@ class NoticeViewModel @Inject constructor(
                     
                     currentUser = resource.data
                     
+                    resource.data?.district?.let { district ->
+                        fetchMemberCount(district)
+                    }
+
                     if (profileUpdated) {
                         loadNotices()
                         subscribeToLocationTopics()
                     }
                 }
+            }
+        }
+    }
+
+    private fun fetchMemberCount(district: String) {
+        viewModelScope.launch {
+            userRepository.getDistrictMemberCount(district).collectLatest {
+                _memberCount.value = it
             }
         }
     }

@@ -3,6 +3,7 @@ package com.example.jamuione.ui.community
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -32,7 +33,7 @@ fun CommunitiesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Communities") },
+                title = { Text("My Communities", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -56,7 +57,7 @@ fun CommunitiesScreen(
                     CommunityCategoryCard(
                         icon = Icons.Default.Home,
                         title = "People From $nativeDistrict",
-                        subtitle = "Migrants from your hometown",
+                        subtitle = "Migrants from your hometown living nearby",
                         onClick = onNavigateToNativeCommunity
                     )
                 }
@@ -66,16 +67,26 @@ fun CommunitiesScreen(
                     CommunityCategoryCard(
                         icon = Icons.Default.LocationOn,
                         title = "$locality Residents",
-                        subtitle = "People living in your neighborhood",
+                        subtitle = "Connect with your immediate neighbors",
                         onClick = onNavigateToLocalityCommunity
                     )
                 }
 
+                item {
+                    Text(
+                        text = "Explore More",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+
                 val soonCommunities = listOf(
-                    Triple(Icons.Default.Work, "Finance Professionals", "Network with industry peers"),
-                    Triple(Icons.Default.Favorite, "Blood Donors", "Save lives in your area"),
-                    Triple(Icons.Default.School, "NIT Patna Alumni", "Connect with fellow graduates"),
-                    Triple(Icons.Default.SportsCricket, "Cricket Lovers", "Find players and matches nearby")
+                    Triple(Icons.Default.Work, "Professionals", "Network with industry peers"),
+                    Triple(Icons.Default.Favorite, "Blood Donors", "Find or volunteer help"),
+                    Triple(Icons.Default.School, "Alumni Groups", "Connect with fellow graduates"),
+                    Triple(Icons.Default.SportsCricket, "Sports & Hobbies", "Find players and matches nearby")
                 )
 
                 items(soonCommunities) { (icon, title, subtitle) ->
@@ -103,19 +114,24 @@ fun CommunityCategoryCard(
     Card(
         onClick = if (!isComingSoon) onClick else ({}),
         modifier = Modifier.fillMaxWidth(),
-        enabled = !isComingSoon
+        enabled = !isComingSoon,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isComingSoon) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
+        ),
+        elevation = if (isComingSoon) CardDefaults.cardElevation(0.dp) else CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                modifier = Modifier.size(48.dp),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.primaryContainer
+                modifier = Modifier.size(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = if (isComingSoon) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Icon(icon, contentDescription = null, tint = if (isComingSoon) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
             
@@ -123,7 +139,7 @@ fun CommunityCategoryCard(
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
             }
             
             if (isComingSoon) {
@@ -131,10 +147,10 @@ fun CommunityCategoryCard(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ) {
-                    Text("Coming Soon", modifier = Modifier.padding(horizontal = 4.dp))
+                    Text("Soon", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                 }
             } else {
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+                Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.outline)
             }
         }
     }

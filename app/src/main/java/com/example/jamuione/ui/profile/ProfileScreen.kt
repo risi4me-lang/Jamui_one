@@ -30,6 +30,7 @@ fun ProfileScreen(
     viewModel: AuthViewModel,
     onNavigateToSavedPosts: () -> Unit,
     onNavigateToCommunities: () -> Unit,
+    onEditProfile: () -> Unit,
     onLogout: () -> Unit
 ) {
     val userProfileState by viewModel.userProfile.collectAsState()
@@ -83,14 +84,15 @@ fun ProfileScreen(
                         
                         ProfileCompletionSection(
                             completion = viewModel.calculateProfileCompletion(user),
-                            missingItems = viewModel.getMissingProfileItems(user)
+                            missingItems = viewModel.getMissingProfileItems(user),
+                            onClick = onEditProfile
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // MENU ITEMS
                         ProfileMenuItem(
-                            icon = Icons.Default.Groups,
+                            icon = Icons.Default.People,
                             title = "Communities",
                             subtitle = "Join local and professional groups",
                             onClick = onNavigateToCommunities
@@ -193,8 +195,9 @@ fun ProfileHeader(user: com.example.jamuione.domain.model.User) {
 }
 
 @Composable
-fun ProfileCompletionSection(completion: Int, missingItems: List<String>) {
+fun ProfileCompletionSection(completion: Int, missingItems: List<String>, onClick: () -> Unit) {
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     ) {

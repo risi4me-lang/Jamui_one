@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.jamuione.ui.components.MemberSkeletonLoader
 import com.example.jamuione.util.Resource
 import java.util.Locale
 
@@ -36,7 +37,7 @@ fun LocalityCommunityScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("📍 $localityName Residents") },
+                title = { Text("📍 $localityName Residents", style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -53,23 +54,29 @@ fun LocalityCommunityScreen(
                 placeholder = { Text("Search neighbors...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 shape = CircleShape,
-                singleLine = true
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                )
             )
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 val filtered = viewModel.filterList(residentsResource, searchQuery)
                 
                 if (residentsResource is Resource.Loading && filtered.isEmpty()) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+                        items(5) { MemberSkeletonLoader() }
+                    }
                 } else if (filtered.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No residents found.")
+                        Text("No residents found.", color = MaterialTheme.colorScheme.secondary)
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         items(filtered) { member ->
                             CommunityMemberCard(member)

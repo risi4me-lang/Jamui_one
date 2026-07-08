@@ -1,20 +1,20 @@
 package com.example.jamuione.ui.auth
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -55,126 +55,191 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(24.dp)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.LocationOn,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = communityName,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            
-            Text(
-                text = "Your district in one app",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.secondary,
-                textAlign = TextAlign.Center
-            )
-            
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Email Field
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email") },
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Password Field
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                singleLine = true
-            )
-
-            AnimatedVisibility(visible = isSignUp) {
-                Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    Text("Password Requirements:", style = MaterialTheme.typography.labelSmall)
-                    RequirementItem("Minimum 8 characters", password.length >= 8)
-                    RequirementItem("Uppercase & Lowercase", password.any { it.isUpperCase() } && password.any { it.isLowerCase() })
-                    RequirementItem("Numeric character", password.any { it.isDigit() })
-                    RequirementItem("Special character", password.any { !it.isLetterOrDigit() })
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Login/Sign Up Button
-            Button(
-                onClick = {
-                    if (isSignUp) {
-                        viewModel.signUpEmail(email, password)
-                    } else {
-                        viewModel.signInEmail(email, password)
+            // Header with Gradient
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(240.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(
+                        modifier = Modifier.size(80.dp),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.2f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(44.dp),
+                                tint = Color.White
+                            )
+                        }
                     }
-                },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled = authState !is AuthState.Loading && email.isNotBlank() && password.isNotBlank()
-            ) {
-                if (authState is AuthState.Loading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                } else {
-                    Text(if (isSignUp) "Sign Up" else "Login")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = communityName,
+                        style = MaterialTheme.typography.displaySmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = "Connect with your community",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
                 }
             }
 
-            TextButton(onClick = { isSignUp = !isSignUp; viewModel.resetAuthState() }) {
-                Text(if (isSignUp) "Already have an account? Login" else "Don't have an account? Sign Up")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                HorizontalDivider(modifier = Modifier.weight(1f))
-                Text(" OR ", modifier = Modifier.padding(horizontal = 8.dp), color = Color.Gray, fontSize = 12.sp)
-                HorizontalDivider(modifier = Modifier.weight(1f))
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Google Sign-In Button
-            OutlinedButton(
-                onClick = { viewModel.signIn(context) },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled = authState !is AuthState.Loading
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Continue with Google")
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            TextButton(onClick = onSkipLogin) {
-                Text("Skip and explore as guest", color = MaterialTheme.colorScheme.primary)
-            }
-
-            if (authState is AuthState.Error) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
                 Text(
-                    text = (authState as AuthState.Error).message,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 16.dp)
+                    text = if (isSignUp) "Create Account" else "Welcome Back",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
                 )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Email Field
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email Address") },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Password Field
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(20.dp)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                AnimatedVisibility(visible = isSignUp) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp, start = 4.dp)) {
+                        Text("Security Requirements:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        RequirementItem("8+ characters", password.length >= 8)
+                        RequirementItem("Uppercase & Lowercase", password.any { it.isUpperCase() } && password.any { it.isLowerCase() })
+                        RequirementItem("Numbers & Special", password.any { it.isDigit() } && password.any { !it.isLetterOrDigit() })
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Login/Sign Up Button
+                Button(
+                    onClick = {
+                        if (isSignUp) {
+                            viewModel.signUpEmail(email, password)
+                        } else {
+                            viewModel.signInEmail(email, password)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = authState !is AuthState.Loading && email.isNotBlank() && password.isNotBlank()
+                ) {
+                    if (authState is AuthState.Loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    } else {
+                        Text(if (isSignUp) "Get Started" else "Login", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (isSignUp) "Already have an account?" else "Don't have an account?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    TextButton(onClick = { isSignUp = !isSignUp; viewModel.resetAuthState() }) {
+                        Text(
+                            text = if (isSignUp) "Login" else "Sign Up",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp)) {
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                    Text(" or continue with ", modifier = Modifier.padding(horizontal = 12.dp), color = MaterialTheme.colorScheme.outline, style = MaterialTheme.typography.labelMedium)
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Google Sign-In Button
+                OutlinedButton(
+                    onClick = { viewModel.signIn(context) },
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = authState !is AuthState.Loading,
+                    border = ButtonDefaults.outlinedButtonBorder(enabled = true)
+                ) {
+                    Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp)) // Placeholder for Google G
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Continue with Google", fontWeight = FontWeight.Medium)
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                TextButton(onClick = onSkipLogin) {
+                    Text("Explore as Guest", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.outline)
+                }
+
+                if (authState is AuthState.Error) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = (authState as AuthState.Error).message,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
         }
     }
@@ -182,14 +247,18 @@ fun LoginScreen(
 
 @Composable
 fun RequirementItem(text: String, isMet: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
         Icon(
-            imageVector = if (isMet) Icons.Default.Check else Icons.Default.Close,
+            imageVector = if (isMet) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
             contentDescription = null,
-            modifier = Modifier.size(12.dp),
-            tint = if (isMet) Color.Green else Color.Red
+            modifier = Modifier.size(14.dp),
+            tint = if (isMet) Color(0xFF4CAF50) else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
         )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(text = text, style = MaterialTheme.typography.labelSmall, color = if (isMet) Color.Green else Color.Red)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (isMet) Color(0xFF4CAF50) else MaterialTheme.colorScheme.outline
+        )
     }
 }

@@ -2,8 +2,10 @@ package com.example.jamuione.ui.profile
 
 import android.util.Log
 import com.example.jamuione.BuildConfig
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -11,6 +13,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -95,37 +99,64 @@ fun ProfileSetupScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text("Complete Profile") },
-                actions = {
-                    IconButton(onClick = { 
-                        viewModel.logout()
-                        onProfileSaved()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
-                    }
-                }
-            )
-        }
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(24.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Personalize your experience",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.Start)
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
+            // Header
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
+                    )
+                    .padding(top = 32.dp, bottom = 48.dp, start = 24.dp, end = 24.dp)
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Profile Setup",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        IconButton(onClick = { 
+                            viewModel.logout()
+                            onProfileSaved()
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color.White)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Complete your profile to get the best experience in your community.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
 
             // SECTION: IDENTITY
             Text("Basic Info", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
@@ -181,7 +212,7 @@ fun ProfileSetupScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // SECTION: NATIVE PLACE
-            Text("Native Place (Hometown)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Text("Your Hometown", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
             Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
                 expanded = expandedNativeDistrict,
@@ -212,36 +243,38 @@ fun ProfileSetupScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // SECTION: PROFESSION
-            Text("Professional Info", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            // SECTION: OPTIONAL INFO
+            Text("Tell your community more about yourself (optional)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = profession,
                 onValueChange = { profession = it },
-                label = { Text("Profession (e.g. Teacher, Engineer, Student)") },
+                label = { Text("Profession (optional)") },
+                placeholder = { Text("e.g. Teacher, Engineer, Student") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = company,
                 onValueChange = { company = it },
-                label = { Text("Company (Optional)") },
+                label = { Text("Company (optional)") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = bio,
                 onValueChange = { bio = it },
-                label = { Text("Short Bio (Tell us about yourself)") },
+                label = { Text("Short Bio (optional)") },
+                placeholder = { Text("Tell us about yourself") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // SECTION: OPTIONS
+            // SECTION: OPTIONS (optional)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -251,7 +284,7 @@ fun ProfileSetupScreen(
                     onCheckedChange = { isBloodDonor = it }
                 )
                 Text(
-                    text = "I am a Blood Donor",
+                    text = "I am a Blood Donor (optional)",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -303,7 +336,7 @@ fun ProfileSetupScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = name.isNotBlank() && locality.isNotBlank() && profession.isNotBlank() && profileSavedState !is Resource.Loading
+                enabled = name.isNotBlank() && locality.isNotBlank() && nativeDistrict.isNotBlank() && profileSavedState !is Resource.Loading
             ) {
                 if (profileSavedState is Resource.Loading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
@@ -313,4 +346,5 @@ fun ProfileSetupScreen(
             }
         }
     }
+}
 }

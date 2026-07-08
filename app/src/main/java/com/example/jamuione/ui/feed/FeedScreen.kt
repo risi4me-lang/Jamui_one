@@ -12,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.jamuione.ui.components.HomeHeader
+import com.example.jamuione.ui.components.PostSkeletonLoader
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.util.BrandingUtil
 import com.example.jamuione.util.Resource
@@ -22,7 +24,8 @@ import kotlinx.coroutines.launch
 fun FeedScreen(
     viewModel: FeedViewModel,
     onCreatePostClick: () -> Unit,
-    onNavigateToDetail: (String) -> Unit
+    onNavigateToDetail: (String) -> Unit,
+    onProfileClick: () -> Unit
 ) {
     val postsResource by viewModel.posts.collectAsState()
     val cachedPosts by viewModel.cachedPosts.collectAsState()
@@ -30,9 +33,9 @@ fun FeedScreen(
     val isSavedMap by viewModel.isSavedMap.collectAsState()
     val currentScope by viewModel.currentScope.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val memberCount by viewModel.memberCount.collectAsState()
     val deleteResult by viewModel.deletePostResult.collectAsState()
     val reportResult by viewModel.reportPostResult.collectAsState()
-    val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -58,24 +61,25 @@ fun FeedScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text(communityName) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        },
         floatingActionButton = {
             if (!viewModel.isGuest) {
-                FloatingActionButton(onClick = onCreatePostClick) {
+                FloatingActionButton(
+                    onClick = onCreatePostClick,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ) {
                     Icon(Icons.Default.Add, contentDescription = "Create Post")
                 }
             }
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            HomeHeader(
+                user = userProfile.data,
+                memberCount = memberCount,
+                onProfileClick = onProfileClick
+            )
+
             ScopeSelector(
                 selectedScope = currentScope,
                 onScopeSelected = { viewModel.setScope(it) }
@@ -89,7 +93,11 @@ fun FeedScreen(
                 }
 
                 if (displayPosts.isEmpty() && postsResource is Resource.Loading) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    Column {
+                        repeat(3) {
+                            PostSkeletonLoader()
+                        }
+                    }
                 } else if (displayPosts.isEmpty()) {
                     Column(
                         modifier = Modifier.fillMaxSize(),

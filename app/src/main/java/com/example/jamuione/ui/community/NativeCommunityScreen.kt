@@ -15,6 +15,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -23,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.jamuione.ui.components.MemberSkeletonLoader
 import com.example.jamuione.domain.model.CommunityStats
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.util.Resource
@@ -75,7 +78,7 @@ fun NativeCommunityScreen(
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.padding(innerPadding).fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 16.dp)
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             item {
                 OutlinedTextField(
@@ -85,7 +88,11 @@ fun NativeCommunityScreen(
                     placeholder = { Text("Search by name, profession or company") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     shape = CircleShape,
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    )
                 )
             }
 
@@ -97,7 +104,10 @@ fun NativeCommunityScreen(
 
             // SECTION 1: SAME LOCALITY
             val filteredLocality = viewModel.filterList(localityMembers, searchQuery)
-            if (filteredLocality.isNotEmpty() || localityMembers is Resource.Loading) {
+            if (localityMembers is Resource.Loading && filteredLocality.isEmpty()) {
+                item { SectionHeader("📍 Same Locality", 0) }
+                items(3) { MemberSkeletonLoader() }
+            } else if (filteredLocality.isNotEmpty()) {
                 item {
                     SectionHeader("📍 Same Locality", filteredLocality.size)
                 }
@@ -110,7 +120,10 @@ fun NativeCommunityScreen(
             val filteredDistrict = viewModel.filterList(districtMembers, searchQuery)
                 .filter { distMem -> filteredLocality.none { locMem -> locMem.uid == distMem.uid } }
             
-            if (filteredDistrict.isNotEmpty() || districtMembers is Resource.Loading) {
+            if (districtMembers is Resource.Loading && filteredDistrict.isEmpty()) {
+                item { SectionHeader("🏙 Same District", 0) }
+                items(3) { MemberSkeletonLoader() }
+            } else if (filteredDistrict.isNotEmpty()) {
                 item {
                     SectionHeader("🏙 Same District", filteredDistrict.size)
                 }
@@ -123,7 +136,10 @@ fun NativeCommunityScreen(
             val filteredEverywhere = viewModel.filterList(everywhereMembers, searchQuery)
                 .filter { evMem -> filteredLocality.none { it.uid == evMem.uid } && filteredDistrict.none { it.uid == evMem.uid } }
             
-            if (filteredEverywhere.isNotEmpty() || everywhereMembers is Resource.Loading) {
+            if (everywhereMembers is Resource.Loading && filteredEverywhere.isEmpty()) {
+                item { SectionHeader("🌍 Everywhere Else", 0) }
+                items(3) { MemberSkeletonLoader() }
+            } else if (filteredEverywhere.isNotEmpty()) {
                 item {
                     SectionHeader("🌍 Everywhere Else", filteredEverywhere.size)
                 }
@@ -144,12 +160,22 @@ fun NativeCommunityScreen(
 @Composable
 fun SectionHeader(title: String, count: Int) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-        Text(text = "$count Members", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+        Text(text = title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold)
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+            shape = CircleShape
+        ) {
+            Text(
+                text = "$count Members",
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
     }
 }
 
@@ -159,31 +185,32 @@ fun CommunityStatsSection(resource: Resource<CommunityStats>) {
         val stats = resource.data!!
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text("Community Stats", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatChip(Icons.Default.People, "${stats.totalMembers} Members")
-                StatChip(Icons.Default.Verified, "${stats.verifiedMembers} Verified")
+                StatChip(Icons.Default.People, "${stats.totalMembers} Members", Modifier.weight(1f))
+                StatChip(Icons.Default.Verified, "${stats.verifiedMembers} Verified", Modifier.weight(1f))
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatChip(Icons.Default.Work, "${stats.professionals} Professionals")
-                StatChip(Icons.Default.Favorite, "${stats.bloodDonors} Blood Donors")
+                StatChip(Icons.Default.Work, "${stats.professionals} Professionals", Modifier.weight(1f))
+                StatChip(Icons.Default.Favorite, "${stats.bloodDonors} Blood Donors", Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-fun StatChip(icon: ImageVector, text: String) {
+fun StatChip(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
     Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.height(32.dp)
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        tonalElevation = 2.dp,
+        modifier = modifier.height(44.dp)
     ) {
-        Row(modifier = Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(text = text, style = MaterialTheme.typography.labelSmall)
+        Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -192,7 +219,9 @@ fun StatChip(icon: ImageVector, text: String) {
 fun CommunityMemberCard(user: User) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -200,29 +229,29 @@ fun CommunityMemberCard(user: User) {
                     AsyncImage(
                         model = user.profileImage,
                         contentDescription = null,
-                        modifier = Modifier.size(50.dp).clip(CircleShape),
+                        modifier = Modifier.size(54.dp).clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Surface(
-                        modifier = Modifier.size(50.dp),
+                        modifier = Modifier.size(54.dp),
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text(text = user.name.take(1).uppercase(), style = MaterialTheme.typography.titleLarge)
+                            Text(text = user.name.take(1).uppercase(), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = user.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         if (user.isVerified) {
                             Spacer(modifier = Modifier.width(4.dp))
-                            Icon(Icons.Default.Verified, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Verified, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                     Text(text = user.profession, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
@@ -231,40 +260,45 @@ fun CommunityMemberCard(user: User) {
                     }
                 }
 
-                Button(onClick = { /* View Profile */ }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp), modifier = Modifier.height(32.dp)) {
-                    Text("View", fontSize = 11.sp)
+                Button(
+                    onClick = { /* View Profile */ },
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                    modifier = Modifier.height(32.dp),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("View", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Home, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Native", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    }
+                    Text(text = user.nativeDistrict.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF4CAF50))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Lives", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    }
+                    Text(text = user.locality.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Home, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.secondary)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Native", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                    }
-                    Text(text = user.nativeDistrict.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-                }
-
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.secondary)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Lives", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                    }
-                    Text(text = user.locality.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "District One Member Since ${formatDate(user.joinedAt)}",
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                color = MaterialTheme.colorScheme.outline
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.8f)
             )
         }
     }
@@ -280,25 +314,28 @@ private fun formatDate(timestamp: Long): String {
 fun EmptyCommunityState(district: String) {
     val context = LocalContext.current
     Column(
-        modifier = Modifier.fillMaxWidth().padding(32.dp),
+        modifier = Modifier.fillMaxWidth().padding(48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outline)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "You're the first member here.", style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center)
-        Text(text = "Invite friends from your hometown to join!", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Center)
+        Icon(Icons.Default.PeopleOutline, contentDescription = null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = {
-            val inviteMessage = "Join me on Jamui One — the local community app for people from $district! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
-            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, inviteMessage)
-            }
-            context.startActivity(Intent.createChooser(sendIntent, "Invite via"))
-        }) {
+        Text(text = "You're the first member here.", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Text(text = "Invite friends from $district to join you in this neighborhood!", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Center)
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = {
+                val inviteMessage = "Join me on Jamui One — the local community app for people from $district! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
+                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, inviteMessage)
+                }
+                context.startActivity(Intent.createChooser(sendIntent, "Invite via"))
+            },
+            shape = RoundedCornerShape(12.dp)
+        ) {
             Icon(Icons.Default.Share, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Text("Invite via WhatsApp")
         }
     }
