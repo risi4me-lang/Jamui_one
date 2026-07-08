@@ -39,7 +39,6 @@ class NoticeRepositoryImpl @Inject constructor(
         Log.d("FIRESTORE_DEBUG", "getNotices: category=$category, locality=$trimmedLocality, district=$trimmedDistrict, state=$trimmedState, search=$normalizedSearch")
 
         var query: Query = firestore.collection("notices")
-            .whereGreaterThan("expiryDate", System.currentTimeMillis())
 
         if (category != null) {
             query = query.whereEqualTo("category", category)
@@ -53,16 +52,17 @@ class NoticeRepositoryImpl @Inject constructor(
             query = query.whereEqualTo("state", trimmedState)
         }
 
-        if (!normalizedSearch.isNullOrBlank()) {
-            query = query.orderBy("searchableTitle")
+        query = if (!normalizedSearch.isNullOrBlank()) {
+            query.orderBy("searchableTitle")
                 .startAt(normalizedSearch)
                 .endAt(normalizedSearch + "\uf8ff")
+                .limit(30)
         } else {
-            query = query.orderBy("expiryDate", Query.Direction.ASCENDING)
+            query.whereGreaterThan("expiryDate", System.currentTimeMillis())
+                .orderBy("expiryDate", Query.Direction.ASCENDING)
                 .orderBy("createdAt", Query.Direction.DESCENDING)
+                .limit(30)
         }
-
-        query = query.limit(30)
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -73,8 +73,13 @@ class NoticeRepositoryImpl @Inject constructor(
 
             if (snapshot != null) {
                 val notices = snapshot.toObjects(Notice::class.java)
-                Log.d("FIRESTORE_DEBUG", "getNotices: success, count=${notices.size}")
-                trySend(Resource.Success(notices))
+                val filtered = if (!normalizedSearch.isNullOrBlank()) {
+                    notices.filter { it.expiryDate > System.currentTimeMillis() }
+                } else {
+                    notices
+                }
+                Log.d("FIRESTORE_DEBUG", "getNotices: success, count=${filtered.size}")
+                trySend(Resource.Success(filtered))
             }
         }
 
