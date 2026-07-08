@@ -4,9 +4,12 @@ import android.util.Log
 import com.example.jamuione.BuildConfig
 import com.example.jamuione.data.local.dao.UserDao
 import com.example.jamuione.data.local.entity.UserEntity
+import com.example.jamuione.domain.model.CommunityStats
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
+import com.google.firebase.firestore.AggregateField
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.CoroutineScope
@@ -31,29 +34,21 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun getUserProfile(uid: String): Flow<Resource<User?>> = callbackFlow {
         trySend(Resource.Loading())
-        if (BuildConfig.DEBUG) {
-            Log.d("AUTH_TRACE", "Fetching Firestore user: $uid")
-        }
         val docRef = firestore.collection("users").document(uid)
         val listener = docRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                Log.e("AUTH_TRACE", "Firestore fetch failed", error)
                 trySend(Resource.Error(error.message ?: "Failed to fetch user"))
                 return@addSnapshotListener
             }
             if (snapshot != null && snapshot.exists()) {
                 val user = snapshot.toObject(User::class.java)
-                Log.d("AUTH_TRACE", "Firestore fetch success: profileCompleted=${user?.profileCompleted}")
-                
                 user?.let {
                     repositoryScope.launch {
                         userDao.upsertUser(it.toEntity())
                     }
                 }
-                
                 trySend(Resource.Success(user))
             } else {
-                Log.d("AUTH_TRACE", "Firestore fetch success: document not found")
                 trySend(Resource.Success(null))
             }
         }
@@ -62,11 +57,7 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun createUserProfile(user: User): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
-        if (BuildConfig.DEBUG) {
-            Log.d("AUTH_TRACE", "Creating Firestore user: ${user.uid}")
-        }
         try {
-            Log.d("AUTH_TRACE", "Firestore write started")
             val finalUser = user.copy(
                 joinedAt = System.currentTimeMillis(),
                 lastSeen = System.currentTimeMillis(),
@@ -77,25 +68,15 @@ class UserRepositoryImpl @Inject constructor(
                     .set(finalUser)
                     .await()
             }
-            Log.d("AUTH_TRACE", "Firestore write success")
-            
             userDao.upsertUser(finalUser.toEntity())
-            
             emit(Resource.Success(true))
-        } catch (e: TimeoutCancellationException) {
-            Log.w("AUTH_TRACE", "Firestore write timed out, likely syncing in background")
-            emit(Resource.Error("Taking longer than usual — it'll finish syncing in the background."))
         } catch (e: Exception) {
-            Log.e("AUTH_TRACE", "Firestore write failed", e)
             emit(Resource.Error(e.message ?: "Failed to create profile"))
         }
     }
 
     override fun saveUserProfile(user: User): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
-        if (BuildConfig.DEBUG) {
-            Log.d("AUTH_TRACE", "Firestore profile save started for UID: ${user.uid}")
-        }
         try {
             val finalUser = user.copy(updatedAt = System.currentTimeMillis())
             withTimeout(20000L) {
@@ -103,16 +84,9 @@ class UserRepositoryImpl @Inject constructor(
                     .set(finalUser)
                     .await()
             }
-            Log.d("AUTH_TRACE", "Firestore profile save success")
-            
             userDao.upsertUser(finalUser.toEntity())
-            
             emit(Resource.Success(true))
-        } catch (e: TimeoutCancellationException) {
-            Log.w("AUTH_TRACE", "Firestore profile save timed out, likely syncing in background")
-            emit(Resource.Error("Taking longer than usual — it'll finish syncing in the background."))
         } catch (e: Exception) {
-            Log.e("AUTH_TRACE", "Firestore profile save failed", e)
             emit(Resource.Error(e.message ?: "Failed to save profile"))
         }
     }
@@ -129,18 +103,33 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getNativeCommunityMembers(
+    override fun getCommunityMembers(
         nativeDistrict: String,
-        currentDistrict: String
+        currentLocality: String?,
+        currentDistrict: String?,
+        currentState: String?,
+        section: String
     ): Flow<Resource<List<User>>> = callbackFlow {
         trySend(Resource.Loading())
         
-        val query = firestore.collection("users")
+        var query = firestore.collection("users")
             .whereEqualTo("nativeDistrict", nativeDistrict.trim().lowercase())
-            .whereEqualTo("district", currentDistrict.trim().lowercase())
             .whereEqualTo("showInCommunity", true)
-            .orderBy("joinedAt", Query.Direction.DESCENDING)
-            .limit(50)
+
+        when (section) {
+            "locality" -> {
+                query = query.whereEqualTo("locality", currentLocality?.trim()?.lowercase() ?: "")
+            }
+            "district" -> {
+                query = query.whereEqualTo("district", currentDistrict?.trim()?.lowercase() ?: "")
+            }
+            // "state" or "hometown" doesn't need additional filters on current location
+        }
+
+        query = query.orderBy("joinedAt", Query.Direction.DESCENDING)
+        
+        if (section == "locality") query = query.limit(10)
+        else query = query.limit(50)
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -150,9 +139,9 @@ class UserRepositoryImpl @Inject constructor(
             if (snapshot != null) {
                 val users = snapshot.toObjects(User::class.java)
                 repositoryScope.launch {
-                    userDao.clearNativeCommunity()
+                    // We don't clear entire community, just update the section for these users
                     users.forEach {
-                        userDao.upsertUser(it.toEntity(isMember = true))
+                        userDao.upsertUser(it.toEntity(isMember = true, section = section))
                     }
                 }
                 trySend(Resource.Success(users))
@@ -161,17 +150,59 @@ class UserRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    override fun getCachedNativeCommunity(): Flow<List<User>> {
-        return userDao.getNativeCommunityMembers().map { entities ->
+    override fun getCachedCommunityMembers(section: String): Flow<List<User>> {
+        return userDao.getNativeCommunityBySection(section).map { entities ->
             entities.map { it.toDomain() }
         }
+    }
+
+    override fun getCommunityStats(nativeDistrict: String): Flow<Resource<CommunityStats>> = flow {
+        emit(Resource.Loading())
+        try {
+            val baseQuery = firestore.collection("users")
+                .whereEqualTo("nativeDistrict", nativeDistrict.trim().lowercase())
+                .whereEqualTo("showInCommunity", true)
+
+            val totalTask = baseQuery.count().get(AggregateSource.SERVER)
+            val verifiedTask = baseQuery.whereEqualTo("isVerified", true).count().get(AggregateSource.SERVER)
+            val professionalsTask = baseQuery.whereNotEqualTo("profession", "").count().get(AggregateSource.SERVER)
+            val bloodDonorsTask = baseQuery.whereEqualTo("isBloodDonor", true).count().get(AggregateSource.SERVER)
+
+            val total = totalTask.await().count
+            val verified = verifiedTask.await().count
+            val professionals = professionalsTask.await().count
+            val bloodDonors = bloodDonorsTask.await().count
+
+            emit(Resource.Success(CommunityStats(total, verified, professionals, bloodDonors)))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to fetch stats"))
+        }
+    }
+
+    override fun getLocalityResidents(locality: String): Flow<Resource<List<User>>> = callbackFlow {
+        trySend(Resource.Loading())
+        val query = firestore.collection("users")
+            .whereEqualTo("locality", locality.trim().lowercase())
+            .orderBy("joinedAt", Query.Direction.DESCENDING)
+            .limit(50)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(Resource.Error(error.message ?: "Failed to fetch residents"))
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(Resource.Success(snapshot.toObjects(User::class.java)))
+            }
+        }
+        awaitClose { listener.remove() }
     }
 
     override fun getCachedUser(uid: String): Flow<User?> {
         return userDao.getUser(uid).map { it?.toDomain() }
     }
 
-    private fun User.toEntity(isMember: Boolean = false) = UserEntity(
+    private fun User.toEntity(isMember: Boolean = false, section: String? = null) = UserEntity(
         uid = uid,
         name = name,
         email = email,
@@ -182,12 +213,15 @@ class UserRepositoryImpl @Inject constructor(
         nativeDistrict = nativeDistrict,
         profession = profession,
         company = company,
+        bio = bio,
+        isBloodDonor = isBloodDonor,
         profileImage = profileImage,
         profileCompleted = profileCompleted,
         isVerified = isVerified,
         showInCommunity = showInCommunity,
         joinedAt = joinedAt,
-        isNativeCommunityMember = isMember
+        isNativeCommunityMember = isMember,
+        communitySection = section
     )
 
     private fun UserEntity.toDomain() = User(
@@ -201,6 +235,8 @@ class UserRepositoryImpl @Inject constructor(
         nativeDistrict = nativeDistrict,
         profession = profession,
         company = company,
+        bio = bio,
+        isBloodDonor = isBloodDonor,
         profileImage = profileImage,
         profileCompleted = profileCompleted,
         isVerified = isVerified,

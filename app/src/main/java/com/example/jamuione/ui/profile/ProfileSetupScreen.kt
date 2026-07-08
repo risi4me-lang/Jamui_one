@@ -39,6 +39,8 @@ fun ProfileSetupScreen(
     var nativeDistrict by remember { mutableStateOf("Jamui") }
     var profession by remember { mutableStateOf("") }
     var company by remember { mutableStateOf("") }
+    var bio by remember { mutableStateOf("") }
+    var isBloodDonor by remember { mutableStateOf(false) }
     var showInCommunity by remember { mutableStateOf(true) }
 
     var expandedDistrict by remember { mutableStateOf(false) }
@@ -76,6 +78,8 @@ fun ProfileSetupScreen(
                 }
                 if (profession.isEmpty()) profession = user.profession
                 if (company.isEmpty()) company = user.company ?: ""
+                if (bio.isEmpty()) bio = user.bio ?: ""
+                isBloodDonor = user.isBloodDonor
                 showInCommunity = user.showInCommunity
             }
         }
@@ -226,10 +230,32 @@ fun ProfileSetupScreen(
                 label = { Text("Company (Optional)") },
                 modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = bio,
+                onValueChange = { bio = it },
+                label = { Text("Short Bio (Tell us about yourself)") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // SECTION: VISIBILITY
+            // SECTION: OPTIONS
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Checkbox(
+                    checked = isBloodDonor,
+                    onCheckedChange = { isBloodDonor = it }
+                )
+                Text(
+                    text = "I am a Blood Donor",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -266,6 +292,8 @@ fun ProfileSetupScreen(
                             nativeDistrict = nativeDistrict,
                             profession = profession,
                             company = company.takeIf { it.isNotBlank() },
+                            bio = bio.takeIf { it.isNotBlank() },
+                            isBloodDonor = isBloodDonor,
                             showInCommunity = showInCommunity
                         )
                     } else {

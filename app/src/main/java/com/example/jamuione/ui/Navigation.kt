@@ -27,8 +27,10 @@ import com.example.jamuione.ui.auth.LoginScreen
 import com.example.jamuione.ui.profile.ProfileSetupScreen
 import com.example.jamuione.ui.profile.ProfileScreen
 import com.example.jamuione.ui.profile.SavedPostsScreen
+import com.example.jamuione.ui.community.CommunitiesScreen
 import com.example.jamuione.ui.community.NativeCommunityScreen
 import com.example.jamuione.ui.community.NativeCommunityViewModel
+import com.example.jamuione.ui.community.LocalityCommunityScreen
 import com.example.jamuione.ui.feed.FeedScreen
 import com.example.jamuione.ui.feed.FeedViewModel
 import com.example.jamuione.ui.feed.CreatePostScreen
@@ -62,7 +64,11 @@ sealed interface Destination : NavKey {
     @Serializable
     data object SavedPosts : Destination
     @Serializable
+    data object Communities : Destination
+    @Serializable
     data object NativeCommunity : Destination
+    @Serializable
+    data object LocalityCommunity : Destination
     @Serializable
     data class PostDetail(val postId: String) : Destination
 }
@@ -153,7 +159,7 @@ fun JamuiOneNavigation() {
                 ProfileScreen(
                     viewModel = authViewModel,
                     onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
-                    onNavigateToNativeCommunity = { backStack.add(Destination.NativeCommunity) },
+                    onNavigateToCommunities = { backStack.add(Destination.Communities) },
                     onLogout = {
                         Log.d("AUTH_TRACE", "Logout triggered from Profile, returning to Login")
                         backStack.clear()
@@ -162,9 +168,25 @@ fun JamuiOneNavigation() {
                 )
             }
         }
+        entry<Destination.Communities> {
+            val authViewModel: AuthViewModel = viewModel()
+            CommunitiesScreen(
+                authViewModel = authViewModel,
+                onNavigateToNativeCommunity = { backStack.add(Destination.NativeCommunity) },
+                onNavigateToLocalityCommunity = { backStack.add(Destination.LocalityCommunity) },
+                onBack = { backStack.removeAt(backStack.size - 1) }
+            )
+        }
         entry<Destination.NativeCommunity> {
             val communityViewModel: NativeCommunityViewModel = viewModel()
             NativeCommunityScreen(
+                viewModel = communityViewModel,
+                onBack = { backStack.removeAt(backStack.size - 1) }
+            )
+        }
+        entry<Destination.LocalityCommunity> {
+            val communityViewModel: NativeCommunityViewModel = viewModel()
+            LocalityCommunityScreen(
                 viewModel = communityViewModel,
                 onBack = { backStack.removeAt(backStack.size - 1) }
             )

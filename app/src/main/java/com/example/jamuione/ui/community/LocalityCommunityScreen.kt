@@ -1,0 +1,82 @@
+package com.example.jamuione.ui.community
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.example.jamuione.util.Resource
+import java.util.Locale
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LocalityCommunityScreen(
+    viewModel: NativeCommunityViewModel,
+    onBack: () -> Unit
+) {
+    val user by viewModel.currentUser.collectAsState()
+    val residentsResource by viewModel.residents.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    
+    val localityName = user?.locality?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() } ?: "Neighborhood"
+
+    LaunchedEffect(user) {
+        if (user != null) {
+            viewModel.loadLocalityData()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("📍 $localityName Residents") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                placeholder = { Text("Search neighbors...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                shape = CircleShape,
+                singleLine = true
+            )
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                val filtered = viewModel.filterList(residentsResource, searchQuery)
+                
+                if (residentsResource is Resource.Loading && filtered.isEmpty()) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else if (filtered.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No residents found.")
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filtered) { member ->
+                            CommunityMemberCard(member)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -2,6 +2,7 @@ package com.example.jamuione.ui.community
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.jamuione.domain.model.CommunityStats
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.domain.repository.UserRepository
@@ -17,11 +18,20 @@ class NativeCommunityViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _members = MutableStateFlow<Resource<List<User>>>(Resource.Idle())
-    val members: StateFlow<Resource<List<User>>> = _members
+    private val _localityMembers = MutableStateFlow<Resource<List<User>>>(Resource.Idle())
+    val localityMembers: StateFlow<Resource<List<User>>> = _localityMembers
 
-    private val _cachedMembers = MutableStateFlow<List<User>>(emptyList())
-    val cachedMembers: StateFlow<List<User>> = _cachedMembers
+    private val _districtMembers = MutableStateFlow<Resource<List<User>>>(Resource.Idle())
+    val districtMembers: StateFlow<Resource<List<User>>> = _districtMembers
+
+    private val _everywhereMembers = MutableStateFlow<Resource<List<User>>>(Resource.Idle())
+    val everywhereMembers: StateFlow<Resource<List<User>>> = _everywhereMembers
+
+    private val _residents = MutableStateFlow<Resource<List<User>>>(Resource.Idle())
+    val residents: StateFlow<Resource<List<User>>> = _residents
+
+    private val _stats = MutableStateFlow<Resource<CommunityStats>>(Resource.Idle())
+    val stats: StateFlow<Resource<CommunityStats>> = _stats
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
@@ -31,7 +41,6 @@ class NativeCommunityViewModel @Inject constructor(
 
     init {
         fetchCurrentUser()
-        observeCachedMembers()
     }
 
     private fun fetchCurrentUser() {
@@ -40,28 +49,51 @@ class NativeCommunityViewModel @Inject constructor(
             userRepository.getUserProfile(uid).collectLatest { resource ->
                 if (resource is Resource.Success) {
                     _currentUser.value = resource.data
-                    resource.data?.let { user ->
-                        if (user.nativeDistrict.isNotEmpty() && user.district.isNotEmpty()) {
-                            loadMembers(user.nativeDistrict, user.district)
-                        }
-                    }
                 }
             }
         }
     }
 
-    private fun loadMembers(nativeDistrict: String, currentDistrict: String) {
+    fun loadHometownData() {
+        val user = _currentUser.value ?: return
+        if (user.nativeDistrict.isEmpty()) return
+
         viewModelScope.launch {
-            userRepository.getNativeCommunityMembers(nativeDistrict, currentDistrict).collectLatest {
-                _members.value = it
+            userRepository.getCommunityStats(user.nativeDistrict).collectLatest {
+                _stats.value = it
             }
+        }
+        
+        viewModelScope.launch {
+            userRepository.getCommunityMembers(
+                nativeDistrict = user.nativeDistrict,
+                currentLocality = user.locality,
+                section = "locality"
+            ).collectLatest { _localityMembers.value = it }
+        }
+
+        viewModelScope.launch {
+            userRepository.getCommunityMembers(
+                nativeDistrict = user.nativeDistrict,
+                currentDistrict = user.district,
+                section = "district"
+            ).collectLatest { _districtMembers.value = it }
+        }
+
+        viewModelScope.launch {
+            userRepository.getCommunityMembers(
+                nativeDistrict = user.nativeDistrict,
+                section = "hometown"
+            ).collectLatest { _everywhereMembers.value = it }
         }
     }
 
-    private fun observeCachedMembers() {
+    fun loadLocalityData() {
+        val user = _currentUser.value ?: return
+        if (user.locality.isEmpty()) return
         viewModelScope.launch {
-            userRepository.getCachedNativeCommunity().collectLatest {
-                _cachedMembers.value = it
+            userRepository.getLocalityResidents(user.locality).collectLatest {
+                _residents.value = it
             }
         }
     }
@@ -70,16 +102,13 @@ class NativeCommunityViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    val filteredMembers = combine(_members, _cachedMembers, _searchQuery) { membersResource, cached, query ->
-        val list = if (membersResource is Resource.Success) membersResource.data ?: emptyList() else cached
-        if (query.isBlank()) {
-            list
-        } else {
-            list.filter { 
-                it.name.contains(query, ignoreCase = true) || 
-                it.profession.contains(query, ignoreCase = true) || 
-                (it.company?.contains(query, ignoreCase = true) ?: false)
-            }
+    fun filterList(resource: Resource<List<User>>, query: String): List<User> {
+        val list = (resource as? Resource.Success)?.data ?: emptyList()
+        if (query.isBlank()) return list
+        return list.filter { 
+            it.name.contains(query, ignoreCase = true) || 
+            it.profession.contains(query, ignoreCase = true) || 
+            (it.company?.contains(query, ignoreCase = true) ?: false)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
 }

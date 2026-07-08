@@ -15,6 +15,8 @@ data class User(
     val nativeDistrict: String = "",
     val profession: String = "",
     val company: String? = null,
+    val bio: String? = null,
+    val isBloodDonor: Boolean = false,
     val profileImage: String? = null,
     val role: String = "user",
     val profileCompleted: Boolean = false,
