@@ -31,6 +31,8 @@ import com.example.jamuione.ui.auth.LoginScreen
 import com.example.jamuione.ui.profile.ProfileSetupScreen
 import com.example.jamuione.ui.profile.ProfileScreen
 import com.example.jamuione.ui.profile.SavedPostsScreen
+import com.example.jamuione.ui.legal.PrivacyPolicyScreen
+import com.example.jamuione.ui.legal.TermsOfServiceScreen
 import com.example.jamuione.ui.community.CommunitiesScreen
 import com.example.jamuione.ui.community.NativeCommunityScreen
 import com.example.jamuione.ui.community.NativeCommunityViewModel
@@ -74,6 +76,10 @@ sealed interface Destination : NavKey {
     @Serializable
     data object LocalityCommunity : Destination
     @Serializable
+    data object PrivacyPolicy : Destination
+    @Serializable
+    data object TermsOfService : Destination
+    @Serializable
     data class PostDetail(val postId: String) : Destination
 }
 
@@ -106,7 +112,9 @@ fun JamuiOneNavigation() {
                     Log.d("AUTH_TRACE", "Guest mode: skipping login")
                     backStack.clear()
                     backStack.add(Destination.MainFeed)
-                }
+                },
+                onViewPrivacyPolicy = { backStack.add(Destination.PrivacyPolicy) },
+                onViewTermsOfService = { backStack.add(Destination.TermsOfService) }
             )
         }
         entry<Destination.ProfileSetup> {
@@ -173,6 +181,8 @@ fun JamuiOneNavigation() {
                     onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
                     onNavigateToCommunities = { backStack.add(Destination.Communities) },
                     onEditProfile = { backStack.add(Destination.ProfileSetup) },
+                    onViewPrivacyPolicy = { backStack.add(Destination.PrivacyPolicy) },
+                    onViewTermsOfService = { backStack.add(Destination.TermsOfService) },
                     onLogout = {
                         Log.d("AUTH_TRACE", "Logout triggered from Profile, returning to Login")
                         backStack.clear()
@@ -203,6 +213,12 @@ fun JamuiOneNavigation() {
                 viewModel = communityViewModel,
                 onBack = { backStack.removeAt(backStack.size - 1) }
             )
+        }
+        entry<Destination.PrivacyPolicy> {
+            PrivacyPolicyScreen(onBack = { backStack.removeAt(backStack.size - 1) })
+        }
+        entry<Destination.TermsOfService> {
+            TermsOfServiceScreen(onBack = { backStack.removeAt(backStack.size - 1) })
         }
         entry<Destination.SavedPosts> {
             val feedViewModel: FeedViewModel = viewModel()

@@ -1,17 +1,24 @@
 package com.example.jamuione.ui.feed
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.jamuione.ui.components.HomeHeader
 import com.example.jamuione.ui.components.PostSkeletonLoader
 import com.example.jamuione.domain.model.Post
@@ -73,86 +80,134 @@ fun FeedScreen(
             }
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
-            HomeHeader(
-                user = userProfile.data,
-                memberCount = memberCount,
-                onProfileClick = onProfileClick
-            )
+        LazyColumn(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+        ) {
+            item {
+                HomeHeader(
+                    user = userProfile.data,
+                    memberCount = memberCount,
+                    onProfileClick = onProfileClick
+                )
+            }
 
-            ScopeSelector(
-                selectedScope = currentScope,
-                onScopeSelected = { viewModel.setScope(it) }
-            )
+            item {
+                ScopeSelector(
+                    selectedScope = currentScope,
+                    onScopeSelected = { viewModel.setScope(it) }
+                )
+            }
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                val displayPosts = if (postsResource is Resource.Success) {
-                    postsResource.data ?: emptyList()
-                } else {
-                    if (currentScope == FeedScope.LOCALITY) cachedPosts else emptyList()
+            val displayPosts = if (postsResource is Resource.Success) {
+                postsResource.data ?: emptyList()
+            } else {
+                if (currentScope == FeedScope.LOCALITY) cachedPosts else emptyList()
+            }
+
+            if (displayPosts.isEmpty() && postsResource is Resource.Loading) {
+                items(3) {
+                    PostSkeletonLoader()
                 }
-
-                if (displayPosts.isEmpty() && postsResource is Resource.Loading) {
-                    Column {
-                        repeat(3) {
-                            PostSkeletonLoader()
+            } else if (displayPosts.isEmpty()) {
+                item {
+                    EmptyFeedState(onCreatePostClick = onCreatePostClick, isGuest = viewModel.isGuest)
+                }
+            } else {
+                items(displayPosts) { post ->
+                    PostCard(
+                        post = post,
+                        currentUserId = userProfile.data?.uid,
+                        isLiked = likedPosts[post.id] ?: false,
+                        isSaved = isSavedMap[post.id] ?: false,
+                        onDeleteClick = {
+                            viewModel.deletePost(post.id)
+                        },
+                        onSaveClick = {
+                            viewModel.toggleSavePost(post.id)
+                        },
+                        onReportClick = { reason ->
+                            viewModel.reportPost(post.id, reason)
+                        },
+                        onDetailClick = {
+                            onNavigateToDetail(post.id)
+                        },
+                        onCommentClick = {
+                            onNavigateToDetail(post.id)
+                        },
+                        onLikeClick = {
+                            viewModel.toggleLike(post.id)
                         }
-                    }
-                } else if (displayPosts.isEmpty()) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            Icons.Default.Share,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No posts found for this area.\nBe the first to share what's happening!",
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                } else if (postsResource is Resource.Error) {
+                    )
+                }
+            }
+            
+            if (postsResource is Resource.Error) {
+                item {
                     Text(
                         text = postsResource.message ?: "Failed to load posts",
                         color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(16.dp).align(Alignment.Center)
+                        modifier = Modifier.padding(32.dp).fillMaxWidth(),
+                        textAlign = TextAlign.Center
                     )
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(displayPosts) { post ->
-                            PostCard(
-                                post = post,
-                                currentUserId = userProfile.data?.uid,
-                                isLiked = likedPosts[post.id] ?: false,
-                                isSaved = isSavedMap[post.id] ?: false,
-                                onDeleteClick = {
-                                    viewModel.deletePost(post.id)
-                                },
-                                onSaveClick = {
-                                    viewModel.toggleSavePost(post.id)
-                                },
-                                onReportClick = { reason ->
-                                    viewModel.reportPost(post.id, reason)
-                                },
-                                onDetailClick = {
-                                    onNavigateToDetail(post.id)
-                                },
-                                onCommentClick = {
-                                    onNavigateToDetail(post.id)
-                                },
-                                onLikeClick = {
-                                    viewModel.toggleLike(post.id)
-                                }
-                            )
-                        }
-                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyFeedState(onCreatePostClick: () -> Unit, isGuest: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 64.dp, start = 32.dp, end = 32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.PostAdd,
+                contentDescription = null,
+                modifier = Modifier.size(100.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Text(
+            text = "Nobody has posted yet.",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        Text(
+            text = "Be the first neighbor to share what's happening around you!",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.secondary,
+            textAlign = TextAlign.Center
+        )
+        
+        if (!isGuest) {
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onCreatePostClick,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.height(54.dp).fillMaxWidth(0.7f)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Share Something", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -167,7 +222,7 @@ fun ScopeSelector(
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {

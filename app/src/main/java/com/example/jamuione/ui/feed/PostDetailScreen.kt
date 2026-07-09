@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,6 +41,7 @@ fun PostDetailScreen(
     val isSavedMap by feedViewModel.isSavedMap.collectAsState()
     val likersResource by viewModel.likers.collectAsState()
     val reportResult by viewModel.reportPostResult.collectAsState()
+    val reportCommentResult by viewModel.reportCommentResult.collectAsState()
     val userProfile by feedViewModel.userProfile.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     
@@ -64,6 +66,16 @@ fun PostDetailScreen(
         } else if (reportResult is Resource.Error) {
             snackbarHostState.showSnackbar(reportResult.message ?: "Failed to submit report")
             viewModel.resetReportPostResult()
+        }
+    }
+
+    LaunchedEffect(reportCommentResult) {
+        if (reportCommentResult is Resource.Success && reportCommentResult.data == true) {
+            snackbarHostState.showSnackbar("Comment reported. Thank you.")
+            viewModel.resetReportCommentResult()
+        } else if (reportCommentResult is Resource.Error) {
+            snackbarHostState.showSnackbar(reportCommentResult.message ?: "Failed to report comment")
+            viewModel.resetReportCommentResult()
         }
     }
 
@@ -166,7 +178,10 @@ fun PostDetailScreen(
                             CommentItem(
                                 comment = comment,
                                 replies = repliesMap[comment.id] ?: emptyList(),
-                                onReplyClick = { replyingToCommentId = comment.id }
+                                onReplyClick = { replyingToCommentId = comment.id },
+                                onReportClick = { targetId, reason -> 
+                                    viewModel.reportComment(postId, targetId, reason)
+                                }
                             )
                         }
                     }
@@ -190,13 +205,62 @@ fun PostDetailScreen(
 fun CommentItem(
     comment: Comment,
     replies: List<Comment>,
-    onReplyClick: () -> Unit
+    onReplyClick: () -> Unit,
+    onReportClick: (String, String) -> Unit
 ) {
+    var showReportDialog by remember { mutableStateOf(false) }
+    var reportTargetId by remember { mutableStateOf<String?>(null) }
+    var reportReason by remember { mutableStateOf("") }
+    var showMenu by remember { mutableStateOf(false) }
+
+    if (showReportDialog) {
+        AlertDialog(
+            onDismissRequest = { showReportDialog = false },
+            title = { Text("Report Comment") },
+            text = {
+                Column {
+                    Text("Please provide a reason for reporting this comment:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = reportReason,
+                        onValueChange = { reportReason = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Reason (e.g. Spam, Harassment)") }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val targetId = reportTargetId
+                        if (reportReason.isNotBlank() && targetId != null) {
+                            onReportClick(targetId, reportReason)
+                            showReportDialog = false
+                            reportReason = ""
+                            reportTargetId = null
+                        }
+                    },
+                    enabled = reportReason.isNotBlank()
+                ) {
+                    Text("Report")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showReportDialog = false
+                    reportTargetId = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Column(modifier = Modifier.padding(16.dp)) {
-        Row {
+        Row(modifier = Modifier.fillMaxWidth()) {
             UserAvatar(imageUrl = comment.userProfileImage, name = comment.userName, size = 32.dp)
             Spacer(modifier = Modifier.width(8.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = comment.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     if (comment.isVerified) {
@@ -221,13 +285,37 @@ fun CommentItem(
                     )
                 }
             }
+            
+            Box {
+                IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.outline
+                    )
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Report") },
+                        onClick = {
+                            showMenu = false
+                            reportTargetId = comment.id
+                            showReportDialog = true
+                        }
+                    )
+                }
+            }
         }
         
         replies.forEach { reply ->
-            Row(modifier = Modifier.padding(start = 40.dp, top = 12.dp)) {
+            Row(modifier = Modifier.padding(start = 40.dp, top = 12.dp).fillMaxWidth()) {
                 UserAvatar(imageUrl = reply.userProfileImage, name = reply.userName, size = 24.dp)
                 Spacer(modifier = Modifier.width(8.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = reply.userName, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         if (reply.isVerified) {
@@ -242,6 +330,32 @@ fun CommentItem(
                     }
                     Text(text = reply.content, fontSize = 13.sp)
                     Text(text = formatTime(reply.timestamp), fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
+                }
+                
+                // Also allow reporting replies
+                var showReplyMenu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { showReplyMenu = true }, modifier = Modifier.size(20.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Options",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showReplyMenu,
+                        onDismissRequest = { showReplyMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                        text = { Text("Report") },
+                        onClick = {
+                            showReplyMenu = false
+                            reportTargetId = reply.id
+                            showReportDialog = true
+                        }
+                    )
+                    }
                 }
             }
         }

@@ -7,9 +7,9 @@ import com.example.jamuione.data.local.entity.PostEntity
 import com.example.jamuione.domain.model.Comment
 import com.example.jamuione.domain.model.Like
 import com.example.jamuione.domain.model.Post
-import com.example.jamuione.domain.model.Report
 import com.example.jamuione.domain.repository.PostRepository
 import com.example.jamuione.util.Resource
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
+import java.util.Calendar
 import java.util.UUID
 import javax.inject.Inject
 
@@ -120,6 +121,7 @@ class PostRepositoryImpl @Inject constructor(
             emit(Resource.Error("Posting is taking longer than usual — it'll finish syncing in the background."))
         } catch (e: Exception) {
             Log.e("POST_DEBUG", "createPost: failed", e)
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             emit(Resource.Error(e.message ?: "Failed to create post"))
         }
     }
@@ -169,6 +171,7 @@ class PostRepositoryImpl @Inject constructor(
         } catch (e: TimeoutCancellationException) {
             emit(Resource.Error("Action timed out. Please try again."))
         } catch (e: Exception) {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             emit(Resource.Error(e.message ?: "Failed to toggle like"))
         }
     }
@@ -239,19 +242,41 @@ class PostRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    override fun reportPost(postId: String, userId: String, reason: String): Flow<Resource<Boolean>> = flow {
+    override fun reportPost(postId: String, reporterId: String, reason: String): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
             val reportId = UUID.randomUUID().toString()
-            val report = Report(
-                id = reportId,
-                userId = userId,
-                contentId = postId,
-                contentType = "post",
-                reason = reason,
-                timestamp = System.currentTimeMillis()
+            val report = mapOf(
+                "id" to reportId,
+                "reporterId" to reporterId,
+                "targetId" to postId,
+                "targetType" to "post",
+                "reason" to reason,
+                "createdAt" to System.currentTimeMillis()
             )
             firestore.collection("reports").document(reportId).set(report).await()
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().log("Post Reported: $postId by $reporterId. Reason: $reason")
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to submit report"))
+        }
+    }
+
+    override fun reportComment(postId: String, commentId: String, reporterId: String, reason: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            val reportId = UUID.randomUUID().toString()
+            val report = mapOf(
+                "id" to reportId,
+                "reporterId" to reporterId,
+                "targetId" to commentId,
+                "targetType" to "comment",
+                "parentPostId" to postId,
+                "reason" to reason,
+                "createdAt" to System.currentTimeMillis()
+            )
+            firestore.collection("reports").document(reportId).set(report).await()
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().log("Comment Reported: $commentId by $reporterId. Reason: $reason")
             emit(Resource.Success(true))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to submit report"))
@@ -320,6 +345,30 @@ class PostRepositoryImpl @Inject constructor(
             emit(Resource.Success(sortedPosts))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to fetch saved posts"))
+        }
+    }
+
+    override fun getTodayPostCount(userId: String): Flow<Resource<Int>> = flow {
+        emit(Resource.Loading())
+        try {
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startOfDay = calendar.timeInMillis
+
+            val count = firestore.collection("posts")
+                .whereEqualTo("userId", userId)
+                .whereGreaterThanOrEqualTo("timestamp", startOfDay)
+                .count()
+                .get(AggregateSource.SERVER)
+                .await()
+                .count
+            
+            emit(Resource.Success(count.toInt()))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to check limit"))
         }
     }
 

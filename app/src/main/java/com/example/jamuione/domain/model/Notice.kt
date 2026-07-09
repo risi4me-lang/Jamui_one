@@ -18,5 +18,11 @@ data class Notice(
     val locality: String = "",
     val createdAt: Long = 0L,
     val expiryDate: Long = 0L,
-    val contactNumber: String = ""
+    val contactNumber: String = "",
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0L,
+    val pollQuestion: String? = null,
+    val pollOptions: List<String>? = null,
+    val pollVotes: Map<String, Int>? = null, // OptionIndex -> VoteCount
+    val userVotes: Map<String, Int>? = null // UserId -> OptionIndex
 )

@@ -10,12 +10,14 @@ import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 sealed class AuthState {
@@ -41,11 +43,11 @@ class AuthViewModel @Inject constructor(
     private val _profileSaved = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val profileSaved: StateFlow<Resource<Boolean>> = _profileSaved
 
-    fun signIn(context: Context) {
+    fun signIn(context: Context, ageAcknowledged: Boolean = false) {
         viewModelScope.launch {
             Log.d("AUTH_TRACE", "Signup button clicked (Google)")
             authRepository.signInWithGoogle(context).collectLatest { resource ->
-                handleAuthResource(resource, "Google")
+                handleAuthResource(resource, "Google", ageAcknowledged)
             }
         }
     }
@@ -59,7 +61,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signUpEmail(email: String, password: String) {
+    fun signUpEmail(email: String, password: String, ageAcknowledged: Boolean = false) {
         if (!isPasswordValid(password)) {
             _authState.value = AuthState.Error("Password must be at least 8 characters, include uppercase, lowercase, number, and special character.")
             return
@@ -67,7 +69,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             Log.d("AUTH_TRACE", "Signup button clicked (Email)")
             authRepository.signUpWithEmail(email, password).collectLatest { resource ->
-                handleAuthResource(resource, "Email Sign-Up")
+                handleAuthResource(resource, "Email Sign-Up", ageAcknowledged)
             }
         }
     }
@@ -81,7 +83,7 @@ class AuthViewModel @Inject constructor(
         return true
     }
 
-    private suspend fun handleAuthResource(resource: Resource<FirebaseUser>, method: String) {
+    private suspend fun handleAuthResource(resource: Resource<FirebaseUser>, method: String, ageAcknowledged: Boolean = false) {
         when (resource) {
             is Resource.Loading -> {
                 Log.d("AUTH_TRACE", "$method: Auth Loading state emitted")
@@ -99,6 +101,7 @@ class AuthViewModel @Inject constructor(
                 
                 if (existingProfileResult is Resource.Success && existingProfileResult.data != null) {
                     Log.d("AUTH_TRACE", "$method: Existing profile found, skipping creation")
+                    setupCrashlytics(existingProfileResult.data)
                     _authState.value = AuthState.Authenticated
                     fetchUserProfile()
                 } else {
@@ -111,6 +114,8 @@ class AuthViewModel @Inject constructor(
                         district = "jamui", // Default district normalized
                         locality = "unknown", // Placeholder normalized
                         profileImage = firebaseUser.photoUrl?.toString(),
+                        ageAcknowledged = ageAcknowledged,
+                        ageAcknowledgedAt = if (ageAcknowledged) System.currentTimeMillis() else 0L,
                         createdAt = System.currentTimeMillis(),
                         updatedAt = System.currentTimeMillis()
                     )
@@ -121,6 +126,7 @@ class AuthViewModel @Inject constructor(
                             is Resource.Success -> {
                                 Log.d("AUTH_TRACE", "$method: Firestore Success, Repository emitted Success")
                                 Log.d("AUTH_TRACE", "$method: ViewModel received Success, transitioning to Authenticated")
+                                setupCrashlytics(user)
                                 _authState.value = AuthState.Authenticated
                                 fetchUserProfile()
                             }
@@ -135,6 +141,7 @@ class AuthViewModel @Inject constructor(
             }
             is Resource.Error -> {
                 Log.e("AUTH_TRACE", "$method: Firebase Auth failed: ${resource.message}")
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(Exception("$method failure: ${resource.message}"))
                 _authState.value = AuthState.Error(resource.message ?: "Auth failed")
             }
             is Resource.Idle -> {
@@ -248,7 +255,28 @@ class AuthViewModel @Inject constructor(
         _authState.value = AuthState.Unauthenticated
     }
 
+    fun deleteAccount() {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            userRepository.deleteAccount(uid).collectLatest { resource ->
+                if (resource is Resource.Success) {
+                    authRepository.getCurrentUser()?.delete()?.await()
+                    logout()
+                }
+            }
+        }
+    }
+
     fun resetAuthState() {
         _authState.value = AuthState.Idle
+    }
+
+    private fun setupCrashlytics(user: User) {
+        val crashlytics = FirebaseCrashlytics.getInstance()
+        crashlytics.setUserId(user.uid)
+        crashlytics.setCustomKey("currentDistrict", user.district)
+        crashlytics.setCustomKey("nativeDistrict", user.nativeDistrict)
+        crashlytics.setCustomKey("userRole", user.role)
+        crashlytics.setCustomKey("appVersion", BuildConfig.VERSION_NAME)
     }
 }

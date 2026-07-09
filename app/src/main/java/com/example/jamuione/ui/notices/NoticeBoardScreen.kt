@@ -1,5 +1,11 @@
 package com.example.jamuione.ui.notices
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -15,9 +21,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -150,24 +161,10 @@ fun NoticeBoardScreen(
                 val notices = noticesResource.data ?: emptyList()
                 if (notices.isEmpty()) {
                     item {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                Icons.Default.Info,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = if (searchQuery.isNotEmpty()) "No notices matching \"$searchQuery\"." else "No notices in this category/area.",
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
+                        EmptyNoticeState(
+                            searchQuery = searchQuery,
+                            onInviteClick = { /* existing invite logic */ }
+                        )
                     }
                 } else {
                     items(notices) { notice ->
@@ -179,6 +176,9 @@ fun NoticeBoardScreen(
                             },
                             onReportClick = { reason ->
                                 viewModel.reportNotice(notice.id, reason)
+                            },
+                            onVoteClick = { index ->
+                                viewModel.voteInPoll(notice.id, index)
                             }
                         )
                     }
@@ -226,13 +226,51 @@ fun CategorySelector(
     }
 }
 
+data class CategoryStyle(
+    val icon: ImageVector,
+    val color: Color
+)
+
+@Composable
+fun getCategoryStyle(category: String): CategoryStyle {
+    return when (category.lowercase()) {
+        "blood donation" -> CategoryStyle(Icons.Default.Bloodtype, Color(0xFFE91E63))
+        "help needed" -> CategoryStyle(Icons.Default.Favorite, Color(0xFFF44336))
+        "jobs" -> CategoryStyle(Icons.Default.Work, Color(0xFF2196F3))
+        "rent/flatmate" -> CategoryStyle(Icons.Default.Home, Color(0xFF4CAF50))
+        "buy & sell" -> CategoryStyle(Icons.Default.ShoppingCart, Color(0xFFFF9800))
+        "announcement" -> CategoryStyle(Icons.Default.Announcement, Color(0xFF9C27B0))
+        else -> CategoryStyle(Icons.Default.Info, MaterialTheme.colorScheme.primary)
+    }
+}
+
 @Composable
 fun NoticeItem(
     notice: Notice,
     currentUserId: String? = null,
     onDeleteClick: () -> Unit = {},
-    onReportClick: (String) -> Unit = {}
+    onReportClick: (String) -> Unit = {},
+    onVoteClick: (Int) -> Unit = {}
 ) {
+    if (notice.isDeleted) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text(
+                text = "This notice has been deleted.",
+                modifier = Modifier.padding(16.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline
+            )
+        }
+        return
+    }
+
+    val style = getCategoryStyle(notice.category)
     val displayCategory = notice.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -316,21 +354,32 @@ fun NoticeItem(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
+                        color = style.color.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text(
-                            text = displayCategory,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(style.icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = style.color)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = displayCategory,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = style.color,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(12.dp))
+                    
+                    val daysLeft = ((notice.expiryDate - System.currentTimeMillis()) / (24 * 60 * 60 * 1000L)).toInt()
+                    val expiryText = if (daysLeft <= 0) "Expires today" else "Expires in $daysLeft days"
+                    
                     Text(
-                        text = "Expires ${formatDate(notice.expiryDate)}",
+                        text = expiryText,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
+                        color = if (daysLeft < 2) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
                     )
                 }
                 
@@ -374,6 +423,18 @@ fun NoticeItem(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            // POLL SECTION
+            if (notice.pollQuestion != null && notice.pollOptions != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                PollView(
+                    question = notice.pollQuestion,
+                    options = notice.pollOptions,
+                    votes = notice.pollVotes ?: emptyMap(),
+                    userVote = notice.userVotes?.get(currentUserId ?: ""),
+                    onVoteClick = onVoteClick
+                )
+            }
             
             Spacer(modifier = Modifier.height(16.dp))
             Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -390,18 +451,18 @@ fun NoticeItem(
                             model = notice.userProfileImage,
                             contentDescription = "Profile Picture",
                             modifier = Modifier
-                                .size(24.dp)
+                                .size(28.dp)
                                 .clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     } else {
                         Surface(
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(28.dp),
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -429,6 +490,137 @@ fun NoticeItem(
                         Text("Contact", fontSize = 11.sp)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun PollView(
+    question: String,
+    options: List<String>,
+    votes: Map<String, Int>,
+    userVote: Int?,
+    onVoteClick: (Int) -> Unit
+) {
+    val totalVotes = votes.values.sum()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+            .padding(12.dp)
+    ) {
+        Text(text = question, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(12.dp))
+        options.forEachIndexed { index, option ->
+            val voteCount = votes[index.toString()] ?: 0
+            val percentage = if (totalVotes > 0) (voteCount.toFloat() / totalVotes) else 0f
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clickable { onVoteClick(index) }
+                    .border(
+                        width = if (userVote == index) 2.dp else 1.dp,
+                        color = if (userVote == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+            ) {
+                // Progress Bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(percentage)
+                        .matchParentSize()
+                        .background(
+                            if (userVote == index) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                )
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Text(text = option, style = MaterialTheme.typography.bodyMedium)
+                        if (userVote == index) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    Text(
+                        text = "${(percentage * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "$totalVotes votes",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary
+        )
+    }
+}
+
+@Composable
+fun EmptyNoticeState(searchQuery: String, onInviteClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 64.dp, start = 32.dp, end = 32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (searchQuery.isNotEmpty()) Icons.Default.SearchOff else Icons.Default.SpeakerNotesOff,
+                contentDescription = null,
+                modifier = Modifier.size(80.dp),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text(
+            text = if (searchQuery.isNotEmpty()) "No matches found" else "Nobody has posted yet.",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = if (searchQuery.isNotEmpty()) "Try searching for something else or check your spelling." else "Be the first neighbor to share something important with the community.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.secondary,
+            textAlign = TextAlign.Center
+        )
+        
+        if (searchQuery.isEmpty()) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = onInviteClick,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Share, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Invite Neighbors")
             }
         }
     }

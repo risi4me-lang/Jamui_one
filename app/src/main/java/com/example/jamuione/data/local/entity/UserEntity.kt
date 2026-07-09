@@ -22,6 +22,7 @@ data class UserEntity(
     val isVerified: Boolean = false,
     val showInCommunity: Boolean = true,
     val joinedAt: Long = 0L,
+    val isDeleted: Boolean = false,
     val isNativeCommunityMember: Boolean = false,
     val communitySection: String? = null // locality, district, state
 )

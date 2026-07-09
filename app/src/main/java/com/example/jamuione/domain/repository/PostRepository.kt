@@ -17,8 +17,10 @@ interface PostRepository {
     fun getLikers(postId: String): Flow<Resource<List<Like>>>
     fun addComment(postId: String, comment: Comment): Flow<Resource<Boolean>>
     fun getComments(postId: String): Flow<Resource<List<Comment>>>
-    fun reportPost(postId: String, userId: String, reason: String): Flow<Resource<Boolean>>
+    fun reportPost(postId: String, reporterId: String, reason: String): Flow<Resource<Boolean>>
+    fun reportComment(postId: String, commentId: String, reporterId: String, reason: String): Flow<Resource<Boolean>>
     fun toggleSavePost(postId: String, userId: String): Flow<Resource<Boolean>>
     fun observeIsSavedByUser(postId: String, userId: String): Flow<Boolean>
     fun getSavedPosts(userId: String): Flow<Resource<List<Post>>>
+    fun getTodayPostCount(userId: String): Flow<Resource<Int>>
 }

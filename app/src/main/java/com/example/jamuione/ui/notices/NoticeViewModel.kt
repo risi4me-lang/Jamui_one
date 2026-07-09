@@ -25,6 +25,10 @@ class NoticeViewModel @Inject constructor(
     private val userRepository: UserRepository
 ) : ViewModel() {
 
+    companion object {
+        const val MAX_NOTICES_PER_DAY = 10
+    }
+
     private val _notices = MutableStateFlow<Resource<List<Notice>>>(Resource.Idle())
     val notices: StateFlow<Resource<List<Notice>>> = _notices
 
@@ -170,7 +174,15 @@ class NoticeViewModel @Inject constructor(
         }
     }
 
-    fun createNotice(title: String, description: String, category: String, contact: String, daysToExpiry: Int) {
+    fun createNotice(
+        title: String, 
+        description: String, 
+        category: String, 
+        contact: String, 
+        daysToExpiry: Int,
+        pollQuestion: String? = null,
+        pollOptions: List<String>? = null
+    ) {
         Log.d("NOTICE_DEBUG", "createNotice button clicked in ViewModel")
         val user = currentUser
         if (user == null) {
@@ -179,25 +191,40 @@ class NoticeViewModel @Inject constructor(
             return
         }
         
-        val expiryDate = System.currentTimeMillis() + (daysToExpiry * 24 * 60 * 60 * 1000L)
-        val notice = Notice(
-            userId = user.uid,
-            userName = user.name,
-            userProfileImage = user.profileImage,
-            isVerified = user.isVerified,
-            title = title,
-            description = description,
-            category = category,
-            state = user.state,
-            district = user.district,
-            locality = user.locality,
-            expiryDate = expiryDate,
-            contactNumber = contact
-        )
         viewModelScope.launch {
-            noticeRepository.createNotice(notice).collectLatest {
-                Log.d("NOTICE_DEBUG", "createNotice result in ViewModel: $it")
-                _createNoticeResult.value = it
+            noticeRepository.getTodayNoticeCount(user.uid).collectLatest { resource ->
+                if (resource is Resource.Success) {
+                    val count = resource.data ?: 0
+                    if (count >= MAX_NOTICES_PER_DAY) {
+                        _createNoticeResult.value = Resource.Error("Daily posting limit reached. Please try again tomorrow.")
+                        return@collectLatest
+                    }
+                    
+                    val expiryDate = System.currentTimeMillis() + (daysToExpiry * 24 * 60 * 60 * 1000L)
+                    val notice = Notice(
+                        userId = user.uid,
+                        userName = user.name,
+                        userProfileImage = user.profileImage,
+                        isVerified = user.isVerified,
+                        title = title,
+                        description = description,
+                        category = category,
+                        state = user.state,
+                        district = user.district,
+                        locality = user.locality,
+                        expiryDate = expiryDate,
+                        contactNumber = contact,
+                        pollQuestion = pollQuestion,
+                        pollOptions = pollOptions,
+                        pollVotes = pollOptions?.associateWith { 0 }?.mapKeys { pollOptions.indexOf(it.key).toString() }
+                    )
+                    noticeRepository.createNotice(notice).collectLatest {
+                        Log.d("NOTICE_DEBUG", "createNotice result in ViewModel: $it")
+                        _createNoticeResult.value = it
+                    }
+                } else if (resource is Resource.Error) {
+                    _createNoticeResult.value = Resource.Error(resource.message ?: "Failed to verify posting limit. Please check your connection.")
+                }
             }
         }
     }
@@ -229,5 +256,12 @@ class NoticeViewModel @Inject constructor(
 
     fun resetReportNoticeResult() {
         _reportNoticeResult.value = Resource.Idle()
+    }
+
+    fun voteInPoll(noticeId: String, optionIndex: Int) {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            noticeRepository.voteInPoll(noticeId, uid, optionIndex).collectLatest { }
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.example.jamuione.ui.feed
 
 import android.content.Intent
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -19,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -49,6 +51,18 @@ fun PostCard(
     var reportReason by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+
+    // Animations
+    val likeScale by animateFloatAsState(
+        targetValue = if (isLiked) 1.2f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "like_scale"
+    )
+    val saveScale by animateFloatAsState(
+        targetValue = if (isSaved) 1.2f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "save_scale"
+    )
 
     if (showReportDialog) {
         AlertDialog(
@@ -234,7 +248,7 @@ fun PostCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onLikeClick, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = onLikeClick, modifier = Modifier.size(36.dp).scale(likeScale)) {
                         Icon(
                             imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Like",
@@ -264,7 +278,7 @@ fun PostCard(
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onSaveClick, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = onSaveClick, modifier = Modifier.size(36.dp).scale(saveScale)) {
                         Icon(
                             imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                             contentDescription = "Save",

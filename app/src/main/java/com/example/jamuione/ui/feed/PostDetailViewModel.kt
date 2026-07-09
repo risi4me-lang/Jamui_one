@@ -33,6 +33,9 @@ class PostDetailViewModel @Inject constructor(
     private val _reportPostResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val reportPostResult: StateFlow<Resource<Boolean>> = _reportPostResult
 
+    private val _reportCommentResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
+    val reportCommentResult: StateFlow<Resource<Boolean>> = _reportCommentResult
+
     private val _currentUser = MutableStateFlow<User?>(null)
 
     init {
@@ -105,5 +108,18 @@ class PostDetailViewModel @Inject constructor(
 
     fun resetReportPostResult() {
         _reportPostResult.value = Resource.Idle()
+    }
+
+    fun reportComment(postId: String, commentId: String, reason: String) {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            postRepository.reportComment(postId, commentId, uid, reason).collectLatest {
+                _reportCommentResult.value = it
+            }
+        }
+    }
+
+    fun resetReportCommentResult() {
+        _reportCommentResult.value = Resource.Idle()
     }
 }

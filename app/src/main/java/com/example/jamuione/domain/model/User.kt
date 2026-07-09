@@ -30,6 +30,10 @@ data class User(
     var isActive: Boolean = true,
     val joinedAt: Long = 0L,
     val lastSeen: Long = 0L,
+    val ageAcknowledged: Boolean = false,
+    val ageAcknowledgedAt: Long = 0L,
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0L,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L
 )

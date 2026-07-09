@@ -2,9 +2,9 @@ package com.example.jamuione.data.repository
 
 import android.util.Log
 import com.example.jamuione.domain.model.Notice
-import com.example.jamuione.domain.model.Report
 import com.example.jamuione.domain.repository.NoticeRepository
 import com.example.jamuione.util.Resource
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.messaging.FirebaseMessaging
@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
+import java.util.Calendar
 import java.util.UUID
 import javax.inject.Inject
 
@@ -113,6 +114,7 @@ class NoticeRepositoryImpl @Inject constructor(
             emit(Resource.Error("Posting notice is taking longer than usual — it'll finish syncing in the background."))
         } catch (e: Exception) {
             Log.e("NOTICE_DEBUG", "createNotice: failed", e)
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             emit(Resource.Error(e.message ?: "Failed to create notice"))
         }
     }
@@ -158,22 +160,80 @@ class NoticeRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun reportNotice(noticeId: String, userId: String, reason: String): Flow<Resource<Boolean>> = flow {
+    override fun reportNotice(noticeId: String, reporterId: String, reason: String): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
             val reportId = UUID.randomUUID().toString()
-            val report = Report(
-                id = reportId,
-                userId = userId,
-                contentId = noticeId,
-                contentType = "notice",
-                reason = reason,
-                timestamp = System.currentTimeMillis()
+            val report = mapOf(
+                "id" to reportId,
+                "reporterId" to reporterId,
+                "targetId" to noticeId,
+                "targetType" to "notice",
+                "reason" to reason,
+                "createdAt" to System.currentTimeMillis()
             )
             firestore.collection("reports").document(reportId).set(report).await()
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().log("Notice Reported: $noticeId by $reporterId. Reason: $reason")
             emit(Resource.Success(true))
         } catch (e: Exception) {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             emit(Resource.Error(e.message ?: "Failed to submit report"))
+        }
+    }
+
+    override fun getTodayNoticeCount(userId: String): Flow<Resource<Int>> = flow {
+        emit(Resource.Loading())
+        try {
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val startOfDay = calendar.timeInMillis
+
+            val count = firestore.collection("notices")
+                .whereEqualTo("userId", userId)
+                .whereGreaterThanOrEqualTo("createdAt", startOfDay)
+                .count()
+                .get(AggregateSource.SERVER)
+                .await()
+                .count
+            
+            emit(Resource.Success(count.toInt()))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to check limit"))
+        }
+    }
+
+    override fun voteInPoll(noticeId: String, userId: String, optionIndex: Int): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            firestore.runTransaction { transaction ->
+                val noticeRef = firestore.collection("notices").document(noticeId)
+                val snapshot = transaction.get(noticeRef)
+                
+                val userVotes = snapshot.get("userVotes") as? MutableMap<String, Long> ?: mutableMapOf()
+                val pollVotes = snapshot.get("pollVotes") as? MutableMap<String, Long> ?: mutableMapOf()
+                
+                val previousVote = userVotes[userId]?.toInt()
+                if (previousVote == optionIndex) return@runTransaction
+
+                if (previousVote != null) {
+                    val prevCount = pollVotes[previousVote.toString()] ?: 0L
+                    pollVotes[previousVote.toString()] = (prevCount - 1).coerceAtLeast(0)
+                }
+
+                userVotes[userId] = optionIndex.toLong()
+                val newCount = pollVotes[optionIndex.toString()] ?: 0L
+                pollVotes[optionIndex.toString()] = newCount + 1
+
+                transaction.update(noticeRef, "userVotes", userVotes)
+                transaction.update(noticeRef, "pollVotes", pollVotes)
+            }.await()
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
+            emit(Resource.Error(e.message ?: "Failed to vote"))
         }
     }
 }

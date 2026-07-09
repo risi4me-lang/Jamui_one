@@ -29,7 +29,9 @@ import com.example.jamuione.util.BrandingUtil
 fun LoginScreen(
     viewModel: AuthViewModel,
     onAuthSuccess: () -> Unit,
-    onSkipLogin: () -> Unit
+    onSkipLogin: () -> Unit,
+    onViewPrivacyPolicy: () -> Unit,
+    onViewTermsOfService: () -> Unit
 ) {
     val authState by viewModel.authState.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
@@ -40,6 +42,7 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isSignUp by remember { mutableStateOf(false) }
+    var ageAcknowledged by remember { mutableStateOf(false) }
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Authenticated) {
@@ -154,6 +157,30 @@ fun LoginScreen(
                         RequirementItem("8+ characters", password.length >= 8)
                         RequirementItem("Uppercase & Lowercase", password.any { it.isUpperCase() } && password.any { it.isLowerCase() })
                         RequirementItem("Numbers & Special", password.any { it.isDigit() } && password.any { !it.isLetterOrDigit() })
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = ageAcknowledged,
+                                onCheckedChange = { ageAcknowledged = it }
+                            )
+                            Column {
+                                Text(
+                                    text = "I am at least 18 years old and agree to the",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                                Row {
+                                    TextButton(onClick = onViewTermsOfService, contentPadding = PaddingValues(0.dp)) {
+                                        Text("Terms of Service", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    }
+                                    Text(" and ", style = MaterialTheme.typography.labelSmall)
+                                    TextButton(onClick = onViewPrivacyPolicy, contentPadding = PaddingValues(0.dp)) {
+                                        Text("Privacy Policy", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -163,14 +190,14 @@ fun LoginScreen(
                 Button(
                     onClick = {
                         if (isSignUp) {
-                            viewModel.signUpEmail(email, password)
+                            viewModel.signUpEmail(email, password, ageAcknowledged)
                         } else {
                             viewModel.signInEmail(email, password)
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(54.dp),
                     shape = RoundedCornerShape(14.dp),
-                    enabled = authState !is AuthState.Loading && email.isNotBlank() && password.isNotBlank()
+                    enabled = authState !is AuthState.Loading && email.isNotBlank() && password.isNotBlank() && (!isSignUp || ageAcknowledged)
                 ) {
                     if (authState is AuthState.Loading) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
@@ -208,10 +235,10 @@ fun LoginScreen(
 
                 // Google Sign-In Button
                 OutlinedButton(
-                    onClick = { viewModel.signIn(context) },
+                    onClick = { viewModel.signIn(context, ageAcknowledged) },
                     modifier = Modifier.fillMaxWidth().height(54.dp),
                     shape = RoundedCornerShape(14.dp),
-                    enabled = authState !is AuthState.Loading,
+                    enabled = authState !is AuthState.Loading && ageAcknowledged,
                     border = ButtonDefaults.outlinedButtonBorder(enabled = true)
                 ) {
                     Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp)) // Placeholder for Google G
@@ -223,6 +250,25 @@ fun LoginScreen(
                 
                 TextButton(onClick = onSkipLogin) {
                     Text("Explore as Guest", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.outline)
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row {
+                        TextButton(onClick = onViewTermsOfService) {
+                            Text("Terms of Service", style = MaterialTheme.typography.labelSmall)
+                        }
+                        Text(" • ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline, modifier = Modifier.align(Alignment.CenterVertically))
+                        TextButton(onClick = onViewPrivacyPolicy) {
+                            Text("Privacy Policy", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    Text(
+                        text = "District One Version 1.0",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = MaterialTheme.colorScheme.outline
+                    )
                 }
 
                 if (authState is AuthState.Error) {

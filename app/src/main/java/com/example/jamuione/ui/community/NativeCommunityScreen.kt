@@ -290,7 +290,8 @@ fun CommunityMemberCard(user: User) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Lives", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                     }
-                    Text(text = user.locality.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    val currentLocality = if (user.isDeleted) "Redacted" else user.locality.replaceFirstChar { it.uppercase() }
+                    Text(text = currentLocality, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 }
             }
 
