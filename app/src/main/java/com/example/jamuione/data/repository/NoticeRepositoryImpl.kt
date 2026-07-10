@@ -208,29 +208,33 @@ class NoticeRepositoryImpl @Inject constructor(
     override fun voteInPoll(noticeId: String, userId: String, optionIndex: Int): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
-            firestore.runTransaction { transaction ->
-                val noticeRef = firestore.collection("notices").document(noticeId)
-                val snapshot = transaction.get(noticeRef)
-                
-                val userVotes = snapshot.get("userVotes") as? MutableMap<String, Long> ?: mutableMapOf()
-                val pollVotes = snapshot.get("pollVotes") as? MutableMap<String, Long> ?: mutableMapOf()
-                
-                val previousVote = userVotes[userId]?.toInt()
-                if (previousVote == optionIndex) return@runTransaction
+            withTimeout(20000L) {
+                firestore.runTransaction { transaction ->
+                    val noticeRef = firestore.collection("notices").document(noticeId)
+                    val snapshot = transaction.get(noticeRef)
+                    
+                    val userVotes = snapshot.get("userVotes") as? MutableMap<String, Long> ?: mutableMapOf()
+                    val pollVotes = snapshot.get("pollVotes") as? MutableMap<String, Long> ?: mutableMapOf()
+                    
+                    val previousVote = userVotes[userId]?.toInt()
+                    if (previousVote == optionIndex) return@runTransaction
 
-                if (previousVote != null) {
-                    val prevCount = pollVotes[previousVote.toString()] ?: 0L
-                    pollVotes[previousVote.toString()] = (prevCount - 1).coerceAtLeast(0)
-                }
+                    if (previousVote != null) {
+                        val prevCount = pollVotes[previousVote.toString()] ?: 0L
+                        pollVotes[previousVote.toString()] = (prevCount - 1).coerceAtLeast(0)
+                    }
 
-                userVotes[userId] = optionIndex.toLong()
-                val newCount = pollVotes[optionIndex.toString()] ?: 0L
-                pollVotes[optionIndex.toString()] = newCount + 1
+                    userVotes[userId] = optionIndex.toLong()
+                    val newCount = pollVotes[optionIndex.toString()] ?: 0L
+                    pollVotes[optionIndex.toString()] = newCount + 1
 
-                transaction.update(noticeRef, "userVotes", userVotes)
-                transaction.update(noticeRef, "pollVotes", pollVotes)
-            }.await()
+                    transaction.update(noticeRef, "userVotes", userVotes)
+                    transaction.update(noticeRef, "pollVotes", pollVotes)
+                }.await()
+            }
             emit(Resource.Success(true))
+        } catch (e: TimeoutCancellationException) {
+            emit(Resource.Error("Voting is taking longer than usual — it will update once you are back online."))
         } catch (e: Exception) {
             com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             emit(Resource.Error(e.message ?: "Failed to vote"))

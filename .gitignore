@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Keystore files
+release-keystore.jks
+keystore.properties
