@@ -191,6 +191,8 @@ class NoticeViewModel @Inject constructor(
             return
         }
         
+        _createNoticeResult.value = Resource.Loading()
+        
         viewModelScope.launch {
             noticeRepository.getTodayNoticeCount(user.uid).collectLatest { resource ->
                 if (resource is Resource.Success) {

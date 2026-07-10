@@ -215,6 +215,8 @@ class FeedViewModel @Inject constructor(
             return
         }
 
+        _createPostResult.value = Resource.Loading()
+
         viewModelScope.launch {
             postRepository.getTodayPostCount(user.uid).collectLatest { resource ->
                 if (resource is Resource.Success) {

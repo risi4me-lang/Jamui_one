@@ -190,6 +190,8 @@ class AuthViewModel @Inject constructor(
         
         val currentProfile = (_userProfile.value as? Resource.Success)?.data
         
+        // If currentProfile is null, we should try to get the cached one as a fallback
+        // but for now, let's ensure we don't overwrite crucial fields with defaults
         val user = User(
             uid = firebaseUser.uid,
             name = name.trim(),

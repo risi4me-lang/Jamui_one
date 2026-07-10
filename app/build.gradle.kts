@@ -22,7 +22,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.jamuione.app"
+        applicationId = "com.example.jamuione"
         minSdk = 30
         targetSdk = 37
         versionCode = 1

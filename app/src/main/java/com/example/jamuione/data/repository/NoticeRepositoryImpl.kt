@@ -191,17 +191,20 @@ class NoticeRepositoryImpl @Inject constructor(
             calendar.set(Calendar.MILLISECOND, 0)
             val startOfDay = calendar.timeInMillis
 
-            val count = firestore.collection("notices")
-                .whereEqualTo("userId", userId)
-                .whereGreaterThanOrEqualTo("createdAt", startOfDay)
-                .count()
-                .get(AggregateSource.SERVER)
-                .await()
-                .count
+            val count = withTimeout(15000L) {
+                firestore.collection("notices")
+                    .whereEqualTo("userId", userId)
+                    .whereGreaterThanOrEqualTo("createdAt", startOfDay)
+                    .count()
+                    .get(AggregateSource.SERVER)
+                    .await()
+                    .count
+            }
             
             emit(Resource.Success(count.toInt()))
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to check limit"))
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
+            emit(Resource.Error(e.message ?: "Failed to verify notice limit. Please check your connection."))
         }
     }
 

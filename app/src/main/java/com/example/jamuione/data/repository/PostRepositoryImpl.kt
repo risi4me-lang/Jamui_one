@@ -93,8 +93,10 @@ class PostRepositoryImpl @Inject constructor(
                 Log.d("POST_DEBUG", "createPost: uploading image")
                 val fileName = UUID.randomUUID().toString()
                 val ref = storage.reference.child("post_images/$fileName")
-                ref.putFile(imageUri).await()
-                imageUrl = ref.downloadUrl.await().toString()
+                withTimeout(30000L) {
+                    ref.putFile(imageUri).await()
+                    imageUrl = ref.downloadUrl.await().toString()
+                }
                 Log.d("POST_DEBUG", "createPost: image uploaded, url=$imageUrl")
             }
 
@@ -358,17 +360,20 @@ class PostRepositoryImpl @Inject constructor(
             calendar.set(Calendar.MILLISECOND, 0)
             val startOfDay = calendar.timeInMillis
 
-            val count = firestore.collection("posts")
-                .whereEqualTo("userId", userId)
-                .whereGreaterThanOrEqualTo("timestamp", startOfDay)
-                .count()
-                .get(AggregateSource.SERVER)
-                .await()
-                .count
+            val count = withTimeout(15000L) {
+                firestore.collection("posts")
+                    .whereEqualTo("userId", userId)
+                    .whereGreaterThanOrEqualTo("timestamp", startOfDay)
+                    .count()
+                    .get(AggregateSource.SERVER)
+                    .await()
+                    .count
+            }
             
             emit(Resource.Success(count.toInt()))
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to check limit"))
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
+            emit(Resource.Error(e.message ?: "Failed to verify posting limit. Please check your connection."))
         }
     }
 
