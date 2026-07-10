@@ -324,17 +324,18 @@ fun EmptyCommunityState(district: String) {
         Text(text = "You're the first member here.", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
         Text(text = "Invite friends from $district to join you in this neighborhood!", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = {
-                val inviteMessage = "Join me on Jamui One — the local community app for people from $district! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
-                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, inviteMessage)
-                }
-                context.startActivity(Intent.createChooser(sendIntent, "Invite via"))
-            },
-            shape = RoundedCornerShape(12.dp)
-        ) {
+            Button(
+                onClick = {
+                    val communityName = com.example.jamuione.util.BrandingUtil.getCommunityName(district)
+                    val inviteMessage = "Join me on $communityName — the local community app for people from $district! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, inviteMessage)
+                    }
+                    context.startActivity(Intent.createChooser(sendIntent, "Invite via"))
+                },
+                shape = RoundedCornerShape(12.dp)
+            ) {
             Icon(Icons.Default.Share, contentDescription = null)
             Spacer(modifier = Modifier.width(12.dp))
             Text("Invite via WhatsApp")

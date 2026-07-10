@@ -185,7 +185,8 @@ fun ProfileScreen(
                                 title = "Invite Neighbors",
                                 subtitle = "Grow your community on WhatsApp",
                                 onClick = {
-                                    val inviteMessage = "Join me on Jamui One — the local community app for staying connected! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
+                                    val inviteMessage = "Join me on $communityName — the local community app for staying connected! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
+                                // TODO: update with actual Play Store link once published
                                     val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                         type = "text/plain"
                                         putExtra(Intent.EXTRA_TEXT, inviteMessage)

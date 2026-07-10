@@ -290,7 +290,7 @@ fun PostCard(
                         onClick = {
                             val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "${post.content}\n\nShared from Jamui One")
+                                putExtra(Intent.EXTRA_TEXT, "${post.content}\n\nShared from the app")
                             }
                             context.startActivity(Intent.createChooser(sendIntent, "Share post"))
                         },

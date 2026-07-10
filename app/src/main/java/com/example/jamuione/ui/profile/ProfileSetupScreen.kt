@@ -35,7 +35,7 @@ fun ProfileSetupScreen(
     val userProfileState by viewModel.userProfile.collectAsState()
     
     var name by remember { mutableStateOf("") }
-    val state = "Bihar"
+    var state by remember { mutableStateOf("Bihar") }
     var district by remember { mutableStateOf("Jamui") }
     var locality by remember { mutableStateOf("") }
 
@@ -47,8 +47,20 @@ fun ProfileSetupScreen(
     var isBloodDonor by remember { mutableStateOf(false) }
     var showInCommunity by remember { mutableStateOf(true) }
 
+    var expandedState by remember { mutableStateOf(false) }
     var expandedDistrict by remember { mutableStateOf(false) }
+    var expandedNativeState by remember { mutableStateOf(false) }
     var expandedNativeDistrict by remember { mutableStateOf(false) }
+
+    val indianStatesAndUTs = listOf(
+        "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat",
+        "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh",
+        "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
+        "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
+        "Uttarakhand", "West Bengal",
+        "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+        "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
+    )
 
     val districts = listOf(
         "Araria", "Arwal", "Aurangabad", "Banka", "Begusarai", "Bhagalpur", "Bhojpur", "Buxar",
@@ -69,6 +81,9 @@ fun ProfileSetupScreen(
             val user = (userProfileState as Resource.Success).data
             if (user != null) {
                 if (name.isEmpty()) name = user.name
+                if (user.state.isNotEmpty()) {
+                    if (indianStatesAndUTs.contains(user.state)) state = user.state
+                }
                 if (locality.isEmpty() && user.locality.isNotEmpty()) {
                     locality = user.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
                 }
@@ -174,6 +189,35 @@ fun ProfileSetupScreen(
             Text("Current Location", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
             Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
+                expanded = expandedState,
+                onExpandedChange = { expandedState = !expandedState },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = state,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Current State") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedState) },
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true).fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedState,
+                    onDismissRequest = { expandedState = false }
+                ) {
+                    indianStatesAndUTs.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(selectionOption) },
+                            onClick = {
+                                state = selectionOption
+                                expandedState = false
+                            }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            ExposedDropdownMenuBox(
                 expanded = expandedDistrict,
                 onExpandedChange = { expandedDistrict = !expandedDistrict },
                 modifier = Modifier.fillMaxWidth()
@@ -213,6 +257,35 @@ fun ProfileSetupScreen(
 
             // SECTION: NATIVE PLACE
             Text("Your Hometown", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
+            Spacer(modifier = Modifier.height(8.dp))
+            ExposedDropdownMenuBox(
+                expanded = expandedNativeState,
+                onExpandedChange = { expandedNativeState = !expandedNativeState },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = nativeState,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Native State") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedNativeState) },
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true).fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedNativeState,
+                    onDismissRequest = { expandedNativeState = false }
+                ) {
+                    indianStatesAndUTs.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(selectionOption) },
+                            onClick = {
+                                nativeState = selectionOption
+                                expandedNativeState = false
+                            }
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             ExposedDropdownMenuBox(
                 expanded = expandedNativeDistrict,
