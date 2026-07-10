@@ -8,6 +8,8 @@ import com.example.jamuione.domain.model.CommunityStats
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.firestore.AggregateField
 import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
@@ -27,6 +29,7 @@ import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
+    private val firebaseAuth: FirebaseAuth,
     private val userDao: UserDao
 ) : UserRepository {
 
@@ -218,10 +221,45 @@ class UserRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val timestamp = System.currentTimeMillis()
+            // TODO: clean up Storage images (profile + post photos) for this user
+            
+            // Delete user document subcollections
+            val savedPostsSnapshot = firestore.collection("users").document(uid)
+                .collection("savedPosts").get().await()
+            val cleanupBatch = firestore.batch()
+            savedPostsSnapshot.documents.forEach { cleanupBatch.delete(it.reference) }
+            cleanupBatch.commit().await()
             
             // Delete user document
             firestore.collection("users").document(uid).delete().await()
             
+            // Anonymize this user's comments across all posts (preserve thread structure)
+            val commentsSnapshot = firestore.collectionGroup("comments")
+                .whereEqualTo("userId", uid)
+                .get().await()
+            val commentsBatch = firestore.batch()
+            commentsSnapshot.documents.forEach { doc ->
+                commentsBatch.update(doc.reference, mapOf(
+                    "userName" to "Deleted User",
+                    "userProfileImage" to null
+                ))
+            }
+            commentsBatch.commit().await()
+
+            // Remove this user's likes and decrement the corresponding post's likesCount
+            val likesSnapshot = firestore.collectionGroup("likes")
+                .whereEqualTo("userId", uid)
+                .get().await()
+            val likesBatch = firestore.batch()
+            likesSnapshot.documents.forEach { doc ->
+                likesBatch.delete(doc.reference)
+                val postRef = doc.reference.parent.parent
+                if (postRef != null) {
+                    likesBatch.update(postRef, "likesCount", com.google.firebase.firestore.FieldValue.increment(-1))
+                }
+            }
+            likesBatch.commit().await()
+
             // Soft delete posts
             val postsSnapshot = firestore.collection("posts")
                 .whereEqualTo("userId", uid)
@@ -251,12 +289,15 @@ class UserRepositoryImpl @Inject constructor(
                 ))
             }
 
-            // Soft delete comments - this would require querying all posts' comments subcollections
-            // For MVP, we'll focus on top-level content or handle comments if they were top-level.
-            // Since comments are subcollections, we'd need a collectionGroup query or similar.
-            // Let's assume soft-delete for main content for now.
-            
             batch.commit().await()
+            
+            // Delete Firebase Auth account
+            try {
+                firebaseAuth.currentUser?.delete()?.await()
+            } catch (e: FirebaseAuthRecentLoginRequiredException) {
+                emit(Resource.Error("For security, please log out and log back in, then try deleting your account again."))
+                return@flow
+            }
             
             userDao.clearUser()
             

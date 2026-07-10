@@ -238,7 +238,7 @@ fun LoginScreen(
                     onClick = { viewModel.signIn(context, ageAcknowledged) },
                     modifier = Modifier.fillMaxWidth().height(54.dp),
                     shape = RoundedCornerShape(14.dp),
-                    enabled = authState !is AuthState.Loading && ageAcknowledged,
+                    enabled = authState !is AuthState.Loading && (!isSignUp || ageAcknowledged),
                     border = ButtonDefaults.outlinedButtonBorder(enabled = true)
                 ) {
                     Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp)) // Placeholder for Google G

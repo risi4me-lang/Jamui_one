@@ -260,8 +260,9 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             userRepository.deleteAccount(uid).collectLatest { resource ->
                 if (resource is Resource.Success) {
-                    authRepository.getCurrentUser()?.delete()?.await()
                     logout()
+                } else if (resource is Resource.Error) {
+                    _authState.value = AuthState.Error(resource.message ?: "Failed to delete account")
                 }
             }
         }

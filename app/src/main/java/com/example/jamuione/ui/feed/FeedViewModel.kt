@@ -71,6 +71,8 @@ class FeedViewModel @Inject constructor(
 
     private var currentUser: User? = null
     private var postsJob: Job? = null
+    private var lastPostTimestamp: Long = 0L
+    private val POST_COOLDOWN_MS = 30_000L
 
     init {
         viewModelScope.launch {
@@ -206,6 +208,13 @@ class FeedViewModel @Inject constructor(
             return
         }
         
+        val now = System.currentTimeMillis()
+        if (now - lastPostTimestamp < POST_COOLDOWN_MS) {
+            val remainingSeconds = ((POST_COOLDOWN_MS - (now - lastPostTimestamp)) / 1000) + 1
+            _createPostResult.value = Resource.Error("Please wait ${remainingSeconds}s before posting again.")
+            return
+        }
+
         viewModelScope.launch {
             postRepository.getTodayPostCount(user.uid).collectLatest { resource ->
                 if (resource is Resource.Success) {
@@ -225,9 +234,10 @@ class FeedViewModel @Inject constructor(
                         district = user.district,
                         locality = user.locality
                     )
-                    postRepository.createPost(post, imageUri).collectLatest {
-                        Log.d("POST_DEBUG", "createPost result in ViewModel: $it")
-                        _createPostResult.value = it
+                    postRepository.createPost(post, imageUri).collectLatest { result ->
+                        Log.d("POST_DEBUG", "createPost result in ViewModel: $result")
+                        if (result is Resource.Success) lastPostTimestamp = System.currentTimeMillis()
+                        _createPostResult.value = result
                     }
                 } else if (resource is Resource.Error) {
                     _createPostResult.value = Resource.Error(resource.message ?: "Failed to verify posting limit. Please check your connection.")
