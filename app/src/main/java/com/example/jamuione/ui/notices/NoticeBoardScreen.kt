@@ -499,8 +499,8 @@ fun NoticeItem(
 fun PollView(
     question: String,
     options: List<String>,
-    votes: Map<String, Int>,
-    userVote: Int?,
+    votes: Map<String, Long>,
+    userVote: Long?,
     onVoteClick: (Int) -> Unit
 ) {
     val totalVotes = votes.values.sum()
@@ -513,7 +513,7 @@ fun PollView(
         Text(text = question, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
         options.forEachIndexed { index, option ->
-            val voteCount = votes[index.toString()] ?: 0
+            val voteCount = votes[index.toString()] ?: 0L
             val percentage = if (totalVotes > 0) (voteCount.toFloat() / totalVotes) else 0f
             
             Box(
@@ -524,8 +524,8 @@ fun PollView(
                     .background(MaterialTheme.colorScheme.surface)
                     .clickable { onVoteClick(index) }
                     .border(
-                        width = if (userVote == index) 2.dp else 1.dp,
-                        color = if (userVote == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                        width = if (userVote == index.toLong()) 2.dp else 1.dp,
+                        color = if (userVote == index.toLong()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                         shape = RoundedCornerShape(8.dp)
                     )
             ) {
@@ -535,7 +535,7 @@ fun PollView(
                         .fillMaxWidth(percentage)
                         .matchParentSize()
                         .background(
-                            if (userVote == index) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                            if (userVote == index.toLong()) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                             else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         )
                 )
@@ -549,7 +549,7 @@ fun PollView(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Text(text = option, style = MaterialTheme.typography.bodyMedium)
-                        if (userVote == index) {
+                        if (userVote == index.toLong()) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                         }

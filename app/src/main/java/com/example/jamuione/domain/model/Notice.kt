@@ -23,6 +23,6 @@ data class Notice(
     val deletedAt: Long = 0L,
     val pollQuestion: String? = null,
     val pollOptions: List<String>? = null,
-    val pollVotes: Map<String, Int>? = null, // OptionIndex -> VoteCount
-    val userVotes: Map<String, Int>? = null // UserId -> OptionIndex
+    val pollVotes: Map<String, Long>? = null, // OptionIndex -> VoteCount
+    val userVotes: Map<String, Long>? = null // UserId -> OptionIndex
 )

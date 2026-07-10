@@ -194,39 +194,41 @@ class NoticeViewModel @Inject constructor(
         _createNoticeResult.value = Resource.Loading()
         
         viewModelScope.launch {
-            noticeRepository.getTodayNoticeCount(user.uid).collectLatest { resource ->
-                if (resource is Resource.Success) {
-                    val count = resource.data ?: 0
-                    if (count >= MAX_NOTICES_PER_DAY) {
-                        _createNoticeResult.value = Resource.Error("Daily posting limit reached. Please try again tomorrow.")
-                        return@collectLatest
-                    }
-                    
-                    val expiryDate = System.currentTimeMillis() + (daysToExpiry * 24 * 60 * 60 * 1000L)
-                    val notice = Notice(
-                        userId = user.uid,
-                        userName = user.name,
-                        userProfileImage = user.profileImage,
-                        isVerified = user.isVerified,
-                        title = title,
-                        description = description,
-                        category = category,
-                        state = user.state,
-                        district = user.district,
-                        locality = user.locality,
-                        expiryDate = expiryDate,
-                        contactNumber = contact,
-                        pollQuestion = pollQuestion,
-                        pollOptions = pollOptions,
-                        pollVotes = pollOptions?.associateWith { 0 }?.mapKeys { pollOptions.indexOf(it.key).toString() }
-                    )
-                    noticeRepository.createNotice(notice).collectLatest {
-                        Log.d("NOTICE_DEBUG", "createNotice result in ViewModel: $it")
-                        _createNoticeResult.value = it
-                    }
-                } else if (resource is Resource.Error) {
-                    _createNoticeResult.value = Resource.Error(resource.message ?: "Failed to verify posting limit. Please check your connection.")
+            val limitResource = noticeRepository.getTodayNoticeCount(user.uid)
+                .filter { it !is Resource.Loading }
+                .first()
+
+            if (limitResource is Resource.Success) {
+                val count = limitResource.data ?: 0
+                if (count >= MAX_NOTICES_PER_DAY) {
+                    _createNoticeResult.value = Resource.Error("Daily posting limit reached. Please try again tomorrow.")
+                    return@launch
                 }
+                
+                val expiryDate = System.currentTimeMillis() + (daysToExpiry * 24 * 60 * 60 * 1000L)
+                val notice = Notice(
+                    userId = user.uid,
+                    userName = user.name,
+                    userProfileImage = user.profileImage,
+                    isVerified = user.isVerified,
+                    title = title,
+                    description = description,
+                    category = category,
+                    state = user.state,
+                    district = user.district,
+                    locality = user.locality,
+                    expiryDate = expiryDate,
+                    contactNumber = contact,
+                    pollQuestion = pollQuestion,
+                    pollOptions = pollOptions,
+                    pollVotes = pollOptions?.associateWith { 0L }?.mapKeys { pollOptions.indexOf(it.key).toString() }
+                )
+                noticeRepository.createNotice(notice).collectLatest {
+                    Log.d("NOTICE_DEBUG", "createNotice result in ViewModel: $it")
+                    _createNoticeResult.value = it
+                }
+            } else if (limitResource is Resource.Error) {
+                _createNoticeResult.value = Resource.Error(limitResource.message ?: "Failed to verify posting limit. Please check your connection.")
             }
         }
     }

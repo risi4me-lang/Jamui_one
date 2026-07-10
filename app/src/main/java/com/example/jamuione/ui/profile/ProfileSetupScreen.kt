@@ -409,7 +409,8 @@ fun ProfileSetupScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = name.isNotBlank() && locality.isNotBlank() && nativeDistrict.isNotBlank() && profileSavedState !is Resource.Loading
+                enabled = name.isNotBlank() && locality.isNotBlank() && nativeDistrict.isNotBlank() && 
+                    profileSavedState !is Resource.Loading && userProfileState !is Resource.Loading
             ) {
                 if (profileSavedState is Resource.Loading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)

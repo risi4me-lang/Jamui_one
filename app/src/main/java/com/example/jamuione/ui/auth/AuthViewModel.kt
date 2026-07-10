@@ -191,7 +191,10 @@ class AuthViewModel @Inject constructor(
         val currentProfile = (_userProfile.value as? Resource.Success)?.data
         
         // If currentProfile is null, we should try to get the cached one as a fallback
-        // but for now, let's ensure we don't overwrite crucial fields with defaults
+        // to prevent resetting fields like joinedAt or isVerified
+        val originalJoinedAt = currentProfile?.joinedAt ?: System.currentTimeMillis()
+        val originalVerified = currentProfile?.isVerified ?: false
+        
         val user = User(
             uid = firebaseUser.uid,
             name = name.trim(),
@@ -208,8 +211,8 @@ class AuthViewModel @Inject constructor(
             showInCommunity = showInCommunity,
             profileImage = firebaseUser.photoUrl?.toString(),
             profileCompleted = true,
-            isVerified = currentProfile?.isVerified ?: false,
-            joinedAt = currentProfile?.joinedAt ?: System.currentTimeMillis(),
+            isVerified = originalVerified,
+            joinedAt = originalJoinedAt,
             lastSeen = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
         )

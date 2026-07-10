@@ -218,32 +218,34 @@ class FeedViewModel @Inject constructor(
         _createPostResult.value = Resource.Loading()
 
         viewModelScope.launch {
-            postRepository.getTodayPostCount(user.uid).collectLatest { resource ->
-                if (resource is Resource.Success) {
-                    val count = resource.data ?: 0
-                    if (count >= MAX_POSTS_PER_DAY) {
-                        _createPostResult.value = Resource.Error("Daily posting limit reached. Please try again tomorrow.")
-                        return@collectLatest
-                    }
-                    
-                    val post = Post(
-                        userId = user.uid,
-                        userName = user.name,
-                        userProfileImage = user.profileImage,
-                        isVerified = user.isVerified,
-                        content = content,
-                        state = user.state,
-                        district = user.district,
-                        locality = user.locality
-                    )
-                    postRepository.createPost(post, imageUri).collectLatest { result ->
-                        Log.d("POST_DEBUG", "createPost result in ViewModel: $result")
-                        if (result is Resource.Success) lastPostTimestamp = System.currentTimeMillis()
-                        _createPostResult.value = result
-                    }
-                } else if (resource is Resource.Error) {
-                    _createPostResult.value = Resource.Error(resource.message ?: "Failed to verify posting limit. Please check your connection.")
+            val limitResource = postRepository.getTodayPostCount(user.uid)
+                .filter { it !is Resource.Loading }
+                .first()
+
+            if (limitResource is Resource.Success) {
+                val count = limitResource.data ?: 0
+                if (count >= MAX_POSTS_PER_DAY) {
+                    _createPostResult.value = Resource.Error("Daily posting limit reached. Please try again tomorrow.")
+                    return@launch
                 }
+                
+                val post = Post(
+                    userId = user.uid,
+                    userName = user.name,
+                    userProfileImage = user.profileImage,
+                    isVerified = user.isVerified,
+                    content = content,
+                    state = user.state,
+                    district = user.district,
+                    locality = user.locality
+                )
+                postRepository.createPost(post, imageUri).collectLatest { result ->
+                    Log.d("POST_DEBUG", "createPost result in ViewModel: $result")
+                    if (result is Resource.Success) lastPostTimestamp = System.currentTimeMillis()
+                    _createPostResult.value = result
+                }
+            } else if (limitResource is Resource.Error) {
+                _createPostResult.value = Resource.Error(limitResource.message ?: "Failed to verify posting limit. Please check your connection.")
             }
         }
     }

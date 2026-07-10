@@ -219,8 +219,8 @@ class NoticeRepositoryImpl @Inject constructor(
                     val userVotes = snapshot.get("userVotes") as? MutableMap<String, Long> ?: mutableMapOf()
                     val pollVotes = snapshot.get("pollVotes") as? MutableMap<String, Long> ?: mutableMapOf()
                     
-                    val previousVote = userVotes[userId]?.toInt()
-                    if (previousVote == optionIndex) return@runTransaction
+                    val previousVote = userVotes[userId]
+                    if (previousVote == optionIndex.toLong()) return@runTransaction
 
                     if (previousVote != null) {
                         val prevCount = pollVotes[previousVote.toString()] ?: 0L
