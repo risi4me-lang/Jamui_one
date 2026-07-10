@@ -3,6 +3,7 @@ package com.example.jamuione.ui.profile
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import android.content.Intent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -137,116 +139,152 @@ fun ProfileScreen(
             TopAppBar(title = { Text(communityName) })
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            when (val state = userProfileState) {
-                is Resource.Loading -> Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                is Resource.Success -> {
-                    val user = state.data
-                    if (user != null) {
-                        ProfileHeader(user)
-                        
-                        ProfileCompletionSection(
-                            completion = viewModel.calculateProfileCompletion(user),
-                            missingItems = viewModel.getMissingProfileItems(user),
-                            onClick = onEditProfile
-                        )
+        val completion = (userProfileState as? Resource.Success)?.data?.let { viewModel.calculateProfileCompletion(it) } ?: 0
+        
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            if (completion == 100) {
+                ConfettiEffect()
+            }
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                when (val state = userProfileState) {
+                    is Resource.Loading -> Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    is Resource.Success -> {
+                        val user = state.data
+                        if (user != null) {
+                            ProfileHeader(user)
+                            
+                            ProfileCompletionSection(
+                                completion = completion,
+                                missingItems = viewModel.getMissingProfileItems(user),
+                                onClick = onEditProfile
+                            )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                        // MENU ITEMS
-                        ProfileMenuItem(
-                            icon = Icons.Default.People,
-                            title = "Communities",
-                            subtitle = "Join local and professional groups",
-                            onClick = onNavigateToCommunities
-                        )
-                        ProfileMenuItem(
-                            icon = Icons.Default.Bookmark,
-                            title = "Saved Posts",
-                            subtitle = "Posts you've bookmarked",
-                            onClick = onNavigateToSavedPosts
-                        )
-                        ProfileMenuItem(
-                            icon = Icons.Default.Share,
-                            title = "Invite Neighbors",
-                            subtitle = "Grow your community on WhatsApp",
-                            onClick = {
-                                val inviteMessage = "Join me on Jamui One — the local community app for staying connected! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
-                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, inviteMessage)
-                                    setPackage("com.whatsapp")
-                                }
-                                try {
-                                    context.startActivity(sendIntent)
-                                } catch (e: Exception) {
-                                    val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                            // MENU ITEMS
+                            ProfileMenuItem(
+                                icon = Icons.Default.People,
+                                title = "Communities",
+                                subtitle = "Join local and professional groups",
+                                onClick = onNavigateToCommunities
+                            )
+                            ProfileMenuItem(
+                                icon = Icons.Default.Bookmark,
+                                title = "Saved Posts",
+                                subtitle = "Posts you've bookmarked",
+                                onClick = onNavigateToSavedPosts
+                            )
+                            ProfileMenuItem(
+                                icon = Icons.Default.Share,
+                                title = "Invite Neighbors",
+                                subtitle = "Grow your community on WhatsApp",
+                                onClick = {
+                                    val inviteMessage = "Join me on Jamui One — the local community app for staying connected! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
+                                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                         type = "text/plain"
                                         putExtra(Intent.EXTRA_TEXT, inviteMessage)
+                                        setPackage("com.whatsapp")
                                     }
-                                    context.startActivity(Intent.createChooser(fallbackIntent, "Invite via"))
-                                }
-                            }
-                        )
-
-                        ProfileMenuItem(
-                            icon = Icons.Default.Delete,
-                            title = "Delete Account",
-                            subtitle = "Permanently remove your data",
-                            onClick = { showDeleteConfirmDialog = true },
-                            isDestructive = true
-                        )
-                        
-                        if (com.example.jamuione.BuildConfig.DEBUG) {
-                            ProfileMenuItem(
-                                icon = Icons.Default.BugReport,
-                                title = "Test Crash",
-                                subtitle = "Debug only",
-                                onClick = { 
-                                    com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().log("Crash Test")
-                                    throw RuntimeException("Crash Test")
+                                    try {
+                                        context.startActivity(sendIntent)
+                                    } catch (e: Exception) {
+                                        val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, inviteMessage)
+                                        }
+                                        context.startActivity(Intent.createChooser(fallbackIntent, "Invite via"))
+                                    }
                                 }
                             )
-                        }
 
-                        Spacer(modifier = Modifier.height(24.dp))
-                        
-                        LegalFooter(
-                            onViewPrivacyPolicy = onViewPrivacyPolicy,
-                            onViewTermsOfService = onViewTermsOfService
-                        )
+                            ProfileMenuItem(
+                                icon = Icons.Default.Delete,
+                                title = "Delete Account",
+                                subtitle = "Permanently remove your data",
+                                onClick = { showDeleteConfirmDialog = true },
+                                isDestructive = true
+                            )
+                            
+                            if (com.example.jamuione.BuildConfig.DEBUG) {
+                                ProfileMenuItem(
+                                    icon = Icons.Default.BugReport,
+                                    title = "Test Crash",
+                                    subtitle = "Debug only",
+                                    onClick = { 
+                                        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().log("Crash Test")
+                                        throw RuntimeException("Crash Test")
+                                    }
+                                )
+                            }
 
-                        Spacer(modifier = Modifier.height(32.dp))
-                        
-                        TextButton(
-                            onClick = { showLogoutDialog = true },
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Icon(Icons.Default.Logout, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Logout")
+                            Spacer(modifier = Modifier.height(24.dp))
+                            
+                            LegalFooter(
+                                onViewPrivacyPolicy = onViewPrivacyPolicy,
+                                onViewTermsOfService = onViewTermsOfService
+                            )
+
+                            Spacer(modifier = Modifier.height(32.dp))
+                            
+                            TextButton(
+                                onClick = { showLogoutDialog = true },
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Icon(Icons.Default.Logout, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Logout")
+                            }
+                            
+                            Spacer(modifier = Modifier.height(32.dp))
+                        } else {
+                            GuestState(onLogout)
                         }
-                        
-                        Spacer(modifier = Modifier.height(32.dp))
-                    } else {
-                        GuestState(onLogout)
                     }
-                }
-                is Resource.Error -> {
-                    Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Error: ${state.message}")
-                        Button(onClick = { viewModel.fetchUserProfile() }) { Text("Retry") }
+                    is Resource.Error -> {
+                        Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Error: ${state.message}")
+                            Button(onClick = { viewModel.fetchUserProfile() }) { Text("Retry") }
+                        }
                     }
+                    else -> {}
                 }
-                else -> {}
             }
+        }
+    }
+}
+
+@Composable
+fun ConfettiEffect() {
+    val transition = rememberInfiniteTransition(label = "confetti")
+    val yAnim by transition.animateFloat(
+        initialValue = -100f,
+        targetValue = 2000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "confetti_y"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val colors = listOf(Color.Red, Color.Blue, Color.Green, Color.Yellow, Color(0xFFFF9800), Color(0xFFE91E63), Color.Cyan)
+        repeat(60) { i ->
+            val x = (i * 45f + (i * i * 2f)) % size.width
+            val speed = (i % 7 + 1) * 0.4f
+            val y = (yAnim * speed + (i * 80f)) % size.height
+            val radius = (i % 5 + 5).toFloat()
+            drawCircle(
+                color = colors[i % colors.size].copy(alpha = 0.7f),
+                radius = radius,
+                center = Offset(x, y)
+            )
         }
     }
 }
