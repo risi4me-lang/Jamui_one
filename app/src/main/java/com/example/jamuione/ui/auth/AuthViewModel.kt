@@ -158,9 +158,14 @@ class AuthViewModel @Inject constructor(
                 Log.d("AUTH_TRACE", "Fetching user profile for UID: ${firebaseUser.uid}")
             }
             viewModelScope.launch {
-                userRepository.getUserProfile(firebaseUser.uid).collectLatest {
-                    Log.d("AUTH_TRACE", "User profile emission received: $it")
-                    _userProfile.value = it
+                userRepository.getUserProfile(firebaseUser.uid).collectLatest { resource ->
+                    Log.d("AUTH_TRACE", "User profile emission received: $resource")
+                    if (resource is Resource.Success && resource.data?.isActive == false) {
+                        authRepository.signOut()
+                        _authState.value = AuthState.Error("Your account has been deactivated. Contact support if you believe this is a mistake.")
+                        return@collectLatest
+                    }
+                    _userProfile.value = resource
                 }
             }
         } else {

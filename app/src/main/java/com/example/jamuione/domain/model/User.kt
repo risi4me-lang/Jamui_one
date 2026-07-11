@@ -34,6 +34,7 @@ data class User(
     val ageAcknowledgedAt: Long = 0L,
     val isDeleted: Boolean = false,
     val deletedAt: Long = 0L,
+    val lastPostTimestamp: Long = 0L,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L
 )

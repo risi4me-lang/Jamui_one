@@ -18,6 +18,5 @@ interface NoticeRepository {
     fun deleteNotice(noticeId: String): Flow<Resource<Boolean>>
     fun deleteExpiredNotices(): Flow<Resource<Int>>
     fun reportNotice(noticeId: String, reporterId: String, reason: String): Flow<Resource<Boolean>>
-    fun getTodayNoticeCount(userId: String): Flow<Resource<Int>>
     fun voteInPoll(noticeId: String, userId: String, optionIndex: Int): Flow<Resource<Boolean>>
 }

@@ -22,5 +22,4 @@ interface PostRepository {
     fun toggleSavePost(postId: String, userId: String): Flow<Resource<Boolean>>
     fun observeIsSavedByUser(postId: String, userId: String): Flow<Boolean>
     fun getSavedPosts(userId: String): Flow<Resource<List<Post>>>
-    fun getTodayPostCount(userId: String): Flow<Resource<Int>>
 }

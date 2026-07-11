@@ -111,11 +111,18 @@ class PostRepositoryImpl @Inject constructor(
             )
 
             Log.d("FIRESTORE_DEBUG", "createPost: writing to firestore, id=$postId")
+            
+            val batch = firestore.batch()
+            val postRef = firestore.collection("posts").document(postId)
+            val userRef = firestore.collection("users").document(finalPost.userId)
+
+            batch.set(postRef, finalPost)
+            batch.update(userRef, "lastPostTimestamp", System.currentTimeMillis())
+
             withTimeout(20000L) {
-                firestore.collection("posts").document(postId)
-                    .set(finalPost)
-                    .await()
+                batch.commit().await()
             }
+
             Log.d("POST_DEBUG", "createPost: success")
             emit(Resource.Success(true))
         } catch (e: TimeoutCancellationException) {
@@ -347,33 +354,6 @@ class PostRepositoryImpl @Inject constructor(
             emit(Resource.Success(sortedPosts))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to fetch saved posts"))
-        }
-    }
-
-    override fun getTodayPostCount(userId: String): Flow<Resource<Int>> = flow {
-        emit(Resource.Loading())
-        try {
-            val calendar = Calendar.getInstance()
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val startOfDay = calendar.timeInMillis
-
-            val count = withTimeout(15000L) {
-                firestore.collection("posts")
-                    .whereEqualTo("userId", userId)
-                    .whereGreaterThanOrEqualTo("timestamp", startOfDay)
-                    .count()
-                    .get(AggregateSource.SERVER)
-                    .await()
-                    .count
-            }
-            
-            emit(Resource.Success(count.toInt()))
-        } catch (e: Exception) {
-            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
-            emit(Resource.Error(e.message ?: "Failed to verify posting limit. Please check your connection."))
         }
     }
 

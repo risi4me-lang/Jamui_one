@@ -181,33 +181,6 @@ class NoticeRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getTodayNoticeCount(userId: String): Flow<Resource<Int>> = flow {
-        emit(Resource.Loading())
-        try {
-            val calendar = Calendar.getInstance()
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val startOfDay = calendar.timeInMillis
-
-            val count = withTimeout(15000L) {
-                firestore.collection("notices")
-                    .whereEqualTo("userId", userId)
-                    .whereGreaterThanOrEqualTo("createdAt", startOfDay)
-                    .count()
-                    .get(AggregateSource.SERVER)
-                    .await()
-                    .count
-            }
-            
-            emit(Resource.Success(count.toInt()))
-        } catch (e: Exception) {
-            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
-            emit(Resource.Error(e.message ?: "Failed to verify notice limit. Please check your connection."))
-        }
-    }
-
     override fun voteInPoll(noticeId: String, userId: String, optionIndex: Int): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
