@@ -28,6 +28,9 @@ class NoticeViewModel @Inject constructor(
     private val _notices = MutableStateFlow<Resource<List<Notice>>>(Resource.Idle())
     val notices: StateFlow<Resource<List<Notice>>> = _notices
 
+    private val _rsvpedNotices = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val rsvpedNotices: StateFlow<Map<String, Boolean>> = _rsvpedNotices
+
     private val _createNoticeResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val createNoticeResult: StateFlow<Resource<Boolean>> = _createNoticeResult
 
@@ -59,7 +62,7 @@ class NoticeViewModel @Inject constructor(
     private var noticesJob: Job? = null
 
     val categories = listOf(
-        "Announcement", "Jobs", "Rent/Flatmate", "Buy & Sell", 
+        "Announcement", "Event", "Jobs", "Rent/Flatmate", "Buy & Sell",
         "Lost & Found", "Blood Donation", "Help Needed"
     )
 
@@ -163,9 +166,25 @@ class NoticeViewModel @Inject constructor(
                     FeedScope.LOCALITY -> noticeRepository.getNotices(category, locality = user.locality, searchQuery = search)
                     FeedScope.DISTRICT -> noticeRepository.getNotices(category, district = user.district, searchQuery = search)
                     FeedScope.STATE -> noticeRepository.getNotices(category, state = user.state, searchQuery = search)
-                }.collectLatest {
-                    _notices.value = it
+                }.collectLatest { resource ->
+                    _notices.value = resource
+                    if (resource is Resource.Success) {
+                        resource.data?.forEach { notice ->
+                            if (notice.category == "Event") {
+                                observeRsvpState(notice.id, user.uid)
+                            }
+                        }
+                    }
                 }
+            }
+        }
+    }
+
+    private fun observeRsvpState(noticeId: String, userId: String) {
+        if (_rsvpedNotices.value.containsKey(noticeId)) return
+        viewModelScope.launch {
+            noticeRepository.observeIsRsvpedByUser(noticeId, userId).collectLatest { isRsvped ->
+                _rsvpedNotices.value = _rsvpedNotices.value + (noticeId to isRsvped)
             }
         }
     }
@@ -177,7 +196,9 @@ class NoticeViewModel @Inject constructor(
         contact: String, 
         daysToExpiry: Int,
         pollQuestion: String? = null,
-        pollOptions: List<String>? = null
+        pollOptions: List<String>? = null,
+        eventDate: Long? = null,
+        eventLocation: String? = null
     ) {
         Log.d("NOTICE_DEBUG", "createNotice button clicked in ViewModel")
         val user = currentUser
@@ -205,7 +226,9 @@ class NoticeViewModel @Inject constructor(
             contactNumber = contact,
             pollQuestion = pollQuestion,
             pollOptions = pollOptions,
-            pollVotes = pollOptions?.associateWith { 0L }?.mapKeys { pollOptions.indexOf(it.key).toString() }
+            pollVotes = pollOptions?.associateWith { 0L }?.mapKeys { pollOptions.indexOf(it.key).toString() },
+            eventDate = eventDate,
+            eventLocation = eventLocation
         )
         viewModelScope.launch {
             noticeRepository.createNotice(notice).collectLatest {
@@ -248,6 +271,13 @@ class NoticeViewModel @Inject constructor(
         val uid = authRepository.getCurrentUser()?.uid ?: return
         viewModelScope.launch {
             noticeRepository.voteInPoll(noticeId, uid, optionIndex).collectLatest { }
+        }
+    }
+
+    fun toggleRsvp(noticeId: String) {
+        val user = currentUser ?: return
+        viewModelScope.launch {
+            noticeRepository.toggleRsvp(noticeId, user.uid, user.name).collectLatest { }
         }
     }
 }

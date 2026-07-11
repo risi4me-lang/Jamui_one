@@ -5,6 +5,7 @@ import com.example.jamuione.domain.model.Notice
 import com.example.jamuione.domain.repository.NoticeRepository
 import com.example.jamuione.util.Resource
 import com.google.firebase.firestore.AggregateSource
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.messaging.FirebaseMessaging
@@ -215,5 +216,51 @@ class NoticeRepositoryImpl @Inject constructor(
             com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             emit(Resource.Error(e.message ?: "Failed to vote"))
         }
+    }
+
+    override fun toggleRsvp(
+        noticeId: String,
+        userId: String,
+        userName: String
+    ): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            withTimeout(20000L) {
+                firestore.runTransaction { transaction ->
+                    val noticeRef = firestore.collection("notices").document(noticeId)
+                    val rsvpRef = noticeRef.collection("rsvps").document(userId)
+                    
+                    val rsvpSnapshot = transaction.get(rsvpRef)
+                    if (rsvpSnapshot.exists()) {
+                        transaction.delete(rsvpRef)
+                        transaction.update(noticeRef, "rsvpCount", FieldValue.increment(-1))
+                    } else {
+                        val rsvp = mapOf(
+                            "userId" to userId,
+                            "userName" to userName,
+                            "timestamp" to System.currentTimeMillis()
+                        )
+                        transaction.set(rsvpRef, rsvp)
+                        transaction.update(noticeRef, "rsvpCount", FieldValue.increment(1))
+                    }
+                }.await()
+            }
+            emit(Resource.Success(true))
+        } catch (e: TimeoutCancellationException) {
+            emit(Resource.Error("Action timed out. Please try again."))
+        } catch (e: Exception) {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
+            emit(Resource.Error(e.message ?: "Failed to update RSVP"))
+        }
+    }
+
+    override fun observeIsRsvpedByUser(noticeId: String, userId: String): Flow<Boolean> = callbackFlow {
+        val rsvpRef = firestore.collection("notices").document(noticeId)
+            .collection("rsvps").document(userId)
+        
+        val listener = rsvpRef.addSnapshotListener { snapshot, _ ->
+            trySend(snapshot?.exists() == true)
+        }
+        awaitClose { listener.remove() }
     }
 }

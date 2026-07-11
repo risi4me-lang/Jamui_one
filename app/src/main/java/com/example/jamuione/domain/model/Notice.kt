@@ -12,7 +12,7 @@ data class Notice(
     val title: String = "",
     val searchableTitle: String = "",
     val description: String = "",
-    val category: String = "", // Announcement, Jobs, Rent/Flatmate, Buy & Sell, Lost & Found, Blood Donation, Help Needed
+    val category: String = "", // Announcement, Event, Jobs, Rent/Flatmate, Buy & Sell, Lost & Found, Blood Donation, Help Needed
     val state: String = "",
     val district: String = "",
     val locality: String = "",
@@ -24,5 +24,8 @@ data class Notice(
     val pollQuestion: String? = null,
     val pollOptions: List<String>? = null,
     val pollVotes: Map<String, Long>? = null, // OptionIndex -> VoteCount
-    val userVotes: Map<String, Long>? = null // UserId -> OptionIndex
+    val userVotes: Map<String, Long>? = null, // UserId -> OptionIndex
+    val eventDate: Long? = null,
+    val eventLocation: String? = null,
+    val rsvpCount: Long = 0L
 )

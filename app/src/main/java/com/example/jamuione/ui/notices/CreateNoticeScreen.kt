@@ -2,6 +2,7 @@ package com.example.jamuione.ui.notices
 
 import android.util.Log
 import androidx.compose.animation.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +36,11 @@ fun CreateNoticeScreen(
     var contactNumber by remember { mutableStateOf("") }
     var daysToExpiry by remember { mutableStateOf(7) }
     
+    // Event state
+    var eventDate by remember { mutableStateOf<Long?>(null) }
+    var eventLocation by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
+    
     // Poll state
     var isPoll by remember { mutableStateOf(false) }
     var pollQuestion by remember { mutableStateOf("") }
@@ -42,6 +49,30 @@ fun CreateNoticeScreen(
     val createResult by viewModel.createNoticeResult.collectAsState()
     var categoryExpanded by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = eventDate ?: System.currentTimeMillis()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    eventDate = datePickerState.selectedDateMillis
+                    showDatePicker = false
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
     LaunchedEffect(createResult) {
         if (createResult is Resource.Success && createResult.data == true) {
@@ -57,7 +88,7 @@ fun CreateNoticeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Post a Notice") },
+                title = { Text("Post an Event") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -122,6 +153,38 @@ fun CreateNoticeScreen(
                 minLines = 4,
                 supportingText = { Text("${description.length}/2000", modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.End) }
             )
+
+            if (selectedCategory == "Event") {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Event Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                OutlinedTextField(
+                    value = if (eventDate != null) {
+                        java.text.SimpleDateFormat("EEE, MMM dd, yyyy", java.util.Locale.getDefault()).format(java.util.Date(eventDate!!))
+                    } else "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Event Date") },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(Icons.Default.Event, contentDescription = "Select Date")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                OutlinedTextField(
+                    value = eventLocation,
+                    onValueChange = { eventLocation = it },
+                    label = { Text("Event Location") },
+                    placeholder = { Text("e.g. Community Center, Main Street") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -207,7 +270,9 @@ fun CreateNoticeScreen(
                             contact = contactNumber,
                             daysToExpiry = daysToExpiry,
                             pollQuestion = pollQuestion.takeIf { isPoll && it.isNotBlank() },
-                            pollOptions = pollOptions.filter { it.isNotBlank() }.takeIf { isPoll && it.size >= 2 }
+                            pollOptions = pollOptions.filter { it.isNotBlank() }.takeIf { isPoll && it.size >= 2 },
+                            eventDate = eventDate.takeIf { selectedCategory == "Event" },
+                            eventLocation = eventLocation.takeIf { selectedCategory == "Event" && it.isNotBlank() }
                         )
                     } else {
                         scope.launch { snackbarHostState.showSnackbar("You're offline.") }
@@ -221,7 +286,7 @@ fun CreateNoticeScreen(
                 if (createResult is Resource.Loading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("Post Notice", fontWeight = FontWeight.Bold)
+                    Text("Post to Board", fontWeight = FontWeight.Bold)
                 }
             }
         }

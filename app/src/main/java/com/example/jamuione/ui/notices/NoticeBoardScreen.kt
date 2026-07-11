@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.Notice
+import com.example.jamuione.ui.notices.NoticeViewModel
 import com.example.jamuione.ui.components.HomeHeader
 import com.example.jamuione.ui.components.PostSkeletonLoader
 import com.example.jamuione.ui.feed.FeedScope
@@ -54,6 +55,7 @@ fun NoticeBoardScreen(
     val currentScope by viewModel.currentScope.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val rsvpedNotices by viewModel.rsvpedNotices.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val memberCount by viewModel.memberCount.collectAsState()
     val deleteResult by viewModel.deleteNoticeResult.collectAsState()
@@ -63,10 +65,10 @@ fun NoticeBoardScreen(
 
     LaunchedEffect(deleteResult) {
         if (deleteResult is Resource.Success && deleteResult.data == true) {
-            snackbarHostState.showSnackbar("Notice deleted")
+            snackbarHostState.showSnackbar("Event deleted")
             viewModel.resetDeleteNoticeResult()
         } else if (deleteResult is Resource.Error) {
-            snackbarHostState.showSnackbar(deleteResult.message ?: "Failed to delete notice")
+            snackbarHostState.showSnackbar(deleteResult.message ?: "Failed to delete event")
             viewModel.resetDeleteNoticeResult()
         }
     }
@@ -115,7 +117,7 @@ fun NoticeBoardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    placeholder = { Text("Search notices...") },
+                    placeholder = { Text("Search events...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
@@ -171,6 +173,7 @@ fun NoticeBoardScreen(
                         NoticeItem(
                             notice = notice,
                             currentUserId = userProfile.data?.uid,
+                            isRsvped = rsvpedNotices[notice.id] ?: false,
                             onDeleteClick = {
                                 viewModel.deleteNotice(notice.id)
                             },
@@ -179,6 +182,9 @@ fun NoticeBoardScreen(
                             },
                             onVoteClick = { index ->
                                 viewModel.voteInPoll(notice.id, index)
+                            },
+                            onRsvpClick = {
+                                viewModel.toggleRsvp(notice.id)
                             }
                         )
                     }
@@ -235,6 +241,7 @@ data class CategoryStyle(
 fun getCategoryStyle(category: String): CategoryStyle {
     return when (category.lowercase()) {
         "blood donation" -> CategoryStyle(Icons.Default.Bloodtype, Color(0xFFE91E63))
+        "event" -> CategoryStyle(Icons.Default.Event, Color(0xFF4CAF50))
         "help needed" -> CategoryStyle(Icons.Default.Favorite, Color(0xFFF44336))
         "jobs" -> CategoryStyle(Icons.Default.Work, Color(0xFF2196F3))
         "rent/flatmate" -> CategoryStyle(Icons.Default.Home, Color(0xFF4CAF50))
@@ -248,9 +255,11 @@ fun getCategoryStyle(category: String): CategoryStyle {
 fun NoticeItem(
     notice: Notice,
     currentUserId: String? = null,
+    isRsvped: Boolean = false,
     onDeleteClick: () -> Unit = {},
     onReportClick: (String) -> Unit = {},
-    onVoteClick: (Int) -> Unit = {}
+    onVoteClick: (Int) -> Unit = {},
+    onRsvpClick: () -> Unit = {}
 ) {
     if (notice.isDeleted) {
         Card(
@@ -417,6 +426,43 @@ fun NoticeItem(
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            
+            if (notice.category == "Event" && notice.eventDate != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = SimpleDateFormat("EEE, MMM dd • hh:mm a", Locale.getDefault()).format(Date(notice.eventDate)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                if (!notice.eventLocation.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = notice.eventLocation,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = notice.description,
@@ -478,16 +524,46 @@ fun NoticeItem(
                         )
                     }
                 }
-                if (notice.contactNumber.isNotBlank()) {
-                    Button(
-                        onClick = { /* Call intent */ },
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        modifier = Modifier.height(32.dp),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Contact", fontSize = 11.sp)
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (notice.category == "Event") {
+                        Button(
+                            onClick = onRsvpClick,
+                            colors = if (isRsvped) ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
+                            else ButtonDefaults.buttonColors(),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isRsvped) Icons.Default.CheckCircle else Icons.Default.HowToReg,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isRsvped) "Going" else "RSVP",
+                                fontSize = 11.sp
+                            )
+                            if (notice.rsvpCount > 0) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = "(${notice.rsvpCount})", fontSize = 11.sp)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
+                    if (notice.contactNumber.isNotBlank()) {
+                        Button(
+                            onClick = { /* Call intent */ },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Contact", fontSize = 11.sp)
+                        }
                     }
                 }
             }

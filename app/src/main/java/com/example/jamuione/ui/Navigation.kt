@@ -278,8 +278,8 @@ fun AdaptiveScaffoldWrapper(
             item(
                 selected = currentDestination == Destination.NoticeBoard,
                 onClick = { onNavigate(Destination.NoticeBoard) },
-                icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Notices") },
-                label = { Text("Notices") }
+                icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Events") },
+                label = { Text("Events") }
             )
             item(
                 selected = currentDestination == Destination.Profile,
