@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import com.example.jamuione.MainActivity
 import com.example.jamuione.R
 import com.example.jamuione.domain.repository.UserRepository
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,16 +27,19 @@ class JamuiOneMessagingService : FirebaseMessagingService() {
     @Inject
     lateinit var userRepository: UserRepository
 
+    @Inject
+    lateinit var firebaseAuth: FirebaseAuth
+
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        // Update token in Firestore if user is logged in
-        scope.launch {
-            // We don't have direct access to auth here easily without injecting FirebaseAuth
-            // But we can try to get the current UID from a repository or similar
-            // For now, we'll rely on the app updating it on launch/login
+        val uid = firebaseAuth.currentUser?.uid
+        if (uid != null) {
+            scope.launch {
+                userRepository.updateUserFcmToken(uid, token).collect { }
+            }
         }
     }
 

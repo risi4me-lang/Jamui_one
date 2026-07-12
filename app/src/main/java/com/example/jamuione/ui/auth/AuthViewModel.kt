@@ -11,6 +11,7 @@ import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,6 +104,14 @@ class AuthViewModel @Inject constructor(
                     Log.d("AUTH_TRACE", "$method: Existing profile found, skipping creation")
                     setupCrashlytics(existingProfileResult.data)
                     _authState.value = AuthState.Authenticated
+                    
+                    // Fetch and save the current token in case it was generated pre-login:
+                    FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                        viewModelScope.launch {
+                            userRepository.updateUserFcmToken(firebaseUser.uid, token).collect { }
+                        }
+                    }
+
                     fetchUserProfile()
                 } else {
                     Log.d("AUTH_TRACE", "$method: No existing profile, creating new one")
@@ -128,6 +137,14 @@ class AuthViewModel @Inject constructor(
                                 Log.d("AUTH_TRACE", "$method: ViewModel received Success, transitioning to Authenticated")
                                 setupCrashlytics(user)
                                 _authState.value = AuthState.Authenticated
+                                
+                                // Fetch and save the current token in case it was generated pre-login:
+                                FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                                    viewModelScope.launch {
+                                        userRepository.updateUserFcmToken(firebaseUser.uid, token).collect { }
+                                    }
+                                }
+
                                 fetchUserProfile()
                             }
                             is Resource.Error -> {
