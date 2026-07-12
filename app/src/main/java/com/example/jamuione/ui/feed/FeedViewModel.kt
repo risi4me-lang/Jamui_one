@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.AuthRepository
+import com.example.jamuione.domain.repository.NotificationRepository
 import com.example.jamuione.domain.repository.PostRepository
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
@@ -19,14 +20,15 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 enum class FeedScope {
-    LOCALITY, DISTRICT, STATE
+    LOCALITY, DISTRICT, STATE, NATIVE_DISTRICT
 }
 
 @HiltViewModel
 class FeedViewModel @Inject constructor(
     private val postRepository: PostRepository,
     private val authRepository: AuthRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val notificationRepository: NotificationRepository
 ) : ViewModel() {
 
     private val _posts = MutableStateFlow<Resource<List<Post>>>(Resource.Idle())
@@ -61,6 +63,9 @@ class FeedViewModel @Inject constructor(
 
     private val _memberCount = MutableStateFlow<Resource<Long>>(Resource.Idle())
     val memberCount: StateFlow<Resource<Long>> = _memberCount
+
+    private val _unreadCount = MutableStateFlow(0)
+    val unreadCount: StateFlow<Int> = _unreadCount
 
     val isGuest: Boolean
         get() = authRepository.getCurrentUser() == null
@@ -101,11 +106,22 @@ class FeedViewModel @Inject constructor(
                         fetchMemberCount(district)
                     }
 
+                    // Observe unread notifications
+                    observeUnreadCount(uid)
+
                     // Reload posts if profile data changed (locality/district) or first load
                     if (profileUpdated) {
                         loadPosts()
                     }
                 }
+            }
+        }
+    }
+
+    private fun observeUnreadCount(userId: String) {
+        viewModelScope.launch {
+            notificationRepository.getUnreadCount(userId).collectLatest {
+                _unreadCount.value = it
             }
         }
     }
@@ -141,6 +157,7 @@ class FeedViewModel @Inject constructor(
                     FeedScope.LOCALITY -> postRepository.getPosts(locality = user.locality)
                     FeedScope.DISTRICT -> postRepository.getPosts(district = user.district)
                     FeedScope.STATE -> postRepository.getPosts(state = user.state)
+                    FeedScope.NATIVE_DISTRICT -> postRepository.getPosts(district = user.nativeDistrict)
                 }.collectLatest { resource ->
                     _posts.value = resource
                     if (resource is Resource.Success) {

@@ -28,6 +28,8 @@ interface UserRepository {
 
     fun getLocalityResidents(locality: String): Flow<Resource<List<User>>>
 
+    fun getDistrictResidents(district: String): Flow<Resource<List<User>>>
+
     fun getDistrictMemberCount(district: String): Flow<Resource<Long>>
 
     fun deleteAccount(uid: String): Flow<Resource<Boolean>>

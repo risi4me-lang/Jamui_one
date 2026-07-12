@@ -35,6 +35,7 @@ fun FeedScreen(
     viewModel: FeedViewModel,
     onCreatePostClick: () -> Unit,
     onNavigateToDetail: (String) -> Unit,
+    onNavigateToNotifications: () -> Unit,
     onProfileClick: () -> Unit
 ) {
     val postsResource by viewModel.posts.collectAsState()
@@ -44,6 +45,7 @@ fun FeedScreen(
     val currentScope by viewModel.currentScope.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val memberCount by viewModel.memberCount.collectAsState()
+    val unreadCount by viewModel.unreadCount.collectAsState()
     val deleteResult by viewModel.deletePostResult.collectAsState()
     val reportResult by viewModel.reportPostResult.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -99,6 +101,8 @@ fun FeedScreen(
                 HomeHeader(
                     user = userProfile.data,
                     memberCount = memberCount,
+                    unreadCount = unreadCount,
+                    onNotificationsClick = onNavigateToNotifications,
                     onProfileClick = onProfileClick
                 )
             }
@@ -106,6 +110,7 @@ fun FeedScreen(
             item {
                 ScopeSelector(
                     selectedScope = currentScope,
+                    nativeDistrict = userProfile.data?.nativeDistrict,
                     onScopeSelected = { viewModel.setScope(it) }
                 )
             }
@@ -227,6 +232,7 @@ fun EmptyFeedState(onCreatePostClick: () -> Unit, isGuest: Boolean) {
 @Composable
 fun ScopeSelector(
     selectedScope: FeedScope,
+    nativeDistrict: String? = null,
     onScopeSelected: (FeedScope) -> Unit
 ) {
     LazyRow(
@@ -248,6 +254,15 @@ fun ScopeSelector(
                 onClick = { onScopeSelected(FeedScope.DISTRICT) },
                 label = { Text("District") }
             )
+        }
+        if (!nativeDistrict.isNullOrBlank()) {
+            item {
+                FilterChip(
+                    selected = selectedScope == FeedScope.NATIVE_DISTRICT,
+                    onClick = { onScopeSelected(FeedScope.NATIVE_DISTRICT) },
+                    label = { Text("Hometown") }
+                )
+            }
         }
         item {
             FilterChip(

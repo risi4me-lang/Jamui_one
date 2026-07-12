@@ -37,6 +37,9 @@ import com.example.jamuione.ui.community.CommunitiesScreen
 import com.example.jamuione.ui.community.NativeCommunityScreen
 import com.example.jamuione.ui.community.NativeCommunityViewModel
 import com.example.jamuione.ui.community.LocalityCommunityScreen
+import com.example.jamuione.ui.community.DistrictCommunityScreen
+import com.example.jamuione.ui.notifications.NotificationsScreen
+import com.example.jamuione.ui.notifications.NotificationsViewModel
 import com.example.jamuione.ui.feed.FeedScreen
 import com.example.jamuione.ui.feed.FeedViewModel
 import com.example.jamuione.ui.feed.CreatePostScreen
@@ -75,6 +78,10 @@ sealed interface Destination : NavKey {
     data object NativeCommunity : Destination
     @Serializable
     data object LocalityCommunity : Destination
+    @Serializable
+    data object DistrictCommunity : Destination
+    @Serializable
+    data object Notifications : Destination
     @Serializable
     data object PrivacyPolicy : Destination
     @Serializable
@@ -156,6 +163,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     viewModel = feedViewModel,
                     onCreatePostClick = { backStack.add(Destination.CreatePost) },
                     onNavigateToDetail = { postId -> backStack.add(Destination.PostDetail(postId)) },
+                    onNavigateToNotifications = { backStack.add(Destination.Notifications) },
                     onProfileClick = { 
                         backStack.clear()
                         backStack.add(Destination.Profile)
@@ -175,6 +183,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 NoticeBoardScreen(
                     viewModel = noticeViewModel,
                     onCreateNoticeClick = { backStack.add(Destination.CreateNotice) },
+                    onNavigateToNotifications = { backStack.add(Destination.Notifications) },
                     onProfileClick = {
                         backStack.clear()
                         backStack.add(Destination.Profile)
@@ -212,6 +221,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 authViewModel = authViewModel,
                 onNavigateToNativeCommunity = { backStack.add(Destination.NativeCommunity) },
                 onNavigateToLocalityCommunity = { backStack.add(Destination.LocalityCommunity) },
+                onNavigateToDistrictCommunity = { backStack.add(Destination.DistrictCommunity) },
                 onBack = { backStack.removeAt(backStack.size - 1) }
             )
         }
@@ -226,6 +236,26 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val communityViewModel: NativeCommunityViewModel = viewModel()
             LocalityCommunityScreen(
                 viewModel = communityViewModel,
+                onBack = { backStack.removeAt(backStack.size - 1) }
+            )
+        }
+        entry<Destination.DistrictCommunity> {
+            val communityViewModel: NativeCommunityViewModel = viewModel()
+            DistrictCommunityScreen(
+                viewModel = communityViewModel,
+                onBack = { backStack.removeAt(backStack.size - 1) }
+            )
+        }
+        entry<Destination.Notifications> {
+            val notificationsViewModel: NotificationsViewModel = viewModel()
+            NotificationsScreen(
+                viewModel = notificationsViewModel,
+                onNavigateToPost = { postId -> backStack.add(Destination.PostDetail(postId)) },
+                onNavigateToNotice = { noticeId -> 
+                    // For now, jumping to notice board might be enough, or we need a NoticeDetail
+                    // Given our current structure, jumping to board is fine, or we could just stay
+                    backStack.add(Destination.NoticeBoard)
+                },
                 onBack = { backStack.removeAt(backStack.size - 1) }
             )
         }

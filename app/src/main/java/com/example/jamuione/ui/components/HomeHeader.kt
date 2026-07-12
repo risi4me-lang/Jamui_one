@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -29,6 +30,8 @@ import java.util.*
 fun HomeHeader(
     user: User?,
     memberCount: Resource<Long>,
+    unreadCount: Int = 0,
+    onNotificationsClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
     val communityName = BrandingUtil.getCommunityName(user?.district)
@@ -92,6 +95,29 @@ fun HomeHeader(
                     
                     Spacer(modifier = Modifier.width(12.dp))
                     
+                    BadgedBox(
+                        badge = {
+                            if (unreadCount > 0) {
+                                Badge {
+                                    Text(text = if (unreadCount > 9) "9+" else unreadCount.toString())
+                                }
+                            }
+                        }
+                    ) {
+                        IconButton(
+                            onClick = onNotificationsClick,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
                     if (user != null) {
                         if (user.profileImage != null) {
                             AsyncImage(

@@ -49,6 +49,7 @@ import java.util.*
 fun NoticeBoardScreen(
     viewModel: NoticeViewModel,
     onCreateNoticeClick: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
     onProfileClick: () -> Unit
 ) {
     val noticesResource by viewModel.notices.collectAsState()
@@ -56,6 +57,7 @@ fun NoticeBoardScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val rsvpedNotices by viewModel.rsvpedNotices.collectAsState()
+    val unreadCount by viewModel.unreadCount.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val memberCount by viewModel.memberCount.collectAsState()
     val deleteResult by viewModel.deleteNoticeResult.collectAsState()
@@ -106,6 +108,8 @@ fun NoticeBoardScreen(
                 HomeHeader(
                     user = userProfile.data,
                     memberCount = memberCount,
+                    unreadCount = unreadCount,
+                    onNotificationsClick = onNavigateToNotifications,
                     onProfileClick = onProfileClick
                 )
             }
@@ -139,6 +143,7 @@ fun NoticeBoardScreen(
             item {
                 ScopeSelector(
                     selectedScope = currentScope,
+                    nativeDistrict = userProfile.data?.nativeDistrict,
                     onScopeSelected = { viewModel.setScope(it) }
                 )
             }

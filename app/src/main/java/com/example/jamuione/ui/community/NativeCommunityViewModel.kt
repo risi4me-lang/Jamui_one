@@ -30,6 +30,9 @@ class NativeCommunityViewModel @Inject constructor(
     private val _residents = MutableStateFlow<Resource<List<User>>>(Resource.Idle())
     val residents: StateFlow<Resource<List<User>>> = _residents
 
+    private val _neighbors = MutableStateFlow<Resource<List<User>>>(Resource.Idle())
+    val neighbors: StateFlow<Resource<List<User>>> = _neighbors
+
     private val _stats = MutableStateFlow<Resource<CommunityStats>>(Resource.Idle())
     val stats: StateFlow<Resource<CommunityStats>> = _stats
 
@@ -94,6 +97,16 @@ class NativeCommunityViewModel @Inject constructor(
         viewModelScope.launch {
             userRepository.getLocalityResidents(user.locality).collectLatest {
                 _residents.value = it
+            }
+        }
+    }
+
+    fun loadNeighborData() {
+        val user = _currentUser.value ?: return
+        if (user.district.isEmpty()) return
+        viewModelScope.launch {
+            userRepository.getDistrictResidents(user.district).collectLatest {
+                _neighbors.value = it
             }
         }
     }

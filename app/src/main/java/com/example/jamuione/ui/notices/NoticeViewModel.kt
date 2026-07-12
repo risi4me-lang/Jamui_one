@@ -7,6 +7,7 @@ import com.example.jamuione.domain.model.Notice
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.domain.repository.NoticeRepository
+import com.example.jamuione.domain.repository.NotificationRepository
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.ui.feed.FeedScope
 import com.example.jamuione.util.Resource
@@ -22,7 +23,8 @@ import javax.inject.Inject
 class NoticeViewModel @Inject constructor(
     private val noticeRepository: NoticeRepository,
     private val authRepository: AuthRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val notificationRepository: NotificationRepository
 ) : ViewModel() {
 
     private val _notices = MutableStateFlow<Resource<List<Notice>>>(Resource.Idle())
@@ -30,6 +32,9 @@ class NoticeViewModel @Inject constructor(
 
     private val _rsvpedNotices = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val rsvpedNotices: StateFlow<Map<String, Boolean>> = _rsvpedNotices
+
+    private val _unreadCount = MutableStateFlow(0)
+    val unreadCount: StateFlow<Int> = _unreadCount
 
     private val _createNoticeResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val createNoticeResult: StateFlow<Resource<Boolean>> = _createNoticeResult
@@ -102,11 +107,21 @@ class NoticeViewModel @Inject constructor(
                         fetchMemberCount(district)
                     }
 
+                    observeUnreadCount(uid)
+
                     if (profileUpdated) {
                         loadNotices()
                         subscribeToLocationTopics()
                     }
                 }
+            }
+        }
+    }
+
+    private fun observeUnreadCount(userId: String) {
+        viewModelScope.launch {
+            notificationRepository.getUnreadCount(userId).collectLatest {
+                _unreadCount.value = it
             }
         }
     }
@@ -166,6 +181,7 @@ class NoticeViewModel @Inject constructor(
                     FeedScope.LOCALITY -> noticeRepository.getNotices(category, locality = user.locality, searchQuery = search)
                     FeedScope.DISTRICT -> noticeRepository.getNotices(category, district = user.district, searchQuery = search)
                     FeedScope.STATE -> noticeRepository.getNotices(category, state = user.state, searchQuery = search)
+                    FeedScope.NATIVE_DISTRICT -> noticeRepository.getNotices(category, district = user.nativeDistrict, searchQuery = search)
                 }.collectLatest { resource ->
                     _notices.value = resource
                     if (resource is Resource.Success) {

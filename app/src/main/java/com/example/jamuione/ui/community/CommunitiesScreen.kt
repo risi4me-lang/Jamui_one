@@ -25,6 +25,7 @@ fun CommunitiesScreen(
     authViewModel: AuthViewModel,
     onNavigateToNativeCommunity: () -> Unit,
     onNavigateToLocalityCommunity: () -> Unit,
+    onNavigateToDistrictCommunity: () -> Unit,
     onBack: () -> Unit
 ) {
     val userProfileState by authViewModel.userProfile.collectAsState()
@@ -69,6 +70,16 @@ fun CommunitiesScreen(
                         title = "$locality Residents",
                         subtitle = "Connect with your immediate neighbors",
                         onClick = onNavigateToLocalityCommunity
+                    )
+                }
+
+                item {
+                    val district = user.district.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+                    CommunityCategoryCard(
+                        icon = Icons.Default.LocationCity,
+                        title = "$district Neighbors",
+                        subtitle = "People living in your current district",
+                        onClick = onNavigateToDistrictCommunity
                     )
                 }
 

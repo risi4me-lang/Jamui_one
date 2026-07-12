@@ -202,6 +202,25 @@ class UserRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    override fun getDistrictResidents(district: String): Flow<Resource<List<User>>> = callbackFlow {
+        trySend(Resource.Loading())
+        val query = firestore.collection("users")
+            .whereEqualTo("district", district.trim().lowercase())
+            .orderBy("joinedAt", Query.Direction.DESCENDING)
+            .limit(50)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(Resource.Error(error.message ?: "Failed to fetch neighbors"))
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(Resource.Success(snapshot.toObjects(User::class.java)))
+            }
+        }
+        awaitClose { listener.remove() }
+    }
+
     override fun getDistrictMemberCount(district: String): Flow<Resource<Long>> = flow {
         emit(Resource.Loading())
         try {
