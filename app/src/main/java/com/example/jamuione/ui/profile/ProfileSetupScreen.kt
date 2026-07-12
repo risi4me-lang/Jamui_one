@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.jamuione.ui.auth.AuthViewModel
 import com.example.jamuione.util.BrandingUtil
+import com.example.jamuione.util.LocationDataProvider
 import com.example.jamuione.util.NetworkUtils
 import com.example.jamuione.util.Resource
 import kotlinx.coroutines.launch
@@ -52,27 +53,11 @@ fun ProfileSetupScreen(
     var expandedNativeState by remember { mutableStateOf(false) }
     var expandedNativeDistrict by remember { mutableStateOf(false) }
 
-    val indianStatesAndUTs = listOf(
-        "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat",
-        "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh",
-        "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
-        "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
-        "Uttarakhand", "West Bengal",
-        "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
-        "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
-    )
-
-    val districts = listOf(
-        "Araria", "Arwal", "Aurangabad", "Banka", "Begusarai", "Bhagalpur", "Bhojpur", "Buxar",
-        "Darbhanga", "East Champaran", "Gaya", "Gopalganj", "Jamui", "Jehanabad", "Kaimur",
-        "Katihar", "Khagaria", "Kishanganj", "Lakhisarai", "Madhepura", "Madhubani", "Munger",
-        "Muzaffarpur", "Nalanda", "Nawada", "Patna", "Purnia", "Rohtas", "Saharsa",
-        "Samastipur", "Saran", "Sheikhpura", "Sheohar", "Sitamarhi", "Siwan", "Supaul",
-        "Vaishali", "West Champaran"
-    )
+    val states = LocationDataProvider.getStates()
+    val districts = LocationDataProvider.getDistricts(state)
+    val nativeDistricts = LocationDataProvider.getDistricts(nativeState)
 
     val profileSavedState by viewModel.profileSaved.collectAsState()
-    val communityName = BrandingUtil.getCommunityName(district)
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Pre-fill from existing profile
@@ -81,20 +66,33 @@ fun ProfileSetupScreen(
             val user = (userProfileState as Resource.Success).data
             if (user != null) {
                 if (name.isEmpty()) name = user.name
+                
                 if (user.state.isNotEmpty()) {
-                    if (indianStatesAndUTs.contains(user.state)) state = user.state
+                    val formattedState = states.find { it.equals(user.state, ignoreCase = true) }
+                    if (formattedState != null) state = formattedState
                 }
+                
                 if (locality.isEmpty() && user.locality.isNotEmpty()) {
                     locality = user.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
                 }
+                
                 if (user.district.isNotEmpty()) {
-                    val formattedDistrict = user.district.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-                    if (districts.contains(formattedDistrict)) district = formattedDistrict
+                    val currentDistricts = LocationDataProvider.getDistricts(state)
+                    val formattedDistrict = currentDistricts.find { it.equals(user.district, ignoreCase = true) }
+                    if (formattedDistrict != null) district = formattedDistrict
                 }
+                
+                if (user.nativeState.isNotEmpty()) {
+                    val formattedNativeState = states.find { it.equals(user.nativeState, ignoreCase = true) }
+                    if (formattedNativeState != null) nativeState = formattedNativeState
+                }
+
                 if (user.nativeDistrict.isNotEmpty()) {
-                    val formattedNative = user.nativeDistrict.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-                    if (districts.contains(formattedNative)) nativeDistrict = formattedNative
+                    val currentNativeDistricts = LocationDataProvider.getDistricts(nativeState)
+                    val formattedNative = currentNativeDistricts.find { it.equals(user.nativeDistrict, ignoreCase = true) }
+                    if (formattedNative != null) nativeDistrict = formattedNative
                 }
+                
                 if (profession.isEmpty()) profession = user.profession
                 if (company.isEmpty()) company = user.company ?: ""
                 if (bio.isEmpty()) bio = user.bio ?: ""
@@ -188,6 +186,8 @@ fun ProfileSetupScreen(
             // SECTION: CURRENT LOCATION
             Text("Current Location", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
             Spacer(modifier = Modifier.height(8.dp))
+            
+            // State Selection
             ExposedDropdownMenuBox(
                 expanded = expandedState,
                 onExpandedChange = { expandedState = !expandedState },
@@ -205,18 +205,24 @@ fun ProfileSetupScreen(
                     expanded = expandedState,
                     onDismissRequest = { expandedState = false }
                 ) {
-                    indianStatesAndUTs.forEach { selectionOption ->
+                    states.forEach { selectionOption ->
                         DropdownMenuItem(
                             text = { Text(selectionOption) },
                             onClick = {
                                 state = selectionOption
+                                // Reset district when state changes
+                                val newDistricts = LocationDataProvider.getDistricts(state)
+                                district = if (newDistricts.isNotEmpty()) newDistricts.first() else ""
                                 expandedState = false
                             }
                         )
                     }
                 }
             }
+            
             Spacer(modifier = Modifier.height(8.dp))
+            
+            // District Selection
             ExposedDropdownMenuBox(
                 expanded = expandedDistrict,
                 onExpandedChange = { expandedDistrict = !expandedDistrict },
@@ -245,6 +251,7 @@ fun ProfileSetupScreen(
                     }
                 }
             }
+            
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = locality,
@@ -258,6 +265,8 @@ fun ProfileSetupScreen(
             // SECTION: NATIVE PLACE
             Text("Your Hometown", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.Start))
             Spacer(modifier = Modifier.height(8.dp))
+            
+            // Native State Selection
             ExposedDropdownMenuBox(
                 expanded = expandedNativeState,
                 onExpandedChange = { expandedNativeState = !expandedNativeState },
@@ -275,18 +284,24 @@ fun ProfileSetupScreen(
                     expanded = expandedNativeState,
                     onDismissRequest = { expandedNativeState = false }
                 ) {
-                    indianStatesAndUTs.forEach { selectionOption ->
+                    states.forEach { selectionOption ->
                         DropdownMenuItem(
                             text = { Text(selectionOption) },
                             onClick = {
                                 nativeState = selectionOption
+                                // Reset native district when state changes
+                                val newNativeDistricts = LocationDataProvider.getDistricts(nativeState)
+                                nativeDistrict = if (newNativeDistricts.isNotEmpty()) newNativeDistricts.first() else ""
                                 expandedNativeState = false
                             }
                         )
                     }
                 }
             }
+            
             Spacer(modifier = Modifier.height(8.dp))
+            
+            // Native District Selection
             ExposedDropdownMenuBox(
                 expanded = expandedNativeDistrict,
                 onExpandedChange = { expandedNativeDistrict = !expandedNativeDistrict },
@@ -304,7 +319,7 @@ fun ProfileSetupScreen(
                     expanded = expandedNativeDistrict,
                     onDismissRequest = { expandedNativeDistrict = false }
                 ) {
-                    districts.forEach { selectionOption ->
+                    nativeDistricts.forEach { selectionOption ->
                         DropdownMenuItem(
                             text = { Text(selectionOption) },
                             onClick = {
