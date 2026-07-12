@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.jamuione.util.BrandingUtil
+import com.example.jamuione.util.Resource
 
 @Composable
 fun LoginScreen(
@@ -35,6 +36,7 @@ fun LoginScreen(
 ) {
     val authState by viewModel.authState.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val passwordResetState by viewModel.passwordResetState.collectAsState()
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -43,12 +45,72 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var isSignUp by remember { mutableStateOf(false) }
     var ageAcknowledged by remember { mutableStateOf(false) }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var resetEmail by remember { mutableStateOf("") }
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Authenticated) {
             snackbarHostState.showSnackbar("Welcome back!")
             onAuthSuccess()
         }
+    }
+
+    LaunchedEffect(passwordResetState) {
+        if (passwordResetState is Resource.Success) {
+            snackbarHostState.showSnackbar("Password reset email sent — check your inbox")
+            viewModel.resetPasswordResetState()
+            showForgotPasswordDialog = false
+        }
+    }
+
+    if (showForgotPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showForgotPasswordDialog = false 
+                viewModel.resetPasswordResetState()
+            },
+            title = { Text("Reset Password") },
+            text = {
+                Column {
+                    Text("Enter your email address and we'll send you a link to reset your password.")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = resetEmail,
+                        onValueChange = { resetEmail = it },
+                        label = { Text("Email Address") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    if (passwordResetState is Resource.Error) {
+                        Text(
+                            text = (passwordResetState as Resource.Error).message ?: "Error sending reset email",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.sendPasswordResetEmail(resetEmail) },
+                    enabled = resetEmail.isNotBlank() && passwordResetState !is Resource.Loading,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (passwordResetState is Resource.Loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    } else {
+                        Text("Send Reset Link")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showForgotPasswordDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -149,6 +211,19 @@ fun LoginScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
                 )
+
+                if (!isSignUp) {
+                    TextButton(
+                        onClick = { 
+                            resetEmail = email
+                            showForgotPasswordDialog = true 
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                        contentPadding = PaddingValues(horizontal = 0.dp)
+                    ) {
+                        Text("Forgot Password?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
 
                 AnimatedVisibility(visible = isSignUp) {
                     Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp, start = 4.dp)) {

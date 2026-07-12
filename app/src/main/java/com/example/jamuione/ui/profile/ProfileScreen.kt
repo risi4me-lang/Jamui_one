@@ -7,9 +7,21 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Stars
+import androidx.compose.material.icons.filled.AddCircleOutline
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,16 +53,37 @@ fun ProfileScreen(
     onLogout: () -> Unit
 ) {
     val userProfileState by viewModel.userProfile.collectAsState()
+    val verificationEmailState by viewModel.verificationEmailState.collectAsState()
     val communityName = BrandingUtil.getCommunityName(userProfileState.data?.district)
     
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteFinalDialog by remember { mutableStateOf(false) }
     var deleteInput by remember { mutableStateOf("") }
+    var resendCooldown by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
-        viewModel.fetchUserProfile()
+        viewModel.reloadUser()
+    }
+
+    LaunchedEffect(verificationEmailState) {
+        if (verificationEmailState is Resource.Success) {
+            snackbarHostState.showSnackbar("Verification email sent!")
+            viewModel.resetVerificationEmailState()
+            resendCooldown = 60
+        } else if (verificationEmailState is Resource.Error) {
+            snackbarHostState.showSnackbar((verificationEmailState as Resource.Error).message ?: "Failed to send email")
+            viewModel.resetVerificationEmailState()
+        }
+    }
+
+    LaunchedEffect(resendCooldown) {
+        if (resendCooldown > 0) {
+            kotlinx.coroutines.delay(1000L)
+            resendCooldown -= 1
+        }
     }
 
     if (showDeleteConfirmDialog) {
@@ -137,7 +170,8 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(title = { Text(communityName) })
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         val completion = (userProfileState as? Resource.Success)?.data?.let { viewModel.calculateProfileCompletion(it) } ?: 0
         
@@ -157,6 +191,14 @@ fun ProfileScreen(
                     is Resource.Success -> {
                         val user = state.data
                         if (user != null) {
+                            // Email Verification Banner
+                            if (viewModel.isEmailPasswordUser() && !viewModel.isEmailVerified()) {
+                                EmailVerificationBanner(
+                                    onResendClick = { viewModel.resendVerificationEmail() },
+                                    cooldown = resendCooldown
+                                )
+                            }
+
                             ProfileHeader(user)
                             
                             ProfileCompletionSection(
@@ -286,6 +328,43 @@ fun ConfettiEffect() {
                 radius = radius,
                 center = Offset(x, y)
             )
+        }
+    }
+}
+
+@Composable
+fun EmailVerificationBanner(onResendClick: () -> Unit, cooldown: Int) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Please verify your email address",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Text(
+                    text = "Check your inbox for a verification link.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                )
+            }
+            TextButton(
+                onClick = onResendClick,
+                enabled = cooldown == 0,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text(if (cooldown > 0) "Resend in ${cooldown}s" else "Resend")
+            }
         }
     }
 }

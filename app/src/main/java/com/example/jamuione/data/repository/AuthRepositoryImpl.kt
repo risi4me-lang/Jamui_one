@@ -13,9 +13,11 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
@@ -108,9 +110,19 @@ class AuthRepositoryImpl @Inject constructor(
         }
         try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            result.user?.let {
-                Log.d("AUTH_TRACE", "Firebase signup success, UID: ${it.uid}")
-                emit(Resource.Success(it))
+            result.user?.let { firebaseUser ->
+                Log.d("AUTH_TRACE", "Firebase signup success, UID: ${firebaseUser.uid}")
+                
+                // Trigger email verification for new accounts
+                try {
+                    firebaseUser.sendEmailVerification().await()
+                    Log.d("AUTH_TRACE", "Verification email sent to: $email")
+                } catch (e: Exception) {
+                    Log.e("AUTH_TRACE", "Failed to send verification email", e)
+                    // Don't block signup if verification email fails to send
+                }
+                
+                emit(Resource.Success(firebaseUser))
             } ?: run {
                 Log.e("AUTH_TRACE", "Firebase signup failed: user is null")
                 emit(Resource.Error("Registration failed: User is null"))
@@ -118,6 +130,36 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e("AUTH_TRACE", "Firebase signup failed", e)
             emit(Resource.Error(e.message ?: "Registration failed"))
+        }
+    }
+
+    override fun sendPasswordResetEmail(email: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            withTimeout(20000L) {
+                auth.sendPasswordResetEmail(email.trim()).await()
+            }
+            emit(Resource.Success(true))
+        } catch (e: TimeoutCancellationException) {
+            emit(Resource.Error("Taking longer than usual — please try again."))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to send reset email"))
+        }
+    }
+
+    override fun sendEmailVerification(): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            auth.currentUser?.let { user ->
+                withTimeout(20000L) {
+                    user.sendEmailVerification().await()
+                }
+                emit(Resource.Success(true))
+            } ?: emit(Resource.Error("No user logged in"))
+        } catch (e: TimeoutCancellationException) {
+            emit(Resource.Error("Verification request timed out. Please try again."))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to send verification email"))
         }
     }
 

@@ -44,6 +44,12 @@ class AuthViewModel @Inject constructor(
     private val _profileSaved = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val profileSaved: StateFlow<Resource<Boolean>> = _profileSaved
 
+    private val _passwordResetState = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
+    val passwordResetState: StateFlow<Resource<Boolean>> = _passwordResetState
+
+    private val _verificationEmailState = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
+    val verificationEmailState: StateFlow<Resource<Boolean>> = _verificationEmailState
+
     fun signIn(context: Context, ageAcknowledged: Boolean = false) {
         viewModelScope.launch {
             Log.d("AUTH_TRACE", "Signup button clicked (Google)")
@@ -297,6 +303,45 @@ class AuthViewModel @Inject constructor(
 
     fun resetAuthState() {
         _authState.value = AuthState.Idle
+    }
+
+    fun sendPasswordResetEmail(email: String) {
+        viewModelScope.launch {
+            authRepository.sendPasswordResetEmail(email).collectLatest {
+                _passwordResetState.value = it
+            }
+        }
+    }
+
+    fun resendVerificationEmail() {
+        viewModelScope.launch {
+            authRepository.sendEmailVerification().collectLatest {
+                _verificationEmailState.value = it
+            }
+        }
+    }
+
+    fun resetPasswordResetState() {
+        _passwordResetState.value = Resource.Idle()
+    }
+
+    fun resetVerificationEmailState() {
+        _verificationEmailState.value = Resource.Idle()
+    }
+
+    fun reloadUser() {
+        viewModelScope.launch {
+            authRepository.getCurrentUser()?.reload()?.await()
+            fetchUserProfile()
+        }
+    }
+
+    fun isEmailVerified(): Boolean {
+        return authRepository.getCurrentUser()?.isEmailVerified ?: false
+    }
+
+    fun isEmailPasswordUser(): Boolean {
+        return authRepository.getCurrentUser()?.providerData?.any { it.providerId == "password" } ?: false
     }
 
     private fun setupCrashlytics(user: User) {
