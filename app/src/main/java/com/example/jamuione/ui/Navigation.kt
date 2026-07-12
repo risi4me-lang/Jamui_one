@@ -84,8 +84,18 @@ sealed interface Destination : NavKey {
 }
 
 @Composable
-fun JamuiOneNavigation() {
+fun JamuiOneNavigation(initialPostId: String? = null) {
     val backStack = rememberNavBackStack(Destination.Splash as NavKey)
+
+    LaunchedEffect(initialPostId) {
+        if (initialPostId != null) {
+            // If we are already past Splash/Login, navigate immediately
+            val current = backStack.lastOrNull()
+            if (current is Destination.MainFeed || current is Destination.Profile || current is Destination.NoticeBoard) {
+                backStack.add(Destination.PostDetail(initialPostId))
+            }
+        }
+    }
 
     val myEntryProvider = entryProvider<NavKey> {
         entry<Destination.Splash> {
@@ -96,6 +106,11 @@ fun JamuiOneNavigation() {
                     Log.d("AUTH_TRACE", "Navigation triggered: Splash to $nextKey")
                     backStack.clear()
                     backStack.add(nextKey)
+                    
+                    // If we have an initialPostId and we just authenticated, jump to detail
+                    if (initialPostId != null && nextKey == Destination.MainFeed) {
+                        backStack.add(Destination.PostDetail(initialPostId))
+                    }
                 }
             )
         }

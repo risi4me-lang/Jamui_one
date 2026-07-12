@@ -44,18 +44,23 @@ class JamuiOneMessagingService : FirebaseMessagingService() {
         
         val title = message.notification?.title ?: message.data["title"]
         val body = message.notification?.body ?: message.data["body"]
+        val postId = message.data["postId"]
+        val type = message.data["type"]
         
         if (title != null && body != null) {
-            sendNotification(title, body)
+            sendNotification(title, body, postId, type)
         }
     }
 
-    private fun sendNotification(title: String, messageBody: String) {
+    private fun sendNotification(title: String, messageBody: String, postId: String? = null, type: String? = null) {
         val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        postId?.let { intent.putExtra("postId", it) }
+        type?.let { intent.putExtra("type", it) }
+        
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE
+            this, System.currentTimeMillis().toInt(), intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val channelId = "notices_channel"
