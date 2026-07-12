@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Jamui One"
+rootProject.name = "District One"
 include(":app")
  
