@@ -18,5 +18,9 @@ data class Post(
     val helpfulCount: Int = 0,
     val commentsCount: Int = 0,
     val isDeleted: Boolean = false,
-    val deletedAt: Long = 0L
+    val deletedAt: Long = 0L,
+    val organizationId: String? = null,
+    val organizationName: String? = null,
+    val organizationType: String? = null,
+    val authorLogoUrl: String? = null
 )

@@ -27,5 +27,7 @@ data class Notice(
     val userVotes: Map<String, Long>? = null, // UserId -> OptionIndex
     val eventDate: Long? = null,
     val eventLocation: String? = null,
-    val rsvpCount: Long = 0L
+    val rsvpCount: Long = 0L,
+    val organizationId: String? = null,
+    val organizationName: String? = null
 )

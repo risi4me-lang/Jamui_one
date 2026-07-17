@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Logout
@@ -47,6 +48,7 @@ fun ProfileScreen(
     viewModel: AuthViewModel,
     onNavigateToSavedPosts: () -> Unit,
     onNavigateToCommunities: () -> Unit,
+    onNavigateToCreateOrg: () -> Unit,
     onEditProfile: () -> Unit,
     onViewPrivacyPolicy: () -> Unit,
     onViewTermsOfService: () -> Unit,
@@ -221,6 +223,13 @@ fun ProfileScreen(
                                 title = "Saved Posts",
                                 subtitle = "Posts you've bookmarked",
                                 onClick = onNavigateToSavedPosts
+                            )
+
+                            ProfileMenuItem(
+                                icon = Icons.Default.Business,
+                                title = "Create Organization",
+                                subtitle = "Business, Institution or Community",
+                                onClick = onNavigateToCreateOrg
                             )
                             ProfileMenuItem(
                                 icon = Icons.Default.Share,

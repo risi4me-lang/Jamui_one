@@ -40,6 +40,9 @@ import com.example.jamuione.ui.community.LocalityCommunityScreen
 import com.example.jamuione.ui.community.DistrictCommunityScreen
 import com.example.jamuione.ui.notifications.NotificationsScreen
 import com.example.jamuione.ui.notifications.NotificationsViewModel
+import com.example.jamuione.ui.organization.CreateOrganizationScreen
+import com.example.jamuione.ui.organization.OrganizationDashboardScreen
+import com.example.jamuione.ui.organization.OrganizationViewModel
 import com.example.jamuione.ui.feed.FeedScreen
 import com.example.jamuione.ui.feed.FeedViewModel
 import com.example.jamuione.ui.feed.CreatePostScreen
@@ -82,6 +85,10 @@ sealed interface Destination : NavKey {
     data object DistrictCommunity : Destination
     @Serializable
     data object Notifications : Destination
+    @Serializable
+    data object CreateOrganization : Destination
+    @Serializable
+    data class OrganizationDashboard(val orgId: String) : Destination
     @Serializable
     data object PrivacyPolicy : Destination
     @Serializable
@@ -204,6 +211,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     viewModel = authViewModel,
                     onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
                     onNavigateToCommunities = { backStack.add(Destination.Communities) },
+                    onNavigateToCreateOrg = { backStack.add(Destination.CreateOrganization) },
                     onEditProfile = { backStack.add(Destination.ProfileSetup) },
                     onViewPrivacyPolicy = { backStack.add(Destination.PrivacyPolicy) },
                     onViewTermsOfService = { backStack.add(Destination.TermsOfService) },
@@ -217,11 +225,14 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
         }
         entry<Destination.Communities> {
             val authViewModel: AuthViewModel = viewModel()
+            val orgViewModel: OrganizationViewModel = viewModel()
             CommunitiesScreen(
                 authViewModel = authViewModel,
+                orgViewModel = orgViewModel,
                 onNavigateToNativeCommunity = { backStack.add(Destination.NativeCommunity) },
                 onNavigateToLocalityCommunity = { backStack.add(Destination.LocalityCommunity) },
                 onNavigateToDistrictCommunity = { backStack.add(Destination.DistrictCommunity) },
+                onNavigateToOrgDashboard = { orgId -> backStack.add(Destination.OrganizationDashboard(orgId)) },
                 onBack = { backStack.removeAt(backStack.size - 1) }
             )
         }
@@ -284,6 +295,25 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val noticeViewModel: NoticeViewModel = viewModel()
             CreateNoticeScreen(
                 viewModel = noticeViewModel,
+                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+            )
+        }
+        entry<Destination.CreateOrganization> {
+            val orgViewModel: OrganizationViewModel = viewModel()
+            CreateOrganizationScreen(
+                viewModel = orgViewModel,
+                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) },
+                onSuccess = { orgId ->
+                    backStack.removeAt(backStack.size - 1)
+                    backStack.add(Destination.OrganizationDashboard(orgId))
+                }
+            )
+        }
+        entry<Destination.OrganizationDashboard> { key ->
+            val orgViewModel: OrganizationViewModel = viewModel()
+            OrganizationDashboardScreen(
+                orgId = key.orgId,
+                viewModel = orgViewModel,
                 onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
             )
         }

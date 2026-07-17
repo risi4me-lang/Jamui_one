@@ -153,10 +153,13 @@ fun PostCard(
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            val authorName = post.organizationName ?: post.userName
+            val authorImage = post.authorLogoUrl ?: post.userProfileImage
+            
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (post.userProfileImage != null) {
+                if (authorImage != null) {
                     AsyncImage(
-                        model = post.userProfileImage,
+                        model = authorImage,
                         contentDescription = "Profile Picture",
                         modifier = Modifier
                             .size(44.dp)
@@ -167,12 +170,12 @@ fun PostCard(
                     Surface(
                         modifier = Modifier.size(44.dp),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        color = if (post.organizationId != null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
-                                text = post.userName.take(1).uppercase(),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                text = authorName.take(1).uppercase(),
+                                color = if (post.organizationId != null) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -182,11 +185,11 @@ fun PostCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = post.userName,
+                            text = authorName,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        if (post.isVerified) {
+                        if (post.isVerified || post.organizationId != null) { // Orgs are often shown as verified or distinct
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Default.Verified,
@@ -197,8 +200,9 @@ fun PostCard(
                         }
                     }
                     val displayLocality = post.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                    val metaText = if (post.organizationType != null) "${post.organizationType} • $displayLocality" else "$displayLocality • ${formatTimestamp(post.timestamp)}"
                     Text(
-                        text = "$displayLocality • ${formatTimestamp(post.timestamp)}",
+                        text = metaText,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline
                     )

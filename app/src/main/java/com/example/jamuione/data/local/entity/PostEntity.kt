@@ -16,5 +16,9 @@ data class PostEntity(
     val locality: String,
     val timestamp: Long,
     val helpfulCount: Int = 0,
-    val commentsCount: Int = 0
+    val commentsCount: Int = 0,
+    val organizationId: String? = null,
+    val organizationName: String? = null,
+    val organizationType: String? = null,
+    val authorLogoUrl: String? = null
 )

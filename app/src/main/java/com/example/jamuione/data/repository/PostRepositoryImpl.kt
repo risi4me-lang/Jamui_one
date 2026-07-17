@@ -369,7 +369,11 @@ class PostRepositoryImpl @Inject constructor(
         locality = locality,
         timestamp = timestamp,
         helpfulCount = helpfulCount,
-        commentsCount = commentsCount
+        commentsCount = commentsCount,
+        organizationId = organizationId,
+        organizationName = organizationName,
+        organizationType = organizationType,
+        authorLogoUrl = authorLogoUrl
     )
 
     private fun PostEntity.toDomain() = Post(
@@ -384,6 +388,10 @@ class PostRepositoryImpl @Inject constructor(
         locality = locality,
         timestamp = timestamp,
         helpfulCount = helpfulCount,
-        commentsCount = commentsCount
+        commentsCount = commentsCount,
+        organizationId = organizationId,
+        organizationName = organizationName,
+        organizationType = organizationType,
+        authorLogoUrl = authorLogoUrl
     )
 }
