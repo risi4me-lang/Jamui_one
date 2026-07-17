@@ -15,7 +15,7 @@ data class Post(
     val district: String = "",
     val locality: String = "",
     val timestamp: Long = 0L,
-    val likesCount: Int = 0,
+    val helpfulCount: Int = 0,
     val commentsCount: Int = 0,
     val isDeleted: Boolean = false,
     val deletedAt: Long = 0L

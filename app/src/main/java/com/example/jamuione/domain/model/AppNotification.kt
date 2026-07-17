@@ -7,7 +7,7 @@ data class AppNotification(
     val id: String = "",
     val title: String = "",
     val body: String = "",
-    val type: String = "", // LIKE, COMMENT, SYSTEM, EVENT, POLL
+    val type: String = "", // HELPFUL, COMMENT, SYSTEM, EVENT, POLL
     val targetId: String = "", // postId, noticeId, etc.
     val timestamp: Long = 0L,
     val isRead: Boolean = false,

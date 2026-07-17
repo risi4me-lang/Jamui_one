@@ -265,19 +265,19 @@ class UserRepositoryImpl @Inject constructor(
             }
             commentsBatch.commit().await()
 
-            // Remove this user's likes and decrement the corresponding post's likesCount
-            val likesSnapshot = firestore.collectionGroup("likes")
+            // Remove this user's helpful votes and decrement the corresponding post's helpfulCount
+            val helpfulSnapshot = firestore.collectionGroup("helpful")
                 .whereEqualTo("userId", uid)
                 .get().await()
-            val likesBatch = firestore.batch()
-            likesSnapshot.documents.forEach { doc ->
-                likesBatch.delete(doc.reference)
+            val helpfulBatch = firestore.batch()
+            helpfulSnapshot.documents.forEach { doc ->
+                helpfulBatch.delete(doc.reference)
                 val postRef = doc.reference.parent.parent
                 if (postRef != null) {
-                    likesBatch.update(postRef, "likesCount", com.google.firebase.firestore.FieldValue.increment(-1))
+                    helpfulBatch.update(postRef, "helpfulCount", com.google.firebase.firestore.FieldValue.increment(-1))
                 }
             }
-            likesBatch.commit().await()
+            helpfulBatch.commit().await()
 
             // Soft delete posts
             val postsSnapshot = firestore.collection("posts")

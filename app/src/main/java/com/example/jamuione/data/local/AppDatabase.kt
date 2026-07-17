@@ -9,7 +9,7 @@ import com.example.jamuione.data.local.entity.UserEntity
 
 @Database(
     entities = [UserEntity::class, PostEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

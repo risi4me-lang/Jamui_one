@@ -66,7 +66,7 @@ fun NotificationsScreen(
                                     onClick = {
                                         viewModel.markAsRead(notification.id)
                                         when (notification.type) {
-                                            "LIKE", "COMMENT" -> onNavigateToPost(notification.targetId)
+                                            "LIKE", "HELPFUL", "COMMENT" -> onNavigateToPost(notification.targetId)
                                             "EVENT", "POLL" -> onNavigateToNotice(notification.targetId)
                                         }
                                     },
@@ -124,7 +124,7 @@ fun NotificationItem(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     val icon = when (notification.type) {
-                        "LIKE" -> Icons.Default.Favorite
+                        "LIKE", "HELPFUL" -> Icons.Default.ThumbUp
                         "COMMENT" -> Icons.Default.ChatBubble
                         "EVENT" -> Icons.Default.Event
                         else -> Icons.Default.Notifications

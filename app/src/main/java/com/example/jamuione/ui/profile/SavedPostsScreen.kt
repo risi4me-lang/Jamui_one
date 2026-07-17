@@ -24,7 +24,7 @@ fun SavedPostsScreen(
     onBack: () -> Unit
 ) {
     val savedPostsResource by viewModel.savedPosts.collectAsState()
-    val likedPosts by viewModel.likedPosts.collectAsState()
+    val helpfulPosts by viewModel.helpfulPosts.collectAsState()
     val isSavedMap by viewModel.isSavedMap.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
 
@@ -80,9 +80,9 @@ fun SavedPostsScreen(
                                 PostCard(
                                     post = post,
                                     currentUserId = userProfile.data?.uid,
-                                    isLiked = likedPosts[post.id] ?: false,
+                                    isHelpful = helpfulPosts[post.id] ?: false,
                                     isSaved = isSavedMap[post.id] ?: true,
-                                    onLikeClick = { viewModel.toggleLike(post.id) },
+                                    onHelpfulClick = { viewModel.toggleHelpful(post.id) },
                                     onSaveClick = { viewModel.toggleSavePost(post.id) },
                                     onDeleteClick = { viewModel.deletePost(post.id) },
                                     onDetailClick = { onNavigateToDetail(post.id) },

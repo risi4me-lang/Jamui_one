@@ -5,7 +5,7 @@ import android.util.Log
 import com.example.jamuione.data.local.dao.PostDao
 import com.example.jamuione.data.local.entity.PostEntity
 import com.example.jamuione.domain.model.Comment
-import com.example.jamuione.domain.model.Like
+import com.example.jamuione.domain.model.HelpfulVote
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.domain.repository.PostRepository
 import com.example.jamuione.util.Resource
@@ -151,7 +151,7 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun toggleLike(
+    override fun toggleHelpful(
         postId: String,
         userId: String,
         userName: String,
@@ -163,16 +163,16 @@ class PostRepositoryImpl @Inject constructor(
             withTimeout(20000L) {
                 firestore.runTransaction { transaction ->
                     val postRef = firestore.collection("posts").document(postId)
-                    val likeRef = postRef.collection("likes").document(userId)
+                    val helpfulRef = postRef.collection("helpful").document(userId)
                     
-                    val likeSnapshot = transaction.get(likeRef)
-                    if (likeSnapshot.exists()) {
-                        transaction.delete(likeRef)
-                        transaction.update(postRef, "likesCount", FieldValue.increment(-1))
+                    val snapshot = transaction.get(helpfulRef)
+                    if (snapshot.exists()) {
+                        transaction.delete(helpfulRef)
+                        transaction.update(postRef, "helpfulCount", FieldValue.increment(-1))
                     } else {
-                        val like = Like(userId, userName, userProfileImage, isVerified, System.currentTimeMillis())
-                        transaction.set(likeRef, like)
-                        transaction.update(postRef, "likesCount", FieldValue.increment(1))
+                        val vote = HelpfulVote(userId, userName, userProfileImage, isVerified, System.currentTimeMillis())
+                        transaction.set(helpfulRef, vote)
+                        transaction.update(postRef, "helpfulCount", FieldValue.increment(1))
                     }
                 }.await()
             }
@@ -181,32 +181,32 @@ class PostRepositoryImpl @Inject constructor(
             emit(Resource.Error("Action timed out. Please try again."))
         } catch (e: Exception) {
             com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
-            emit(Resource.Error(e.message ?: "Failed to toggle like"))
+            emit(Resource.Error(e.message ?: "Failed to update helpful status"))
         }
     }
 
-    override fun observeIsLikedByUser(postId: String, userId: String): Flow<Boolean> = callbackFlow {
-        val likeRef = firestore.collection("posts").document(postId)
-            .collection("likes").document(userId)
+    override fun observeIsHelpfulByUser(postId: String, userId: String): Flow<Boolean> = callbackFlow {
+        val helpfulRef = firestore.collection("posts").document(postId)
+            .collection("helpful").document(userId)
         
-        val listener = likeRef.addSnapshotListener { snapshot, _ ->
+        val listener = helpfulRef.addSnapshotListener { snapshot, _ ->
             trySend(snapshot?.exists() == true)
         }
         awaitClose { listener.remove() }
     }
 
-    override fun getLikers(postId: String): Flow<Resource<List<Like>>> = flow {
+    override fun getHelpfulUsers(postId: String): Flow<Resource<List<HelpfulVote>>> = flow {
         emit(Resource.Loading())
         try {
             val snapshot = firestore.collection("posts").document(postId)
-                .collection("likes")
+                .collection("helpful")
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
                 .await()
-            val likers = snapshot.toObjects(Like::class.java)
-            emit(Resource.Success(likers))
+            val users = snapshot.toObjects(HelpfulVote::class.java)
+            emit(Resource.Success(users))
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to fetch likers"))
+            emit(Resource.Error(e.message ?: "Failed to fetch helpful users"))
         }
     }
 
@@ -368,7 +368,7 @@ class PostRepositoryImpl @Inject constructor(
         district = district,
         locality = locality,
         timestamp = timestamp,
-        likesCount = likesCount,
+        helpfulCount = helpfulCount,
         commentsCount = commentsCount
     )
 
@@ -383,7 +383,7 @@ class PostRepositoryImpl @Inject constructor(
         district = district,
         locality = locality,
         timestamp = timestamp,
-        likesCount = likesCount,
+        helpfulCount = helpfulCount,
         commentsCount = commentsCount
     )
 }

@@ -3,7 +3,7 @@ package com.example.jamuione.domain.model
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Like(
+data class HelpfulVote(
     val userId: String = "",
     val userName: String = "",
     val userProfileImage: String? = null,

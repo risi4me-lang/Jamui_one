@@ -40,7 +40,7 @@ fun FeedScreen(
 ) {
     val postsResource by viewModel.posts.collectAsState()
     val cachedPosts by viewModel.cachedPosts.collectAsState()
-    val likedPosts by viewModel.likedPosts.collectAsState()
+    val helpfulPosts by viewModel.helpfulPosts.collectAsState()
     val isSavedMap by viewModel.isSavedMap.collectAsState()
     val currentScope by viewModel.currentScope.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
@@ -134,7 +134,7 @@ fun FeedScreen(
                     PostCard(
                         post = post,
                         currentUserId = userProfile.data?.uid,
-                        isLiked = likedPosts[post.id] ?: false,
+                        isHelpful = helpfulPosts[post.id] ?: false,
                         isSaved = isSavedMap[post.id] ?: false,
                         onDeleteClick = {
                             viewModel.deletePost(post.id)
@@ -151,8 +151,8 @@ fun FeedScreen(
                         onCommentClick = {
                             onNavigateToDetail(post.id)
                         },
-                        onLikeClick = {
-                            viewModel.toggleLike(post.id)
+                        onHelpfulClick = {
+                            viewModel.toggleHelpful(post.id)
                         }
                     )
                 }

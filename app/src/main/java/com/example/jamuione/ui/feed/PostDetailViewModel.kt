@@ -3,7 +3,7 @@ package com.example.jamuione.ui.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.jamuione.domain.model.Comment
-import com.example.jamuione.domain.model.Like
+import com.example.jamuione.domain.model.HelpfulVote
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.domain.repository.PostRepository
@@ -24,11 +24,11 @@ class PostDetailViewModel @Inject constructor(
     private val _comments = MutableStateFlow<Resource<List<Comment>>>(Resource.Idle())
     val comments: StateFlow<Resource<List<Comment>>> = _comments
 
-    private val _likers = MutableStateFlow<Resource<List<Like>>>(Resource.Idle())
-    val likers: StateFlow<Resource<List<Like>>> = _likers
+    private val _helpfulUsers = MutableStateFlow<Resource<List<HelpfulVote>>>(Resource.Idle())
+    val helpfulUsers: StateFlow<Resource<List<HelpfulVote>>> = _helpfulUsers
 
-    private val _isLiked = MutableStateFlow(false)
-    val isLiked: StateFlow<Boolean> = _isLiked
+    private val _isHelpful = MutableStateFlow(false)
+    val isHelpful: StateFlow<Boolean> = _isHelpful
 
     private val _reportPostResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val reportPostResult: StateFlow<Resource<Boolean>> = _reportPostResult
@@ -55,8 +55,8 @@ class PostDetailViewModel @Inject constructor(
         val uid = authRepository.getCurrentUser()?.uid ?: return
         
         viewModelScope.launch {
-            postRepository.observeIsLikedByUser(postId, uid).collectLatest {
-                _isLiked.value = it
+            postRepository.observeIsHelpfulByUser(postId, uid).collectLatest {
+                _isHelpful.value = it
             }
         }
 
@@ -67,18 +67,18 @@ class PostDetailViewModel @Inject constructor(
         }
     }
 
-    fun fetchLikers(postId: String) {
+    fun fetchHelpfulUsers(postId: String) {
         viewModelScope.launch {
-            postRepository.getLikers(postId).collectLatest {
-                _likers.value = it
+            postRepository.getHelpfulUsers(postId).collectLatest {
+                _helpfulUsers.value = it
             }
         }
     }
 
-    fun toggleLike(postId: String) {
+    fun toggleHelpful(postId: String) {
         val user = _currentUser.value ?: return
         viewModelScope.launch {
-            postRepository.toggleLike(postId, user.uid, user.name, user.profileImage, user.isVerified).collectLatest { }
+            postRepository.toggleHelpful(postId, user.uid, user.name, user.profileImage, user.isVerified).collectLatest { }
         }
     }
 
