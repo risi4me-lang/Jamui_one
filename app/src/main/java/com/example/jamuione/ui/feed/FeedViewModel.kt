@@ -58,6 +58,9 @@ class FeedViewModel @Inject constructor(
     private val _currentScope = MutableStateFlow(FeedScope.LOCALITY)
     val currentScope: StateFlow<FeedScope> = _currentScope
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
     private val _userProfile = MutableStateFlow<Resource<User?>>(Resource.Idle())
     val userProfile: StateFlow<Resource<User?>> = _userProfile
 
@@ -145,19 +148,20 @@ class FeedViewModel @Inject constructor(
         postsJob?.cancel()
         postsJob = viewModelScope.launch {
             val user = currentUser
+            val search = _searchQuery.value
             if (isGuest) {
                 Log.d("FIRESTORE_DEBUG", "loadPosts: guest mode")
-                postRepository.getPosts().collectLatest {
+                postRepository.getPosts(searchQuery = search).collectLatest {
                     _posts.value = it
                 }
             } else if (user != null) {
                 Log.d("FIRESTORE_DEBUG", "loadPosts: user mode, uid=${user.uid}")
                 Log.d("FIRESTORE_DEBUG", "loadPosts: user=${user.name}, scope=${_currentScope.value}")
                 when (_currentScope.value) {
-                    FeedScope.LOCALITY -> postRepository.getPosts(locality = user.locality)
-                    FeedScope.DISTRICT -> postRepository.getPosts(district = user.district)
-                    FeedScope.STATE -> postRepository.getPosts(state = user.state)
-                    FeedScope.NATIVE_DISTRICT -> postRepository.getPosts(district = user.nativeDistrict)
+                    FeedScope.LOCALITY -> postRepository.getPosts(locality = user.locality, searchQuery = search)
+                    FeedScope.DISTRICT -> postRepository.getPosts(district = user.district, searchQuery = search)
+                    FeedScope.STATE -> postRepository.getPosts(state = user.state, searchQuery = search)
+                    FeedScope.NATIVE_DISTRICT -> postRepository.getPosts(district = user.nativeDistrict, searchQuery = search)
                 }.collectLatest { resource ->
                     _posts.value = resource
                     if (resource is Resource.Success) {
@@ -168,6 +172,13 @@ class FeedViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    fun setSearchQuery(query: String) {
+        if (_searchQuery.value != query) {
+            _searchQuery.value = query
+            loadPosts()
         }
     }
 

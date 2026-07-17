@@ -1,5 +1,7 @@
 package com.example.jamuione.ui.notices
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -31,6 +34,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.fastFirstOrNull
 import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.Notice
 import com.example.jamuione.ui.notices.NoticeViewModel
@@ -48,6 +52,7 @@ import java.util.*
 @Composable
 fun NoticeBoardScreen(
     viewModel: NoticeViewModel,
+    highlightNoticeId: String? = null,
     onCreateNoticeClick: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onProfileClick: () -> Unit
@@ -62,6 +67,7 @@ fun NoticeBoardScreen(
     val memberCount by viewModel.memberCount.collectAsState()
     val deleteResult by viewModel.deleteNoticeResult.collectAsState()
     val reportResult by viewModel.reportNoticeResult.collectAsState()
+    val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -85,6 +91,17 @@ fun NoticeBoardScreen(
         }
     }
 
+    // Deep link scrolling
+    LaunchedEffect(noticesResource, highlightNoticeId) {
+        if (noticesResource is Resource.Success && highlightNoticeId != null) {
+            val index = noticesResource.data?.indexOfFirst { it.id == highlightNoticeId } ?: -1
+            if (index != -1) {
+                // +4 to account for header items (HomeHeader, Search, Scope, Category)
+                listState.animateScrollToItem(index + 4)
+            }
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
@@ -100,6 +117,7 @@ fun NoticeBoardScreen(
         }
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
@@ -192,6 +210,9 @@ fun NoticeBoardScreen(
                                 viewModel.toggleRsvp(notice.id)
                             }
                         )
+                        if (notice.id == highlightNoticeId) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.primary, thickness = 2.dp)
+                        }
                     }
                 }
             } else if (noticesResource is Resource.Error) {
@@ -266,6 +287,8 @@ fun NoticeItem(
     onVoteClick: (Int) -> Unit = {},
     onRsvpClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+
     if (notice.isDeleted) {
         Card(
             modifier = Modifier
@@ -488,7 +511,7 @@ fun NoticeItem(
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
@@ -560,7 +583,16 @@ fun NoticeItem(
 
                     if (notice.contactNumber.isNotBlank()) {
                         Button(
-                            onClick = { /* Call intent */ },
+                            onClick = { 
+                                try {
+                                    val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+                                        data = Uri.parse("tel:${notice.contactNumber}")
+                                    }
+                                    context.startActivity(dialIntent)
+                                } catch (e: Exception) {
+                                    // Handle failure if dialer is not available
+                                }
+                            },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             modifier = Modifier.height(32.dp),
                             shape = RoundedCornerShape(8.dp)

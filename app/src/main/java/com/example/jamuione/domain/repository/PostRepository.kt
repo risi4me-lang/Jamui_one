@@ -8,7 +8,12 @@ import com.example.jamuione.util.Resource
 import kotlinx.coroutines.flow.Flow
 
 interface PostRepository {
-    fun getPosts(locality: String? = null, district: String? = null, state: String? = null): Flow<Resource<List<Post>>>
+    fun getPosts(
+        locality: String? = null,
+        district: String? = null,
+        state: String? = null,
+        searchQuery: String? = null
+    ): Flow<Resource<List<Post>>>
     fun createPost(post: Post, imageUri: Uri?): Flow<Resource<Boolean>>
     fun getCachedPosts(): Flow<List<Post>>
     fun deletePost(postId: String): Flow<Resource<Boolean>>

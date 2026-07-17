@@ -2,6 +2,7 @@ package com.example.jamuione.ui.community
 
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,6 +37,7 @@ import java.util.*
 @Composable
 fun NativeCommunityScreen(
     viewModel: NativeCommunityViewModel,
+    onNavigateToProfile: (String) -> Unit = {},
     onBack: () -> Unit
 ) {
     val user by viewModel.currentUser.collectAsState()
@@ -112,7 +114,7 @@ fun NativeCommunityScreen(
                     SectionHeader("📍 Same Locality", filteredLocality.size)
                 }
                 items(filteredLocality) { member ->
-                    CommunityMemberCard(member)
+                    CommunityMemberCard(member, onProfileClick = { onNavigateToProfile(member.uid) })
                 }
             }
 
@@ -128,7 +130,7 @@ fun NativeCommunityScreen(
                     SectionHeader("🏙 Same District", filteredDistrict.size)
                 }
                 items(filteredDistrict) { member ->
-                    CommunityMemberCard(member)
+                    CommunityMemberCard(member, onProfileClick = { onNavigateToProfile(member.uid) })
                 }
             }
 
@@ -144,7 +146,7 @@ fun NativeCommunityScreen(
                     SectionHeader("🌍 Everywhere Else", filteredEverywhere.size)
                 }
                 items(filteredEverywhere) { member ->
-                    CommunityMemberCard(member)
+                    CommunityMemberCard(member, onProfileClick = { onNavigateToProfile(member.uid) })
                 }
             }
 
@@ -216,7 +218,7 @@ fun StatChip(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun CommunityMemberCard(user: User) {
+fun CommunityMemberCard(user: User, onProfileClick: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -229,12 +231,12 @@ fun CommunityMemberCard(user: User) {
                     AsyncImage(
                         model = user.profileImage,
                         contentDescription = null,
-                        modifier = Modifier.size(54.dp).clip(CircleShape),
+                        modifier = Modifier.size(54.dp).clip(CircleShape).clickable { onProfileClick() },
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Surface(
-                        modifier = Modifier.size(54.dp),
+                        modifier = Modifier.size(54.dp).clickable { onProfileClick() },
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.primaryContainer
                     ) {
@@ -248,7 +250,7 @@ fun CommunityMemberCard(user: User) {
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = user.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(text = user.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onProfileClick() })
                         if (user.isVerified) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(Icons.Default.Verified, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
@@ -261,7 +263,7 @@ fun CommunityMemberCard(user: User) {
                 }
 
                 Button(
-                    onClick = { /* View Profile */ },
+                    onClick = onProfileClick,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                     modifier = Modifier.height(32.dp),
                     shape = RoundedCornerShape(8.dp)
@@ -271,7 +273,7 @@ fun CommunityMemberCard(user: User) {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {

@@ -68,11 +68,13 @@ sealed interface Destination : NavKey {
     @Serializable
     data object CreatePost : Destination
     @Serializable
-    data object NoticeBoard : Destination
+    data class NoticeBoard(val highlightId: String? = null) : Destination
     @Serializable
     data object CreateNotice : Destination
     @Serializable
     data object Profile : Destination
+    @Serializable
+    data class UserProfile(val userId: String) : Destination
     @Serializable
     data object SavedPosts : Destination
     @Serializable
@@ -178,10 +180,10 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 )
             }
         }
-        entry<Destination.NoticeBoard> {
+        entry<Destination.NoticeBoard> { key ->
             val noticeViewModel: NoticeViewModel = viewModel()
             AdaptiveScaffoldWrapper(
-                currentDestination = Destination.NoticeBoard,
+                currentDestination = key,
                 onNavigate = { 
                     backStack.clear()
                     backStack.add(it) 
@@ -189,6 +191,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             ) {
                 NoticeBoardScreen(
                     viewModel = noticeViewModel,
+                    highlightNoticeId = key.highlightId,
                     onCreateNoticeClick = { backStack.add(Destination.CreateNotice) },
                     onNavigateToNotifications = { backStack.add(Destination.Notifications) },
                     onProfileClick = {
@@ -223,6 +226,21 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 )
             }
         }
+        entry<Destination.UserProfile> { key ->
+            // TODO: Implement UserProfileScreen
+            // For now, reuse ProfileScreen or placeholder
+            val authViewModel: AuthViewModel = viewModel()
+            ProfileScreen(
+                viewModel = authViewModel,
+                onNavigateToSavedPosts = {},
+                onNavigateToCommunities = {},
+                onNavigateToCreateOrg = {},
+                onEditProfile = {},
+                onViewPrivacyPolicy = {},
+                onViewTermsOfService = {},
+                onLogout = { backStack.removeAt(backStack.size - 1) }
+            )
+        }
         entry<Destination.Communities> {
             val authViewModel: AuthViewModel = viewModel()
             val orgViewModel: OrganizationViewModel = viewModel()
@@ -240,6 +258,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val communityViewModel: NativeCommunityViewModel = viewModel()
             NativeCommunityScreen(
                 viewModel = communityViewModel,
+                onNavigateToProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
                 onBack = { backStack.removeAt(backStack.size - 1) }
             )
         }
@@ -247,6 +266,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val communityViewModel: NativeCommunityViewModel = viewModel()
             LocalityCommunityScreen(
                 viewModel = communityViewModel,
+                onNavigateToProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
                 onBack = { backStack.removeAt(backStack.size - 1) }
             )
         }
@@ -254,6 +274,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val communityViewModel: NativeCommunityViewModel = viewModel()
             DistrictCommunityScreen(
                 viewModel = communityViewModel,
+                onNavigateToProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
                 onBack = { backStack.removeAt(backStack.size - 1) }
             )
         }
@@ -263,9 +284,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 viewModel = notificationsViewModel,
                 onNavigateToPost = { postId -> backStack.add(Destination.PostDetail(postId)) },
                 onNavigateToNotice = { noticeId -> 
-                    // For now, jumping to notice board might be enough, or we need a NoticeDetail
-                    // Given our current structure, jumping to board is fine, or we could just stay
-                    backStack.add(Destination.NoticeBoard)
+                    backStack.add(Destination.NoticeBoard(highlightId = noticeId))
                 },
                 onBack = { backStack.removeAt(backStack.size - 1) }
             )
@@ -351,8 +370,8 @@ fun AdaptiveScaffoldWrapper(
                 label = { Text("Feed") }
             )
             item(
-                selected = currentDestination == Destination.NoticeBoard,
-                onClick = { onNavigate(Destination.NoticeBoard) },
+                selected = currentDestination is Destination.NoticeBoard,
+                onClick = { onNavigate(Destination.NoticeBoard()) },
                 icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Events") },
                 label = { Text("Events") }
             )

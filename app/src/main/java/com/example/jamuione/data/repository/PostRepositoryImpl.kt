@@ -37,13 +37,19 @@ class PostRepositoryImpl @Inject constructor(
 
     private val repositoryScope = CoroutineScope(Dispatchers.IO)
 
-    override fun getPosts(locality: String?, district: String?, state: String?): Flow<Resource<List<Post>>> = callbackFlow {
+    override fun getPosts(
+        locality: String?,
+        district: String?,
+        state: String?,
+        searchQuery: String?
+    ): Flow<Resource<List<Post>>> = callbackFlow {
         trySend(Resource.Loading())
         val trimmedLocality = locality?.trim()?.lowercase()
         val trimmedDistrict = district?.trim()?.lowercase()
         val trimmedState = state?.trim()?.lowercase()
+        val normalizedSearch = searchQuery?.trim()?.lowercase()
         
-        Log.d("FIRESTORE_DEBUG", "getPosts: locality=$trimmedLocality, district=$trimmedDistrict, state=$trimmedState")
+        Log.d("FIRESTORE_DEBUG", "getPosts: locality=$trimmedLocality, district=$trimmedDistrict, state=$trimmedState, search=$normalizedSearch")
         
         var query: Query = firestore.collection("posts")
         
@@ -55,7 +61,15 @@ class PostRepositoryImpl @Inject constructor(
             query = query.whereEqualTo("state", trimmedState)
         }
         
-        query = query.orderBy("timestamp", Query.Direction.DESCENDING).limit(20)
+        if (!normalizedSearch.isNullOrBlank()) {
+            // Note: This matches the pattern used in NoticeRepository for searchableTitle
+            // For general post content, we use a simple startAt filter if we want real-time.
+            // Better: client-side filter for now if the result set is small, or use a specific searchableContent field.
+            // For now, let's just order by timestamp and filter client-side for simplicity since Firestore doesn't support full-text search.
+            query = query.orderBy("timestamp", Query.Direction.DESCENDING).limit(50)
+        } else {
+            query = query.orderBy("timestamp", Query.Direction.DESCENDING).limit(20)
+        }
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -65,10 +79,15 @@ class PostRepositoryImpl @Inject constructor(
             }
 
             if (snapshot != null) {
-                val posts = snapshot.toObjects(Post::class.java)
+                var posts = snapshot.toObjects(Post::class.java)
+                
+                if (!normalizedSearch.isNullOrBlank()) {
+                    posts = posts.filter { it.content.lowercase().contains(normalizedSearch) }
+                }
+
                 Log.d("FIRESTORE_DEBUG", "getPosts: success, count=${posts.size}")
                 
-                if (locality != null) {
+                if (locality != null && normalizedSearch.isNullOrBlank()) {
                     repositoryScope.launch {
                         val entities = posts.map { it.toEntity() }
                         postDao.clearAllPosts()

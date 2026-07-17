@@ -20,6 +20,7 @@ import java.util.Locale
 @Composable
 fun LocalityCommunityScreen(
     viewModel: NativeCommunityViewModel,
+    onNavigateToProfile: (String) -> Unit = {},
     onBack: () -> Unit
 ) {
     val user by viewModel.currentUser.collectAsState()
@@ -79,7 +80,7 @@ fun LocalityCommunityScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         items(filtered) { member ->
-                            CommunityMemberCard(member)
+                            CommunityMemberCard(member, onProfileClick = { onNavigateToProfile(member.uid) })
                         }
                     }
                 }
