@@ -29,12 +29,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.Post
+import com.example.jamuione.domain.model.User
 import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
 fun PostCard(
     post: Post,
+    authorProfile: User? = null,
     currentUserId: String? = null,
     isLiked: Boolean = false,
     isSaved: Boolean = false,
@@ -43,7 +45,8 @@ fun PostCard(
     onSaveClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
     onReportClick: (String) -> Unit = {},
-    onDetailClick: () -> Unit = {}
+    onDetailClick: () -> Unit = {},
+    onAuthorClick: (String) -> Unit = {}
 ) {
     if (post.isDeleted) {
         Card(
@@ -149,7 +152,7 @@ fun PostCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -163,12 +166,15 @@ fun PostCard(
                         contentDescription = "Profile Picture",
                         modifier = Modifier
                             .size(44.dp)
-                            .clip(CircleShape),
+                            .clip(CircleShape)
+                            .clickable { onAuthorClick(post.userId) },
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Surface(
-                        modifier = Modifier.size(44.dp),
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clickable { onAuthorClick(post.userId) },
                         shape = CircleShape,
                         color = if (post.organizationId != null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer
                     ) {
@@ -187,7 +193,8 @@ fun PostCard(
                         Text(
                             text = authorName,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable { onAuthorClick(post.userId) }
                         )
                         if (post.isVerified || post.organizationId != null) {
                             Spacer(modifier = Modifier.width(4.dp))
@@ -199,8 +206,18 @@ fun PostCard(
                             )
                         }
                     }
+                    
+                    if (authorProfile?.profession?.isNotBlank() == true) {
+                        Text(
+                            text = authorProfile.profession,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    
                     val displayLocality = post.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
                     val metaText = if (post.organizationType != null) "${post.organizationType} • $displayLocality" else "$displayLocality • ${formatTimestamp(post.timestamp)}"
+                    
                     Text(
                         text = metaText,
                         style = MaterialTheme.typography.labelSmall,
@@ -261,7 +278,7 @@ fun PostCard(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             Spacer(modifier = Modifier.height(8.dp))
             
             Row(
@@ -278,7 +295,7 @@ fun PostCard(
                         )
                     }
                     Text(
-                        text = if (post.likesCount > 0) "${post.likesCount} Likes" else "Like",
+                        text = if (post.likesCount > 0) "${post.likesCount}" else "Like",
                         style = MaterialTheme.typography.labelMedium,
                         color = if (isLiked) Color.Red else MaterialTheme.colorScheme.outline
                     )

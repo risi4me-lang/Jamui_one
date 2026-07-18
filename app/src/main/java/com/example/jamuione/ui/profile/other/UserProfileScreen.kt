@@ -1,5 +1,6 @@
 package com.example.jamuione.ui.profile.other
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.util.Resource
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -34,12 +36,14 @@ fun UserProfileScreen(
     onBack: () -> Unit
 ) {
     val profileState by viewModel.userProfile.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(userId) {
         viewModel.loadUserProfile(userId)
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Profile") },
@@ -59,7 +63,10 @@ fun UserProfileScreen(
                 is Resource.Success -> {
                     val user = state.data
                     if (user != null) {
-                        UserDetailContent(user)
+                        UserDetailContent(
+                            user = user, 
+                            snackbarHostState = snackbarHostState
+                        )
                     } else {
                         Text("User not found", modifier = Modifier.align(Alignment.Center))
                     }
@@ -78,7 +85,13 @@ fun UserProfileScreen(
 }
 
 @Composable
-fun UserDetailContent(user: User) {
+fun UserDetailContent(
+    user: User,
+    snackbarHostState: SnackbarHostState
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -133,7 +146,7 @@ fun UserDetailContent(user: User) {
             }
 
             Text(
-                text = user.profession,
+                text = user.profession.ifBlank { "Neighbor" },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.secondary
             )
@@ -144,6 +157,46 @@ fun UserDetailContent(user: User) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.outline
                 )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { 
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Direct messaging coming soon")
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Message")
+                }
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                OutlinedButton(
+                    onClick = { 
+                        val shareText = "Check out ${user.name}'s profile on District One! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share Profile"))
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Share")
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

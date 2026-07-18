@@ -70,6 +70,9 @@ class FeedViewModel @Inject constructor(
     private val _unreadCount = MutableStateFlow(0)
     val unreadCount: StateFlow<Int> = _unreadCount
 
+    private val _postAuthors = MutableStateFlow<Map<String, User>>(emptyMap())
+    val postAuthors: StateFlow<Map<String, User>> = _postAuthors
+
     val isGuest: Boolean
         get() = authRepository.getCurrentUser() == null
 
@@ -90,7 +93,7 @@ class FeedViewModel @Inject constructor(
         val uid = authRepository.getCurrentUser()?.uid
         if (uid == null) {
             _userProfile.value = Resource.Success(null)
-            loadPosts() // Load guest feed
+            loadPosts() 
             return
         }
 
@@ -104,15 +107,12 @@ class FeedViewModel @Inject constructor(
                     
                     currentUser = resource.data
                     
-                    // Fetch member count for current district
                     resource.data?.district?.let { district ->
                         fetchMemberCount(district)
                     }
 
-                    // Observe unread notifications
                     observeUnreadCount(uid)
 
-                    // Reload posts if profile data changed (locality/district) or first load
                     if (profileUpdated) {
                         loadPosts()
                     }
@@ -153,6 +153,7 @@ class FeedViewModel @Inject constructor(
                 Log.d("FIRESTORE_DEBUG", "loadPosts: guest mode")
                 postRepository.getPosts(searchQuery = search).collectLatest {
                     _posts.value = it
+                    if (it is Resource.Success) fetchAuthors(it.data ?: emptyList())
                 }
             } else if (user != null) {
                 Log.d("FIRESTORE_DEBUG", "loadPosts: user mode, uid=${user.uid}")
@@ -165,9 +166,25 @@ class FeedViewModel @Inject constructor(
                 }.collectLatest { resource ->
                     _posts.value = resource
                     if (resource is Resource.Success) {
+                        fetchAuthors(resource.data ?: emptyList())
                         resource.data?.forEach { post ->
                             observeLikeState(post.id, user.uid)
                             observeSaveState(post.id, user.uid)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun fetchAuthors(posts: List<Post>) {
+        val uids = posts.map { it.userId }.distinct()
+        uids.forEach { uid ->
+            if (!_postAuthors.value.containsKey(uid)) {
+                viewModelScope.launch {
+                    userRepository.getUserProfile(uid).collectLatest { resource ->
+                        if (resource is Resource.Success && resource.data != null) {
+                            _postAuthors.value = _postAuthors.value + (uid to resource.data!!)
                         }
                     }
                 }
@@ -199,6 +216,7 @@ class FeedViewModel @Inject constructor(
             postRepository.getSavedPosts(uid).collectLatest { resource ->
                 _savedPosts.value = resource
                 if (resource is Resource.Success) {
+                    fetchAuthors(resource.data ?: emptyList())
                     resource.data?.forEach { post ->
                         observeLikeState(post.id, uid)
                         observeSaveState(post.id, uid)

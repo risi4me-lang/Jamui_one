@@ -1,11 +1,15 @@
 package com.example.jamuione.ui.feed
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -21,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import com.example.jamuione.ui.components.HomeHeader
 import com.example.jamuione.ui.components.PostSkeletonLoader
 import com.example.jamuione.util.Resource
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +35,9 @@ fun FeedScreen(
     onCreatePostClick: () -> Unit,
     onNavigateToDetail: (String) -> Unit,
     onNavigateToNotifications: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {},
+    highlightPostId: String? = null
 ) {
     val postsResource by viewModel.posts.collectAsState()
     val likedPosts by viewModel.likedPosts.collectAsState()
@@ -39,9 +47,21 @@ fun FeedScreen(
     val userProfile by viewModel.userProfile.collectAsState()
     val memberCount by viewModel.memberCount.collectAsState()
     val unreadCount by viewModel.unreadCount.collectAsState()
+    val postAuthors by viewModel.postAuthors.collectAsState()
     val deleteResult by viewModel.deletePostResult.collectAsState()
     val reportResult by viewModel.reportPostResult.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val listState = rememberLazyListState()
+
+    var activeHighlightId by remember { mutableStateOf(highlightPostId) }
+
+    LaunchedEffect(highlightPostId) {
+        if (highlightPostId != null) {
+            activeHighlightId = highlightPostId
+            delay(5.seconds)
+            activeHighlightId = null
+        }
+    }
 
     LaunchedEffect(deleteResult) {
         if (deleteResult is Resource.Success && deleteResult.data == true) {
@@ -78,6 +98,7 @@ fun FeedScreen(
         }
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
@@ -141,18 +162,44 @@ fun FeedScreen(
                     }
                 } else {
                     items(posts) { post ->
-                        PostCard(
-                            post = post,
-                            currentUserId = userProfile.data?.uid,
-                            isLiked = likedPosts[post.id] ?: false,
-                            isSaved = isSavedMap[post.id] ?: false,
-                            onLikeClick = { viewModel.toggleLike(post.id) },
-                            onCommentClick = { onNavigateToDetail(post.id) },
-                            onSaveClick = { viewModel.toggleSavePost(post.id) },
-                            onDeleteClick = { viewModel.deletePost(post.id) },
-                            onReportClick = { reason -> viewModel.reportPost(post.id, reason) },
-                            onDetailClick = { onNavigateToDetail(post.id) }
+                        val isHighlighted = post.id == activeHighlightId
+                        val animatedBorderColor by animateColorAsState(
+                            targetValue = if (isHighlighted) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            animationSpec = tween(durationMillis = 1000),
+                            label = "border_color"
                         )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            PostCard(
+                                post = post,
+                                authorProfile = postAuthors[post.userId],
+                                currentUserId = userProfile.data?.uid,
+                                isLiked = likedPosts[post.id] ?: false,
+                                isSaved = isSavedMap[post.id] ?: false,
+                                onLikeClick = { viewModel.toggleLike(post.id) },
+                                onCommentClick = { onNavigateToDetail(post.id) },
+                                onSaveClick = { viewModel.toggleSavePost(post.id) },
+                                onDeleteClick = { viewModel.deletePost(post.id) },
+                                onReportClick = { reason -> viewModel.reportPost(post.id, reason) },
+                                onDetailClick = { onNavigateToDetail(post.id) },
+                                onAuthorClick = { onNavigateToUserProfile(it) }
+                            )
+                            
+                            if (isHighlighted) {
+                                Surface(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    color = Color.Transparent,
+                                    border = BorderStroke(2.dp, animatedBorderColor),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {}
+                            }
+                        }
                     }
                 }
             } else if (postsResource is Resource.Error) {
@@ -181,7 +228,7 @@ fun ScopeSelector(
         divider = {},
         indicator = {}
     ) {
-        FeedScope.values().forEach { scope ->
+        FeedScope.entries.forEach { scope ->
             if (scope == FeedScope.NATIVE_DISTRICT && nativeDistrict == null) return@forEach
             
             val label = when (scope) {

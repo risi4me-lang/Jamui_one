@@ -21,12 +21,14 @@ import com.example.jamuione.util.Resource
 fun SavedPostsScreen(
     viewModel: FeedViewModel,
     onNavigateToDetail: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {}
 ) {
     val savedPostsResource by viewModel.savedPosts.collectAsState()
     val likedPosts by viewModel.likedPosts.collectAsState()
     val isSavedMap by viewModel.isSavedMap.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val postAuthors by viewModel.postAuthors.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadSavedPosts()
@@ -79,6 +81,7 @@ fun SavedPostsScreen(
                             items(posts) { post ->
                                 PostCard(
                                     post = post,
+                                    authorProfile = postAuthors[post.userId],
                                     currentUserId = userProfile.data?.uid,
                                     isLiked = likedPosts[post.id] ?: false,
                                     isSaved = isSavedMap[post.id] ?: true,
@@ -86,7 +89,8 @@ fun SavedPostsScreen(
                                     onSaveClick = { viewModel.toggleSavePost(post.id) },
                                     onDeleteClick = { viewModel.deletePost(post.id) },
                                     onDetailClick = { onNavigateToDetail(post.id) },
-                                    onCommentClick = { onNavigateToDetail(post.id) }
+                                    onCommentClick = { onNavigateToDetail(post.id) },
+                                    onAuthorClick = { onNavigateToUserProfile(it) }
                                 )
                             }
                         }

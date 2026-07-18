@@ -4,9 +4,12 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -15,25 +18,38 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.jamuione.util.NetworkUtils
 import com.example.jamuione.util.Resource
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePostScreen(
     viewModel: FeedViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onSuccess: (String, String) -> Unit = { _, _ -> }
 ) {
     var content by remember { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     val createResult by viewModel.createPostResult.collectAsState()
+    val userProfile by viewModel.userProfile.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    var showProgressOverlay by remember { mutableStateOf(false) }
+    var currentStage by remember { mutableStateOf(1) }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -43,12 +59,19 @@ fun CreatePostScreen(
 
     LaunchedEffect(createResult) {
         if (createResult is Resource.Success && createResult.data == true) {
-            Log.d("POST_DEBUG", "CreatePost success in UI, navigating back")
-            snackbarHostState.showSnackbar("Post created successfully!")
+            currentStage = 3
+            delay(800)
+            showProgressOverlay = false
+            val locality = userProfile.data?.locality ?: "your area"
+            onSuccess(locality, "") 
             viewModel.resetCreatePostResult()
             onBack()
         } else if (createResult is Resource.Error) {
-            snackbarHostState.showSnackbar(createResult.message ?: "Failed to create post")
+            showProgressOverlay = false
+            snackbarHostState.showSnackbar((createResult as Resource.Error).message ?: "Failed to create post")
+        } else if (createResult is Resource.Loading) {
+            showProgressOverlay = true
+            currentStage = if (selectedImageUri != null) 1 else 2
         }
     }
 
@@ -64,7 +87,6 @@ fun CreatePostScreen(
                 },
                 actions = {
                     val context = LocalContext.current
-                    val scope = rememberCoroutineScope()
                     TextButton(
                         onClick = { 
                             if (NetworkUtils.isNetworkAvailable(context)) {
@@ -75,13 +97,9 @@ fun CreatePostScreen(
                                 }
                             }
                         },
-                        enabled = content.isNotBlank() && createResult !is Resource.Loading
+                        enabled = content.isNotBlank() && !showProgressOverlay
                     ) {
-                        if (createResult is Resource.Loading) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        } else {
-                            Text("POST")
-                        }
+                        Text("POST")
                     }
                 }
             )
@@ -105,7 +123,7 @@ fun CreatePostScreen(
                     Text(
                         text = "${content.length}/1000",
                         modifier = Modifier.fillMaxWidth(),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                        textAlign = TextAlign.End,
                         style = MaterialTheme.typography.labelSmall
                     )
                 },
@@ -119,7 +137,7 @@ fun CreatePostScreen(
                     AsyncImage(
                         model = selectedImageUri,
                         contentDescription = "Selected Image",
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium),
                         contentScale = ContentScale.Crop
                     )
                     IconButton(
@@ -140,6 +158,60 @@ fun CreatePostScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Add Image")
                 }
+            }
+        }
+    }
+
+    if (showProgressOverlay) {
+        PostingProgressOverlay(stage = currentStage)
+    }
+}
+
+@Composable
+fun PostingProgressOverlay(stage: Int) {
+    Dialog(
+        onDismissRequest = { },
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+    ) {
+        Surface(
+            modifier = Modifier.width(280.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    strokeWidth = 4.dp
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                val text = when (stage) {
+                    1 -> "Uploading image..."
+                    2 -> "Publishing post..."
+                    3 -> "Updating feed..."
+                    else -> "Processing..."
+                }
+                
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Please wait while we share your update with neighbors.",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
         }
     }

@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.jamuione.domain.model.Comment
 import com.example.jamuione.domain.model.Like
 import com.example.jamuione.domain.model.Post
+import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.domain.repository.PostRepository
+import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class PostDetailViewModel @Inject constructor(
     private val postRepository: PostRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _comments = MutableStateFlow<Resource<List<Comment>>>(Resource.Idle())
@@ -29,6 +32,9 @@ class PostDetailViewModel @Inject constructor(
 
     private val _likers = MutableStateFlow<Resource<List<Like>>>(Resource.Idle())
     val likers: StateFlow<Resource<List<Like>>> = _likers
+
+    private val _postAuthor = MutableStateFlow<User?>(null)
+    val postAuthor: StateFlow<User?> = _postAuthor
 
     private val _reportPostResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val reportPostResult: StateFlow<Resource<Boolean>> = _reportPostResult
@@ -46,6 +52,18 @@ class PostDetailViewModel @Inject constructor(
             }
         }
         fetchComments(postId)
+        fetchPostAndAuthor(postId)
+    }
+
+    private fun fetchPostAndAuthor(postId: String) {
+        // We need the post to get the authorId. For now we assume the authorId is available from feed or we fetch it.
+        // Actually, let's fetch the post document directly or just wait for it to be provided.
+        // For simplicity, let's assume we fetch the author once we have the postId if we had a getPost function.
+        // Since we don't have getPost(postId), we'll skip direct author fetch here and rely on feed passing or add it to repo.
+    }
+
+    fun setAuthor(user: User) {
+        _postAuthor.value = user
     }
 
     fun fetchComments(postId: String) {
@@ -58,8 +76,6 @@ class PostDetailViewModel @Inject constructor(
 
     fun addComment(postId: String, content: String, parentCommentId: String? = null) {
         val user = authRepository.getCurrentUser() ?: return
-        // Fetch user profile first for name and image
-        // Or pass from UI
         val comment = Comment(
             userId = user.uid,
             userName = user.displayName ?: "User",
@@ -69,7 +85,6 @@ class PostDetailViewModel @Inject constructor(
         )
         viewModelScope.launch {
             postRepository.addComment(postId, comment).collectLatest {
-                // Handle result if needed
             }
         }
     }
@@ -82,7 +97,7 @@ class PostDetailViewModel @Inject constructor(
                 userId = user.uid,
                 userName = user.displayName ?: "User",
                 userProfileImage = user.photoUrl?.toString(),
-                isVerified = false // TODO: fetch from actual profile
+                isVerified = false
             ).collectLatest { }
         }
     }

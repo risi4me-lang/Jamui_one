@@ -36,12 +36,14 @@ fun PostDetailScreen(
     postId: String,
     viewModel: PostDetailViewModel,
     feedViewModel: FeedViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {}
 ) {
     val postsResource by feedViewModel.posts.collectAsState()
     val commentsResource by viewModel.comments.collectAsState()
     val isLiked by viewModel.isLiked.collectAsState()
     val isSavedMap by feedViewModel.isSavedMap.collectAsState()
+    val postAuthors by feedViewModel.postAuthors.collectAsState()
     val likersResource by viewModel.likers.collectAsState()
     val reportResult by viewModel.reportPostResult.collectAsState()
     val reportCommentResult by viewModel.reportCommentResult.collectAsState()
@@ -132,6 +134,7 @@ fun PostDetailScreen(
                 item {
                     PostCard(
                         post = post,
+                        authorProfile = postAuthors[post.userId],
                         isLiked = isLiked,
                         isSaved = isSavedMap[postId] ?: false,
                         currentUserId = userProfile.data?.uid,
@@ -139,7 +142,8 @@ fun PostDetailScreen(
                         onSaveClick = { feedViewModel.toggleSavePost(postId) },
                         onReportClick = { reason -> viewModel.reportPost(postId, reason) },
                         onCommentClick = { /* Already here */ },
-                        onDetailClick = { /* Already here */ }
+                        onDetailClick = { /* Already here */ },
+                        onAuthorClick = { onNavigateToUserProfile(it) }
                     )
                     
                     Row(
@@ -185,7 +189,8 @@ fun PostDetailScreen(
                                 onReplyClick = { replyingToCommentId = comment.id },
                                 onReportClick = { targetId, reason -> 
                                     viewModel.reportComment(postId, targetId, reason)
-                                }
+                                },
+                                onAuthorClick = { onNavigateToUserProfile(it) }
                             )
                         }
                     }
@@ -210,7 +215,8 @@ fun CommentItem(
     comment: Comment,
     replies: List<Comment>,
     onReplyClick: () -> Unit,
-    onReportClick: (String, String) -> Unit
+    onReportClick: (String, String) -> Unit,
+    onAuthorClick: (String) -> Unit = {}
 ) {
     var showReportDialog by remember { mutableStateOf(false) }
     var reportTargetId by remember { mutableStateOf<String?>(null) }
@@ -262,11 +268,21 @@ fun CommentItem(
 
     Column(modifier = Modifier.padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth()) {
-            UserAvatar(imageUrl = comment.userProfileImage, name = comment.userName, size = 32.dp)
+            UserAvatar(
+                imageUrl = comment.userProfileImage, 
+                name = comment.userName, 
+                size = 32.dp,
+                onClick = { onAuthorClick(comment.userId) }
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = comment.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        text = comment.userName, 
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 14.sp,
+                        modifier = Modifier.clickable { onAuthorClick(comment.userId) }
+                    )
                     if (comment.isVerified) {
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
@@ -317,11 +333,21 @@ fun CommentItem(
         
         replies.forEach { reply ->
             Row(modifier = Modifier.padding(start = 40.dp, top = 12.dp).fillMaxWidth()) {
-                UserAvatar(imageUrl = reply.userProfileImage, name = reply.userName, size = 24.dp)
+                UserAvatar(
+                    imageUrl = reply.userProfileImage, 
+                    name = reply.userName, 
+                    size = 24.dp,
+                    onClick = { onAuthorClick(reply.userId) }
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = reply.userName, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(
+                            text = reply.userName, 
+                            fontWeight = FontWeight.Bold, 
+                            fontSize = 13.sp,
+                            modifier = Modifier.clickable { onAuthorClick(reply.userId) }
+                        )
                         if (reply.isVerified) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
@@ -366,17 +392,22 @@ fun CommentItem(
 }
 
 @Composable
-fun UserAvatar(imageUrl: String?, name: String, size: androidx.compose.ui.unit.Dp) {
+fun UserAvatar(imageUrl: String?, name: String, size: androidx.compose.ui.unit.Dp, onClick: () -> Unit = {}) {
     if (imageUrl != null) {
         AsyncImage(
             model = imageUrl,
             contentDescription = null,
-            modifier = Modifier.size(size).clip(CircleShape),
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape)
+                .clickable { onClick() },
             contentScale = ContentScale.Crop
         )
     } else {
         Surface(
-            modifier = Modifier.size(size),
+            modifier = Modifier
+                .size(size)
+                .clickable { onClick() },
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primaryContainer
         ) {
