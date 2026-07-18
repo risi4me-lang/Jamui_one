@@ -20,7 +20,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.domain.model.User
-import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun ShareableCard(
@@ -59,8 +60,8 @@ fun ShareableCard(
                 
                 val displayLocality = post.locality.replaceFirstChar { it.titlecase(Locale.getDefault()) }
                 Text(
-                    text = "· $displayLocality",
-                    style = MaterialTheme.typography.labelMedium,
+                    text = "$displayLocality · ${formatTimestamp(post.timestamp)}",
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
             }
@@ -166,4 +167,9 @@ fun ShareableCard(
             }
         }
     }
+}
+
+private fun formatTimestamp(timestamp: Long): String {
+    val sdf = SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault())
+    return sdf.format(Date(timestamp))
 }
