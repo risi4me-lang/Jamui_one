@@ -1,7 +1,12 @@
 package com.example.jamuione.ui.feed
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
+import android.util.Log
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -19,17 +24,29 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.domain.model.User
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -72,6 +89,11 @@ fun PostCard(
     var reportReason by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val graphicsLayer = rememberGraphicsLayer()
+
+    var isImageLoaded by remember { mutableStateOf(post.imageUrl.isNullOrEmpty()) }
+    var isSharing by remember { mutableStateOf(false) }
 
     // Animations
     val likeScale by animateFloatAsState(
@@ -142,6 +164,24 @@ fun PostCard(
                 }
             }
         )
+    }
+
+    // Off-screen shareable card for capture
+    Box(
+        modifier = Modifier
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                layout(0, 0) {
+                    placeable.place(2000, 2000)
+                }
+            }
+            .drawWithContent {
+                graphicsLayer.record {
+                    this@drawWithContent.drawContent()
+                }
+            }
+    ) {
+        ShareableCard(post = post, authorProfile = authorProfile)
     }
 
     Card(
@@ -273,7 +313,12 @@ fun PostCard(
                         .fillMaxWidth()
                         .heightIn(max = 400.dp)
                         .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    onState = { state ->
+                        if (state is AsyncImagePainter.State.Success) {
+                            isImageLoaded = true
+                        }
+                    }
                 )
             }
 
@@ -327,19 +372,52 @@ fun PostCard(
                     
                     IconButton(
                         onClick = {
-                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "${post.content}\n\nShared from the app")
+                            if (isImageLoaded) {
+                                isSharing = true
+                                scope.launch {
+                                    try {
+                                        val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                        val cachePath = File(context.cacheDir, "shared_images")
+                                        cachePath.mkdirs()
+                                        val file = File(cachePath, "post_${post.id}.png")
+                                        FileOutputStream(file).use { out ->
+                                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                        }
+                                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "image/png"
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            putExtra(Intent.EXTRA_TEXT, "Shared from District One")
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(shareIntent, "Share post"))
+                                    } catch (e: Exception) {
+                                        Log.e("POST_DEBUG", "Failed to share image", e)
+                                    } finally {
+                                        isSharing = false
+                                    }
+                                }
+                            } else {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, "${post.content}\n\nShared from District One")
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "Share post"))
                             }
-                            context.startActivity(Intent.createChooser(sendIntent, "Share post"))
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(36.dp),
+                        enabled = !isSharing
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Share",
-                            tint = MaterialTheme.colorScheme.outline
-                        )
+                        if (isSharing) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share",
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        }
                     }
                 }
             }
