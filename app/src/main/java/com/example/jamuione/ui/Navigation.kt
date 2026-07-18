@@ -30,6 +30,8 @@ import com.example.jamuione.ui.auth.AuthViewModel
 import com.example.jamuione.ui.auth.LoginScreen
 import com.example.jamuione.ui.profile.ProfileSetupScreen
 import com.example.jamuione.ui.profile.ProfileScreen
+import com.example.jamuione.ui.profile.other.UserProfileScreen
+import com.example.jamuione.ui.profile.other.UserProfileViewModel
 import com.example.jamuione.ui.profile.SavedPostsScreen
 import com.example.jamuione.ui.legal.PrivacyPolicyScreen
 import com.example.jamuione.ui.legal.TermsOfServiceScreen
@@ -227,18 +229,11 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             }
         }
         entry<Destination.UserProfile> { key ->
-            // TODO: Implement UserProfileScreen
-            // For now, reuse ProfileScreen or placeholder
-            val authViewModel: AuthViewModel = viewModel()
-            ProfileScreen(
-                viewModel = authViewModel,
-                onNavigateToSavedPosts = {},
-                onNavigateToCommunities = {},
-                onNavigateToCreateOrg = {},
-                onEditProfile = {},
-                onViewPrivacyPolicy = {},
-                onViewTermsOfService = {},
-                onLogout = { backStack.removeAt(backStack.size - 1) }
+            val userProfileViewModel: UserProfileViewModel = viewModel()
+            UserProfileScreen(
+                userId = key.userId,
+                viewModel = userProfileViewModel,
+                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
             )
         }
         entry<Destination.Communities> {
