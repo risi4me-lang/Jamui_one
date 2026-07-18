@@ -11,12 +11,10 @@ import com.example.jamuione.domain.repository.NotificationRepository
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.ui.feed.FeedScope
 import com.example.jamuione.util.Resource
-import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,8 +31,8 @@ class NoticeViewModel @Inject constructor(
     private val _rsvpedNotices = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val rsvpedNotices: StateFlow<Map<String, Boolean>> = _rsvpedNotices
 
-    private val _unreadCount = MutableStateFlow(0)
-    val unreadCount: StateFlow<Int> = _unreadCount
+    private val _helpfulNotices = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val helpfulNotices: StateFlow<Map<String, Boolean>> = _helpfulNotices
 
     private val _createNoticeResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val createNoticeResult: StateFlow<Resource<Boolean>> = _createNoticeResult
@@ -45,7 +43,7 @@ class NoticeViewModel @Inject constructor(
     private val _reportNoticeResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val reportNoticeResult: StateFlow<Resource<Boolean>> = _reportNoticeResult
 
-    private val _currentScope = MutableStateFlow(FeedScope.LOCALITY)
+    private val _currentScope = MutableStateFlow(FeedScope.DISTRICT)
     val currentScope: StateFlow<FeedScope> = _currentScope
 
     private val _selectedCategory = MutableStateFlow<String?>(null)
@@ -60,36 +58,26 @@ class NoticeViewModel @Inject constructor(
     private val _memberCount = MutableStateFlow<Resource<Long>>(Resource.Idle())
     val memberCount: StateFlow<Resource<Long>> = _memberCount
 
+    private val _unreadCount = MutableStateFlow(0)
+    val unreadCount: StateFlow<Int> = _unreadCount
+
+    val categories = listOf("Blood Donation", "Event", "Help Needed", "Jobs", "Rent/Flatmate", "Buy & Sell", "Announcement")
+
     val isGuest: Boolean
         get() = authRepository.getCurrentUser() == null
 
     private var currentUser: User? = null
     private var noticesJob: Job? = null
 
-    val categories = listOf(
-        "Announcement", "Event", "Jobs", "Rent/Flatmate", "Buy & Sell",
-        "Lost & Found", "Blood Donation", "Help Needed"
-    )
-
     init {
-        viewModelScope.launch {
-            FirebaseAuth.getInstance().currentUser?.getIdToken(true)?.await()
-            fetchAndObserveUserProfile()
-            cleanupExpiredNotices()
-        }
-    }
-
-    private fun cleanupExpiredNotices() {
-        viewModelScope.launch {
-            noticeRepository.deleteExpiredNotices().collectLatest { }
-        }
+        fetchAndObserveUserProfile()
     }
 
     private fun fetchAndObserveUserProfile() {
         val uid = authRepository.getCurrentUser()?.uid
         if (uid == null) {
             _userProfile.value = Resource.Success(null)
-            loadNotices() // Load guest notices
+            loadNotices()
             return
         }
 
@@ -111,7 +99,6 @@ class NoticeViewModel @Inject constructor(
 
                     if (profileUpdated) {
                         loadNotices()
-                        subscribeToLocationTopics()
                     }
                 }
             }
@@ -134,15 +121,6 @@ class NoticeViewModel @Inject constructor(
         }
     }
 
-    private fun subscribeToLocationTopics() {
-        val user = currentUser ?: return
-        viewModelScope.launch {
-            val districtTopic = "notices_${user.district.lowercase().replace(" ", "_")}"
-            Log.d("NOTICE_DEBUG", "Subscribing to topic: $districtTopic")
-            noticeRepository.subscribeToTopic(districtTopic).collectLatest { }
-        }
-    }
-
     fun setScope(scope: FeedScope) {
         if (_currentScope.value != scope) {
             _currentScope.value = scope
@@ -158,8 +136,10 @@ class NoticeViewModel @Inject constructor(
     }
 
     fun setSearchQuery(query: String) {
-        _searchQuery.value = query
-        loadNotices()
+        if (_searchQuery.value != query) {
+            _searchQuery.value = query
+            loadNotices()
+        }
     }
 
     fun loadNotices() {
@@ -178,7 +158,7 @@ class NoticeViewModel @Inject constructor(
                 Log.d("FIRESTORE_DEBUG", "loadNotices: user mode, uid=${user.uid}")
                 Log.d("FIRESTORE_DEBUG", "loadNotices: user=${user.name}, scope=${_currentScope.value}, category=$category, search=$search")
                 when (_currentScope.value) {
-                    FeedScope.LOCALITY -> noticeRepository.getNotices(category, locality = user.locality, searchQuery = search)
+                    FeedScope.LOCALITY -> noticeRepository.getNotices(category, user.locality, searchQuery = search)
                     FeedScope.DISTRICT -> noticeRepository.getNotices(category, district = user.district, searchQuery = search)
                     FeedScope.STATE -> noticeRepository.getNotices(category, state = user.state, searchQuery = search)
                     FeedScope.NATIVE_DISTRICT -> noticeRepository.getNotices(category, district = user.nativeDistrict, searchQuery = search)
@@ -186,9 +166,8 @@ class NoticeViewModel @Inject constructor(
                     _notices.value = resource
                     if (resource is Resource.Success) {
                         resource.data?.forEach { notice ->
-                            if (notice.category == "Event") {
-                                observeRsvpState(notice.id, user.uid)
-                            }
+                            observeRsvpState(notice.id, user.uid)
+                            observeHelpfulState(notice.id, user.uid)
                         }
                     }
                 }
@@ -201,6 +180,15 @@ class NoticeViewModel @Inject constructor(
         viewModelScope.launch {
             noticeRepository.observeIsRsvpedByUser(noticeId, userId).collectLatest { isRsvped ->
                 _rsvpedNotices.value = _rsvpedNotices.value + (noticeId to isRsvped)
+            }
+        }
+    }
+
+    private fun observeHelpfulState(noticeId: String, userId: String) {
+        if (_helpfulNotices.value.containsKey(noticeId)) return
+        viewModelScope.launch {
+            noticeRepository.observeIsHelpfulByUser(noticeId, userId).collectLatest { isHelpful ->
+                _helpfulNotices.value = _helpfulNotices.value + (noticeId to isHelpful)
             }
         }
     }
@@ -256,8 +244,25 @@ class NoticeViewModel @Inject constructor(
         }
     }
 
-    fun resetCreateNoticeResult() {
-        _createNoticeResult.value = Resource.Idle()
+    fun toggleRsvp(noticeId: String) {
+        val user = currentUser ?: return
+        viewModelScope.launch {
+            noticeRepository.toggleRsvp(noticeId, user.uid, user.name).collectLatest { }
+        }
+    }
+
+    fun toggleHelpful(noticeId: String) {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            noticeRepository.toggleHelpful(noticeId, uid).collectLatest { }
+        }
+    }
+
+    fun voteInPoll(noticeId: String, optionIndex: Int) {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            noticeRepository.voteInPoll(noticeId, uid, optionIndex).collectLatest { }
+        }
     }
 
     fun deleteNotice(noticeId: String) {
@@ -285,17 +290,7 @@ class NoticeViewModel @Inject constructor(
         _reportNoticeResult.value = Resource.Idle()
     }
 
-    fun voteInPoll(noticeId: String, optionIndex: Int) {
-        val uid = authRepository.getCurrentUser()?.uid ?: return
-        viewModelScope.launch {
-            noticeRepository.voteInPoll(noticeId, uid, optionIndex).collectLatest { }
-        }
-    }
-
-    fun toggleRsvp(noticeId: String) {
-        val user = currentUser ?: return
-        viewModelScope.launch {
-            noticeRepository.toggleRsvp(noticeId, user.uid, user.name).collectLatest { }
-        }
+    fun resetCreateNoticeResult() {
+        _createNoticeResult.value = Resource.Idle()
     }
 }

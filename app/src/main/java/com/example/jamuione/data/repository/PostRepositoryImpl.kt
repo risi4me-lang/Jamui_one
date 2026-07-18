@@ -5,7 +5,7 @@ import android.util.Log
 import com.example.jamuione.data.local.dao.PostDao
 import com.example.jamuione.data.local.entity.PostEntity
 import com.example.jamuione.domain.model.Comment
-import com.example.jamuione.domain.model.HelpfulVote
+import com.example.jamuione.domain.model.Like
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.domain.repository.PostRepository
 import com.example.jamuione.util.Resource
@@ -62,10 +62,6 @@ class PostRepositoryImpl @Inject constructor(
         }
         
         if (!normalizedSearch.isNullOrBlank()) {
-            // Note: This matches the pattern used in NoticeRepository for searchableTitle
-            // For general post content, we use a simple startAt filter if we want real-time.
-            // Better: client-side filter for now if the result set is small, or use a specific searchableContent field.
-            // For now, let's just order by timestamp and filter client-side for simplicity since Firestore doesn't support full-text search.
             query = query.orderBy("timestamp", Query.Direction.DESCENDING).limit(50)
         } else {
             query = query.orderBy("timestamp", Query.Direction.DESCENDING).limit(20)
@@ -167,7 +163,6 @@ class PostRepositoryImpl @Inject constructor(
             val postSnapshot = postRef.get().await()
             val imageUrl = postSnapshot.getString("imageUrl")
 
-            // Delete the Storage image first (if one exists), then the Firestore doc.
             if (!imageUrl.isNullOrBlank()) {
                 try {
                     storage.getReferenceFromUrl(imageUrl).delete().await()
@@ -183,7 +178,7 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun toggleHelpful(
+    override fun toggleLike(
         postId: String,
         userId: String,
         userName: String,
@@ -195,16 +190,16 @@ class PostRepositoryImpl @Inject constructor(
             withTimeout(20000L) {
                 firestore.runTransaction { transaction ->
                     val postRef = firestore.collection("posts").document(postId)
-                    val helpfulRef = postRef.collection("helpful").document(userId)
+                    val likeRef = postRef.collection("likes").document(userId)
                     
-                    val snapshot = transaction.get(helpfulRef)
+                    val snapshot = transaction.get(likeRef)
                     if (snapshot.exists()) {
-                        transaction.delete(helpfulRef)
-                        transaction.update(postRef, "helpfulCount", FieldValue.increment(-1))
+                        transaction.delete(likeRef)
+                        transaction.update(postRef, "likesCount", FieldValue.increment(-1))
                     } else {
-                        val vote = HelpfulVote(userId, userName, userProfileImage, isVerified, System.currentTimeMillis())
-                        transaction.set(helpfulRef, vote)
-                        transaction.update(postRef, "helpfulCount", FieldValue.increment(1))
+                        val like = Like(userId, userName, userProfileImage, isVerified, System.currentTimeMillis())
+                        transaction.set(likeRef, like)
+                        transaction.update(postRef, "likesCount", FieldValue.increment(1))
                     }
                 }.await()
             }
@@ -213,32 +208,32 @@ class PostRepositoryImpl @Inject constructor(
             emit(Resource.Error("Action timed out. Please try again."))
         } catch (e: Exception) {
             com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
-            emit(Resource.Error(e.message ?: "Failed to update helpful status"))
+            emit(Resource.Error(e.message ?: "Failed to update like status"))
         }
     }
 
-    override fun observeIsHelpfulByUser(postId: String, userId: String): Flow<Boolean> = callbackFlow {
-        val helpfulRef = firestore.collection("posts").document(postId)
-            .collection("helpful").document(userId)
+    override fun observeIsLikedByUser(postId: String, userId: String): Flow<Boolean> = callbackFlow {
+        val likeRef = firestore.collection("posts").document(postId)
+            .collection("likes").document(userId)
         
-        val listener = helpfulRef.addSnapshotListener { snapshot, _ ->
+        val listener = likeRef.addSnapshotListener { snapshot, _ ->
             trySend(snapshot?.exists() == true)
         }
         awaitClose { listener.remove() }
     }
 
-    override fun getHelpfulUsers(postId: String): Flow<Resource<List<HelpfulVote>>> = flow {
+    override fun getLikers(postId: String): Flow<Resource<List<Like>>> = flow {
         emit(Resource.Loading())
         try {
             val snapshot = firestore.collection("posts").document(postId)
-                .collection("helpful")
+                .collection("likes")
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .get()
                 .await()
-            val users = snapshot.toObjects(HelpfulVote::class.java)
+            val users = snapshot.toObjects(Like::class.java)
             emit(Resource.Success(users))
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to fetch helpful users"))
+            emit(Resource.Error(e.message ?: "Failed to fetch likers"))
         }
     }
 
@@ -400,7 +395,7 @@ class PostRepositoryImpl @Inject constructor(
         district = district,
         locality = locality,
         timestamp = timestamp,
-        helpfulCount = helpfulCount,
+        likesCount = likesCount,
         commentsCount = commentsCount,
         organizationId = organizationId,
         organizationName = organizationName,
@@ -419,7 +414,7 @@ class PostRepositoryImpl @Inject constructor(
         district = district,
         locality = locality,
         timestamp = timestamp,
-        helpfulCount = helpfulCount,
+        likesCount = likesCount,
         commentsCount = commentsCount,
         organizationId = organizationId,
         organizationName = organizationName,

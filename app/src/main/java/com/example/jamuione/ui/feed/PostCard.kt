@@ -10,11 +10,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,9 +36,9 @@ import java.util.*
 fun PostCard(
     post: Post,
     currentUserId: String? = null,
-    isHelpful: Boolean = false,
+    isLiked: Boolean = false,
     isSaved: Boolean = false,
-    onHelpfulClick: () -> Unit = {},
+    onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
     onSaveClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
@@ -71,10 +71,10 @@ fun PostCard(
     val context = LocalContext.current
 
     // Animations
-    val helpfulScale by animateFloatAsState(
-        targetValue = if (isHelpful) 1.2f else 1f,
+    val likeScale by animateFloatAsState(
+        targetValue = if (isLiked) 1.2f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "helpful_scale"
+        label = "like_scale"
     )
     val saveScale by animateFloatAsState(
         targetValue = if (isSaved) 1.2f else 1f,
@@ -189,7 +189,7 @@ fun PostCard(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        if (post.isVerified || post.organizationId != null) { // Orgs are often shown as verified or distinct
+                        if (post.isVerified || post.organizationId != null) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Default.Verified,
@@ -270,17 +270,17 @@ fun PostCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onHelpfulClick, modifier = Modifier.size(36.dp).scale(helpfulScale)) {
+                    IconButton(onClick = onLikeClick, modifier = Modifier.size(36.dp).scale(likeScale)) {
                         Icon(
-                            imageVector = if (isHelpful) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
-                            contentDescription = "Helpful",
-                            tint = if (isHelpful) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Like",
+                            tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.outline
                         )
                     }
                     Text(
-                        text = if (post.helpfulCount > 0) "${post.helpfulCount} Helpful" else "Helpful",
+                        text = if (post.likesCount > 0) "${post.likesCount} Likes" else "Like",
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (isHelpful) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                        color = if (isLiked) Color.Red else MaterialTheme.colorScheme.outline
                     )
                     
                     Spacer(modifier = Modifier.width(20.dp))

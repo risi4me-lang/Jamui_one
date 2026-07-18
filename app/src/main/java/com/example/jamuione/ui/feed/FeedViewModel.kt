@@ -34,8 +34,8 @@ class FeedViewModel @Inject constructor(
     private val _posts = MutableStateFlow<Resource<List<Post>>>(Resource.Idle())
     val posts: StateFlow<Resource<List<Post>>> = _posts
 
-    private val _helpfulPosts = MutableStateFlow<Map<String, Boolean>>(emptyMap())
-    val helpfulPosts: StateFlow<Map<String, Boolean>> = _helpfulPosts
+    private val _likedPosts = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val likedPosts: StateFlow<Map<String, Boolean>> = _likedPosts
 
     private val _cachedPosts = MutableStateFlow<List<Post>>(emptyList())
     val cachedPosts: StateFlow<List<Post>> = _cachedPosts
@@ -166,7 +166,7 @@ class FeedViewModel @Inject constructor(
                     _posts.value = resource
                     if (resource is Resource.Success) {
                         resource.data?.forEach { post ->
-                            observeHelpfulState(post.id, user.uid)
+                            observeLikeState(post.id, user.uid)
                             observeSaveState(post.id, user.uid)
                         }
                     }
@@ -175,18 +175,11 @@ class FeedViewModel @Inject constructor(
         }
     }
 
-    fun setSearchQuery(query: String) {
-        if (_searchQuery.value != query) {
-            _searchQuery.value = query
-            loadPosts()
-        }
-    }
-
-    private fun observeHelpfulState(postId: String, userId: String) {
-        if (_helpfulPosts.value.containsKey(postId)) return
+    private fun observeLikeState(postId: String, userId: String) {
+        if (_likedPosts.value.containsKey(postId)) return
         viewModelScope.launch {
-            postRepository.observeIsHelpfulByUser(postId, userId).collectLatest { isHelpful ->
-                _helpfulPosts.value = _helpfulPosts.value + (postId to isHelpful)
+            postRepository.observeIsLikedByUser(postId, userId).collectLatest { isLiked ->
+                _likedPosts.value = _likedPosts.value + (postId to isLiked)
             }
         }
     }
@@ -207,7 +200,7 @@ class FeedViewModel @Inject constructor(
                 _savedPosts.value = resource
                 if (resource is Resource.Success) {
                     resource.data?.forEach { post ->
-                        observeHelpfulState(post.id, uid)
+                        observeLikeState(post.id, uid)
                         observeSaveState(post.id, uid)
                     }
                 }
@@ -259,10 +252,10 @@ class FeedViewModel @Inject constructor(
         }
     }
 
-    fun toggleHelpful(postId: String) {
+    fun toggleLike(postId: String) {
         val user = currentUser ?: return
         viewModelScope.launch {
-            postRepository.toggleHelpful(postId, user.uid, user.name, user.profileImage, user.isVerified).collectLatest { }
+            postRepository.toggleLike(postId, user.uid, user.name, user.profileImage, user.isVerified).collectLatest { }
         }
     }
 
@@ -300,5 +293,12 @@ class FeedViewModel @Inject constructor(
 
     fun resetReportPostResult() {
         _reportPostResult.value = Resource.Idle()
+    }
+
+    fun setSearchQuery(query: String) {
+        if (_searchQuery.value != query) {
+            _searchQuery.value = query
+            loadPosts()
+        }
     }
 }

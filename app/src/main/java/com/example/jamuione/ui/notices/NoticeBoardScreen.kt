@@ -19,11 +19,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -62,6 +64,7 @@ fun NoticeBoardScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val rsvpedNotices by viewModel.rsvpedNotices.collectAsState()
+    val helpfulNotices by viewModel.helpfulNotices.collectAsState()
     val unreadCount by viewModel.unreadCount.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
     val memberCount by viewModel.memberCount.collectAsState()
@@ -69,7 +72,6 @@ fun NoticeBoardScreen(
     val reportResult by viewModel.reportNoticeResult.collectAsState()
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(deleteResult) {
         if (deleteResult is Resource.Success && deleteResult.data == true) {
@@ -91,12 +93,10 @@ fun NoticeBoardScreen(
         }
     }
 
-    // Deep link scrolling
     LaunchedEffect(noticesResource, highlightNoticeId) {
         if (noticesResource is Resource.Success && highlightNoticeId != null) {
             val index = noticesResource.data?.indexOfFirst { it.id == highlightNoticeId } ?: -1
             if (index != -1) {
-                // +4 to account for header items (HomeHeader, Search, Scope, Category)
                 listState.animateScrollToItem(index + 4)
             }
         }
@@ -197,6 +197,7 @@ fun NoticeBoardScreen(
                             notice = notice,
                             currentUserId = userProfile.data?.uid,
                             isRsvped = rsvpedNotices[notice.id] ?: false,
+                            isHelpful = helpfulNotices[notice.id] ?: false,
                             onDeleteClick = {
                                 viewModel.deleteNotice(notice.id)
                             },
@@ -208,6 +209,9 @@ fun NoticeBoardScreen(
                             },
                             onRsvpClick = {
                                 viewModel.toggleRsvp(notice.id)
+                            },
+                            onHelpfulClick = {
+                                viewModel.toggleHelpful(notice.id)
                             }
                         )
                         if (notice.id == highlightNoticeId) {
@@ -282,10 +286,12 @@ fun NoticeItem(
     notice: Notice,
     currentUserId: String? = null,
     isRsvped: Boolean = false,
+    isHelpful: Boolean = false,
     onDeleteClick: () -> Unit = {},
     onReportClick: (String) -> Unit = {},
     onVoteClick: (Int) -> Unit = {},
-    onRsvpClick: () -> Unit = {}
+    onRsvpClick: () -> Unit = {},
+    onHelpfulClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -313,6 +319,12 @@ fun NoticeItem(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showReportDialog by remember { mutableStateOf(false) }
     var reportReason by remember { mutableStateOf("") }
+
+    val helpfulScale by animateFloatAsState(
+        targetValue = if (isHelpful) 1.2f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "helpful_scale"
+    )
 
     if (showReportDialog) {
         AlertDialog(
@@ -498,7 +510,6 @@ fun NoticeItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // POLL SECTION
             if (notice.pollQuestion != null && notice.pollOptions != null) {
                 Spacer(modifier = Modifier.height(16.dp))
                 val isPollClosed = notice.pollClosesAt?.let { it < System.currentTimeMillis() } ?: false
@@ -556,6 +567,19 @@ fun NoticeItem(
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onHelpfulClick, modifier = Modifier.size(32.dp).scale(helpfulScale)) {
+                        Icon(
+                            imageVector = if (isHelpful) Icons.Default.ThumbUp else Icons.Outlined.ThumbUp,
+                            contentDescription = "Helpful",
+                            tint = if (isHelpful) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    if (notice.helpfulCount > 0) {
+                        Text(text = "${notice.helpfulCount}", fontSize = 11.sp, color = if (isHelpful) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
                     if (notice.category == "Event") {
                         Button(
                             onClick = onRsvpClick,
@@ -592,7 +616,6 @@ fun NoticeItem(
                                     }
                                     context.startActivity(dialIntent)
                                 } catch (e: Exception) {
-                                    // Handle failure if dialer is not available
                                 }
                             },
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
@@ -661,7 +684,6 @@ fun PollView(
                         shape = RoundedCornerShape(8.dp)
                     )
             ) {
-                // Progress Bar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(percentage)

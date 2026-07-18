@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.Comment
-import com.example.jamuione.domain.model.HelpfulVote
+import com.example.jamuione.domain.model.Like
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.util.Resource
 import java.text.SimpleDateFormat
@@ -40,9 +40,9 @@ fun PostDetailScreen(
 ) {
     val postsResource by feedViewModel.posts.collectAsState()
     val commentsResource by viewModel.comments.collectAsState()
-    val isHelpful by viewModel.isHelpful.collectAsState()
+    val isLiked by viewModel.isLiked.collectAsState()
     val isSavedMap by feedViewModel.isSavedMap.collectAsState()
-    val helpfulUsersResource by viewModel.helpfulUsers.collectAsState()
+    val likersResource by viewModel.likers.collectAsState()
     val reportResult by viewModel.reportPostResult.collectAsState()
     val reportCommentResult by viewModel.reportCommentResult.collectAsState()
     val userProfile by feedViewModel.userProfile.collectAsState()
@@ -57,7 +57,7 @@ fun PostDetailScreen(
 
     var commentText by remember { mutableStateOf("") }
     var replyingToCommentId by remember { mutableStateOf<String?>(null) }
-    var showHelpfulUsersSheet by remember { mutableStateOf(false) }
+    var showLikersSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(postId) {
         viewModel.loadPostDetails(postId)
@@ -83,11 +83,11 @@ fun PostDetailScreen(
         }
     }
 
-    if (showHelpfulUsersSheet) {
+    if (showLikersSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showHelpfulUsersSheet = false }
+            onDismissRequest = { showLikersSheet = false }
         ) {
-            HelpfulUsersList(helpfulUsersResource)
+            LikersList(likersResource)
         }
     }
 
@@ -132,10 +132,10 @@ fun PostDetailScreen(
                 item {
                     PostCard(
                         post = post,
-                        isHelpful = isHelpful,
+                        isLiked = isLiked,
                         isSaved = isSavedMap[postId] ?: false,
                         currentUserId = userProfile.data?.uid,
-                        onHelpfulClick = { viewModel.toggleHelpful(postId) },
+                        onLikeClick = { viewModel.toggleLike(postId) },
                         onSaveClick = { feedViewModel.toggleSavePost(postId) },
                         onReportClick = { reason -> viewModel.reportPost(postId, reason) },
                         onCommentClick = { /* Already here */ },
@@ -149,11 +149,11 @@ fun PostDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${post.helpfulCount} Helpful",
+                            text = "${post.likesCount} Likes",
                             style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier.clickable {
-                                viewModel.fetchHelpfulUsers(postId)
-                                showHelpfulUsersSheet = true
+                                viewModel.fetchLikers(postId)
+                                showLikersSheet = true
                             }
                         )
                         Spacer(modifier = Modifier.width(16.dp))
@@ -336,7 +336,6 @@ fun CommentItem(
                     Text(text = formatTime(reply.timestamp), fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary)
                 }
                 
-                // Also allow reporting replies
                 var showReplyMenu by remember { mutableStateOf(false) }
                 Box {
                     IconButton(onClick = { showReplyMenu = true }, modifier = Modifier.size(20.dp)) {
@@ -433,20 +432,20 @@ fun CommentInput(
 }
 
 @Composable
-fun HelpfulUsersList(helpfulUsersResource: Resource<List<HelpfulVote>>) {
+fun LikersList(likersResource: Resource<List<Like>>) {
     Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp).padding(16.dp)) {
-        Text(text = "Helpful Users", style = MaterialTheme.typography.titleLarge)
+        Text(text = "Likes", style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(16.dp))
-        when (helpfulUsersResource) {
+        when (likersResource) {
             is Resource.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
             is Resource.Success -> {
                 LazyColumn {
-                    items(helpfulUsersResource.data ?: emptyList()) { vote ->
+                    items(likersResource.data ?: emptyList()) { like ->
                         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            UserAvatar(imageUrl = vote.userProfileImage, name = vote.userName, size = 40.dp)
+                            UserAvatar(imageUrl = like.userProfileImage, name = like.userName, size = 40.dp)
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = vote.userName, fontWeight = FontWeight.Bold)
-                            if (vote.isVerified) {
+                            Text(text = like.userName, fontWeight = FontWeight.Bold)
+                            if (like.isVerified) {
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     imageVector = Icons.Default.Verified,

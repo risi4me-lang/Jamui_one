@@ -29,6 +29,7 @@ data class Notice(
     val eventDate: Long? = null,
     val eventLocation: String? = null,
     val rsvpCount: Long = 0L,
+    val helpfulCount: Long = 0L,
     val organizationId: String? = null,
     val organizationName: String? = null
 )

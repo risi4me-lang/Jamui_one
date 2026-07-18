@@ -3,32 +3,32 @@ package com.example.jamuione.ui.feed
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.jamuione.domain.model.Comment
-import com.example.jamuione.domain.model.HelpfulVote
-import com.example.jamuione.domain.model.User
+import com.example.jamuione.domain.model.Like
+import com.example.jamuione.domain.model.Post
 import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.domain.repository.PostRepository
-import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class PostDetailViewModel @Inject constructor(
     private val postRepository: PostRepository,
-    private val authRepository: AuthRepository,
-    private val userRepository: UserRepository
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _comments = MutableStateFlow<Resource<List<Comment>>>(Resource.Idle())
     val comments: StateFlow<Resource<List<Comment>>> = _comments
 
-    private val _helpfulUsers = MutableStateFlow<Resource<List<HelpfulVote>>>(Resource.Idle())
-    val helpfulUsers: StateFlow<Resource<List<HelpfulVote>>> = _helpfulUsers
+    private val _isLiked = MutableStateFlow(false)
+    val isLiked: StateFlow<Boolean> = _isLiked
 
-    private val _isHelpful = MutableStateFlow(false)
-    val isHelpful: StateFlow<Boolean> = _isHelpful
+    private val _likers = MutableStateFlow<Resource<List<Like>>>(Resource.Idle())
+    val likers: StateFlow<Resource<List<Like>>> = _likers
 
     private val _reportPostResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val reportPostResult: StateFlow<Resource<Boolean>> = _reportPostResult
@@ -36,30 +36,19 @@ class PostDetailViewModel @Inject constructor(
     private val _reportCommentResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val reportCommentResult: StateFlow<Resource<Boolean>> = _reportCommentResult
 
-    private val _currentUser = MutableStateFlow<User?>(null)
-
-    init {
-        val uid = authRepository.getCurrentUser()?.uid
-        if (uid != null) {
+    fun loadPostDetails(postId: String) {
+        val userId = authRepository.getCurrentUser()?.uid
+        if (userId != null) {
             viewModelScope.launch {
-                userRepository.getUserProfile(uid).first { it !is Resource.Loading }.let { resource ->
-                    if (resource is Resource.Success) {
-                        _currentUser.value = resource.data
-                    }
+                postRepository.observeIsLikedByUser(postId, userId).collectLatest {
+                    _isLiked.value = it
                 }
             }
         }
+        fetchComments(postId)
     }
 
-    fun loadPostDetails(postId: String) {
-        val uid = authRepository.getCurrentUser()?.uid ?: return
-        
-        viewModelScope.launch {
-            postRepository.observeIsHelpfulByUser(postId, uid).collectLatest {
-                _isHelpful.value = it
-            }
-        }
-
+    fun fetchComments(postId: String) {
         viewModelScope.launch {
             postRepository.getComments(postId).collectLatest {
                 _comments.value = it
@@ -67,33 +56,42 @@ class PostDetailViewModel @Inject constructor(
         }
     }
 
-    fun fetchHelpfulUsers(postId: String) {
-        viewModelScope.launch {
-            postRepository.getHelpfulUsers(postId).collectLatest {
-                _helpfulUsers.value = it
-            }
-        }
-    }
-
-    fun toggleHelpful(postId: String) {
-        val user = _currentUser.value ?: return
-        viewModelScope.launch {
-            postRepository.toggleHelpful(postId, user.uid, user.name, user.profileImage, user.isVerified).collectLatest { }
-        }
-    }
-
     fun addComment(postId: String, content: String, parentCommentId: String? = null) {
-        val user = _currentUser.value ?: return
+        val user = authRepository.getCurrentUser() ?: return
+        // Fetch user profile first for name and image
+        // Or pass from UI
         val comment = Comment(
             userId = user.uid,
-            userName = user.name,
-            userProfileImage = user.profileImage,
-            isVerified = user.isVerified,
+            userName = user.displayName ?: "User",
+            userProfileImage = user.photoUrl?.toString(),
             content = content,
             parentCommentId = parentCommentId
         )
         viewModelScope.launch {
-            postRepository.addComment(postId, comment).collectLatest { }
+            postRepository.addComment(postId, comment).collectLatest {
+                // Handle result if needed
+            }
+        }
+    }
+
+    fun toggleLike(postId: String) {
+        val user = authRepository.getCurrentUser() ?: return
+        viewModelScope.launch {
+            postRepository.toggleLike(
+                postId = postId,
+                userId = user.uid,
+                userName = user.displayName ?: "User",
+                userProfileImage = user.photoUrl?.toString(),
+                isVerified = false // TODO: fetch from actual profile
+            ).collectLatest { }
+        }
+    }
+
+    fun fetchLikers(postId: String) {
+        viewModelScope.launch {
+            postRepository.getLikers(postId).collectLatest {
+                _likers.value = it
+            }
         }
     }
 

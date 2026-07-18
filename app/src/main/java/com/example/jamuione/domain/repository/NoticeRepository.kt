@@ -21,4 +21,6 @@ interface NoticeRepository {
     fun voteInPoll(noticeId: String, userId: String, optionIndex: Int): Flow<Resource<Boolean>>
     fun toggleRsvp(noticeId: String, userId: String, userName: String): Flow<Resource<Boolean>>
     fun observeIsRsvpedByUser(noticeId: String, userId: String): Flow<Boolean>
+    fun toggleHelpful(noticeId: String, userId: String): Flow<Resource<Boolean>>
+    fun observeIsHelpfulByUser(noticeId: String, userId: String): Flow<Boolean>
 }

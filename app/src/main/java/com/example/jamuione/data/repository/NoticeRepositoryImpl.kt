@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.jamuione.domain.model.Notice
 import com.example.jamuione.domain.repository.NoticeRepository
 import com.example.jamuione.util.Resource
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -258,6 +259,39 @@ class NoticeRepositoryImpl @Inject constructor(
             .collection("rsvps").document(userId)
         
         val listener = rsvpRef.addSnapshotListener { snapshot, _ ->
+            trySend(snapshot?.exists() == true)
+        }
+        awaitClose { listener.remove() }
+    }
+
+    override fun toggleHelpful(noticeId: String, userId: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            withTimeout(20000L) {
+                firestore.runTransaction { transaction ->
+                    val noticeRef = firestore.collection("notices").document(noticeId)
+                    val helpfulRef = noticeRef.collection("helpful").document(userId)
+                    
+                    val snapshot = transaction.get(helpfulRef)
+                    if (snapshot.exists()) {
+                        transaction.delete(helpfulRef)
+                        transaction.update(noticeRef, "helpfulCount", FieldValue.increment(-1))
+                    } else {
+                        transaction.set(helpfulRef, mapOf("userId" to userId, "timestamp" to System.currentTimeMillis()))
+                        transaction.update(noticeRef, "helpfulCount", FieldValue.increment(1))
+                    }
+                }.await()
+            }
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to update status"))
+        }
+    }
+
+    override fun observeIsHelpfulByUser(noticeId: String, userId: String): Flow<Boolean> = callbackFlow {
+        val helpfulRef = firestore.collection("notices").document(noticeId)
+            .collection("helpful").document(userId)
+        val listener = helpfulRef.addSnapshotListener { snapshot, _ ->
             trySend(snapshot?.exists() == true)
         }
         awaitClose { listener.remove() }

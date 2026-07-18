@@ -15,7 +15,7 @@ data class PostEntity(
     val district: String,
     val locality: String,
     val timestamp: Long,
-    val helpfulCount: Int = 0,
+    val likesCount: Int = 0,
     val commentsCount: Int = 0,
     val organizationId: String? = null,
     val organizationName: String? = null,
