@@ -3,7 +3,9 @@ package com.example.jamuione.ui.profile
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -419,48 +421,110 @@ fun ProfileHeader(user: com.example.jamuione.domain.model.User) {
 
 @Composable
 fun ProfileCompletionSection(completion: Int, missingItems: List<String>, onClick: () -> Unit) {
-    val isComplete = completion == 100
+    val isComplete = completion >= 100
     
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isComplete) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "Profile Status", style = MaterialTheme.typography.titleSmall)
-                    if (isComplete) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(Icons.Default.Stars, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                    }
-                }
-                Text(text = if (isComplete) "Verified Profile" else "$completion% Complete", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { completion / 100f },
-                modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
-                color = if (isComplete) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Profile Strength",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
             )
+            Text(
+                text = if (isComplete) "Verified" else "$completion%",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        LinearProgressIndicator(
+            progress = { completion / 100f },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(CircleShape),
+            color = if (isComplete) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+
+        if (!isComplete && missingItems.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Complete these tasks to reach 100%",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             
-            if (missingItems.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(text = "Complete your profile to unlock all benefits.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                Spacer(modifier = Modifier.height(8.dp))
-                missingItems.take(2).forEach { item ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AddCircleOutline, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = item, style = MaterialTheme.typography.labelMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                missingItems.forEach { task ->
+                    Surface(
+                        onClick = onClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddCircleOutline,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = task,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.outline
+                            )
+                        }
                     }
                 }
-            } else {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Great job! Your profile is fully visible to the community.", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50))
+            }
+        } else if (isComplete) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF4CAF50).copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                    .padding(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Stars,
+                    contentDescription = null,
+                    tint = Color(0xFF4CAF50),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Your profile is fully optimized!",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF4CAF50),
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

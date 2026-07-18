@@ -257,27 +257,29 @@ class AuthViewModel @Inject constructor(
     fun calculateProfileCompletion(user: User?): Int {
         if (user == null) return 0
         var score = 0
-        if (user.name.isNotBlank()) score += 10
+        if (user.name.isNotBlank()) score += 5
         if (!user.profileImage.isNullOrBlank()) score += 20
         if (user.profession.isNotBlank()) score += 15
         if (!user.company.isNullOrBlank()) score += 10
-        if (!user.bio.isNullOrBlank()) score += 20
-        if (user.nativeDistrict.isNotBlank()) score += 10
-        if (user.district.isNotBlank()) score += 10
-        if (user.isVerified) score += 5
+        if (!user.bio.isNullOrBlank()) score += 15
+        if (user.nativeDistrict.isNotBlank()) score += 5
+        if (user.district.isNotBlank()) score += 5
+        if (user.locality.isNotBlank() && user.locality != "unknown") score += 5
+        if (isEmailVerified()) score += 15
+        if (user.isBloodDonor) score += 5
         return score
     }
 
     fun getMissingProfileItems(user: User?): List<String> {
         if (user == null) return emptyList()
         val missing = mutableListOf<String>()
-        if (user.name.isBlank()) missing.add("Add Name")
-        if (user.profileImage.isNullOrBlank()) missing.add("Add Profile Photo")
-        if (user.profession.isBlank()) missing.add("Add Profession")
-        if (user.company.isNullOrBlank()) missing.add("Add Company")
-        if (user.bio.isNullOrBlank()) missing.add("Add Bio")
-        if (user.nativeDistrict.isBlank()) missing.add("Add Native Place")
-        if (user.district.isBlank()) missing.add("Add Current Location")
+        if (user.profileImage.isNullOrBlank()) missing.add("Add Profile Photo (+20 pts)")
+        if (!isEmailVerified()) missing.add("Verify Email (+15 pts)")
+        if (user.bio.isNullOrBlank()) missing.add("Add your Bio (+15 pts)")
+        if (user.profession.isBlank()) missing.add("Set Profession (+15 pts)")
+        if (user.company.isNullOrBlank()) missing.add("Add Company/College (+10 pts)")
+        if (user.locality.isBlank() || user.locality == "unknown") missing.add("Add Locality (+5 pts)")
+        if (!user.isBloodDonor) missing.add("Blood Donor Status (+5 pts)")
         return missing
     }
 
