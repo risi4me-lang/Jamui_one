@@ -69,7 +69,15 @@ fun LocalityCommunityScreen(
                     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
                         items(5) { MemberSkeletonLoader() }
                     }
-                } else if (filtered.isEmpty()) {
+                } else if (residentsResource is Resource.Error) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = residentsResource.message ?: "Failed to load residents",
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(32.dp)
+                        )
+                    }
+                } else if (filtered.isEmpty() && residentsResource is Resource.Success) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("No residents found.", color = MaterialTheme.colorScheme.secondary)
                     }

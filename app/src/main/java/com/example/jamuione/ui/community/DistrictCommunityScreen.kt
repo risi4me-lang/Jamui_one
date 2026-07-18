@@ -69,7 +69,15 @@ fun DistrictCommunityScreen(
                     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
                         items(5) { MemberSkeletonLoader() }
                     }
-                } else if (filtered.isEmpty()) {
+                } else if (neighborsResource is Resource.Error) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = neighborsResource.message ?: "Failed to load neighbors",
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(32.dp)
+                        )
+                    }
+                } else if (filtered.isEmpty() && neighborsResource is Resource.Success) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("No neighbors found in this district.", color = MaterialTheme.colorScheme.secondary)
                     }

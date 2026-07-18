@@ -109,6 +109,14 @@ fun NativeCommunityScreen(
             if (localityMembers is Resource.Loading && filteredLocality.isEmpty()) {
                 item { SectionHeader("📍 Same Locality", 0) }
                 items(3) { MemberSkeletonLoader() }
+            } else if (localityMembers is Resource.Error) {
+                item {
+                    Text(
+                        text = localityMembers.message ?: "Error loading locality members",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             } else if (filteredLocality.isNotEmpty()) {
                 item {
                     SectionHeader("📍 Same Locality", filteredLocality.size)
@@ -125,6 +133,14 @@ fun NativeCommunityScreen(
             if (districtMembers is Resource.Loading && filteredDistrict.isEmpty()) {
                 item { SectionHeader("🏙 Same District", 0) }
                 items(3) { MemberSkeletonLoader() }
+            } else if (districtMembers is Resource.Error) {
+                item {
+                    Text(
+                        text = districtMembers.message ?: "Error loading district neighbors",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             } else if (filteredDistrict.isNotEmpty()) {
                 item {
                     SectionHeader("🏙 Same District", filteredDistrict.size)
@@ -141,6 +157,14 @@ fun NativeCommunityScreen(
             if (everywhereMembers is Resource.Loading && filteredEverywhere.isEmpty()) {
                 item { SectionHeader("🌍 Everywhere Else", 0) }
                 items(3) { MemberSkeletonLoader() }
+            } else if (everywhereMembers is Resource.Error) {
+                item {
+                    Text(
+                        text = everywhereMembers.message ?: "Error loading members",
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             } else if (filteredEverywhere.isNotEmpty()) {
                 item {
                     SectionHeader("🌍 Everywhere Else", filteredEverywhere.size)
