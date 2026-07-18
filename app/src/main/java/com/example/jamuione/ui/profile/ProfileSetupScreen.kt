@@ -59,20 +59,22 @@ fun ProfileSetupScreen(
 
     val profileSavedState by viewModel.profileSaved.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    
+    var hasInitializedFromProfile by remember { mutableStateOf(false) }
 
-    // Pre-fill from existing profile
+    // Pre-fill from existing profile - EXACTLY ONCE
     LaunchedEffect(userProfileState) {
-        if (userProfileState is Resource.Success) {
+        if (!hasInitializedFromProfile && userProfileState is Resource.Success) {
             val user = (userProfileState as Resource.Success).data
             if (user != null) {
-                if (name.isEmpty()) name = user.name
+                name = user.name
                 
                 if (user.state.isNotEmpty()) {
                     val formattedState = states.find { it.equals(user.state, ignoreCase = true) }
                     if (formattedState != null) state = formattedState
                 }
                 
-                if (locality.isEmpty() && user.locality.isNotEmpty()) {
+                if (user.locality.isNotEmpty()) {
                     locality = user.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
                 }
                 
@@ -93,11 +95,13 @@ fun ProfileSetupScreen(
                     if (formattedNative != null) nativeDistrict = formattedNative
                 }
                 
-                if (profession.isEmpty()) profession = user.profession
-                if (company.isEmpty()) company = user.company ?: ""
-                if (bio.isEmpty()) bio = user.bio ?: ""
+                profession = user.profession
+                company = user.company ?: ""
+                bio = user.bio ?: ""
                 isBloodDonor = user.isBloodDonor
                 showInCommunity = user.showInCommunity
+                
+                hasInitializedFromProfile = true
             }
         }
     }
