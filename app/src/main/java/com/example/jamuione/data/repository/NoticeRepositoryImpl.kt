@@ -4,7 +4,6 @@ import android.util.Log
 import com.example.jamuione.domain.model.Notice
 import com.example.jamuione.domain.repository.NoticeRepository
 import com.example.jamuione.util.Resource
-import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query

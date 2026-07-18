@@ -213,6 +213,7 @@ class NoticeViewModel @Inject constructor(
         daysToExpiry: Int,
         pollQuestion: String? = null,
         pollOptions: List<String>? = null,
+        pollClosesAt: Long? = null,
         eventDate: Long? = null,
         eventLocation: String? = null
     ) {
@@ -243,6 +244,7 @@ class NoticeViewModel @Inject constructor(
             pollQuestion = pollQuestion,
             pollOptions = pollOptions,
             pollVotes = pollOptions?.associateWith { 0L }?.mapKeys { pollOptions.indexOf(it.key).toString() },
+            pollClosesAt = pollClosesAt,
             eventDate = eventDate,
             eventLocation = eventLocation
         )

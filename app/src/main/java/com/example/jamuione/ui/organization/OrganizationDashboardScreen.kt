@@ -26,13 +26,21 @@ import com.example.jamuione.util.Resource
 fun OrganizationDashboardScreen(
     orgId: String,
     viewModel: OrganizationViewModel,
+    onNavigateToCreateAnnouncement: () -> Unit,
     onBack: () -> Unit
 ) {
     val orgResource by viewModel.selectedOrg.collectAsState()
+    var isAdmin by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(orgId) {
+        viewModel.loadOrganizationDetails(orgId)
+        viewModel.checkAdminPermission(orgId) { isAdmin = it }
+    }
 
     // Dashboard sections
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Overview", "Content", "Followers", "Analytics")
+    val tabs = if (isAdmin) listOf("Overview", "Content", "Followers", "Analytics") 
+               else listOf("Overview", "Followers")
 
     Scaffold(
         topBar = {
@@ -53,11 +61,13 @@ fun OrganizationDashboardScreen(
                 }
             }
             
-            when (selectedTab) {
-                0 -> OverviewSection(orgResource)
-                1 -> ContentSection()
-                2 -> FollowersSection(orgResource)
-                3 -> AnalyticsSection()
+            val currentTabTitle = tabs.getOrNull(selectedTab) ?: "Overview"
+            
+            when (currentTabTitle) {
+                "Overview" -> OverviewSection(orgResource)
+                "Content" -> ContentSection(onNavigateToCreateAnnouncement)
+                "Followers" -> FollowersSection(orgResource)
+                "Analytics" -> AnalyticsSection()
             }
         }
     }
@@ -107,9 +117,9 @@ fun StatCard(modifier: Modifier, title: String, value: String, icon: androidx.co
 }
 
 @Composable
-fun ContentSection() {
+fun ContentSection(onCreateAnnouncement: () -> Unit) {
     Column(modifier = Modifier.padding(16.dp)) {
-        Button(onClick = { /* TODO */ }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onCreateAnnouncement, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Campaign, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text("Create Announcement")

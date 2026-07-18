@@ -501,12 +501,14 @@ fun NoticeItem(
             // POLL SECTION
             if (notice.pollQuestion != null && notice.pollOptions != null) {
                 Spacer(modifier = Modifier.height(16.dp))
+                val isPollClosed = notice.pollClosesAt?.let { it < System.currentTimeMillis() } ?: false
                 PollView(
                     question = notice.pollQuestion,
                     options = notice.pollOptions,
                     votes = notice.pollVotes ?: emptyMap(),
                     userVote = notice.userVotes?.get(currentUserId ?: ""),
-                    onVoteClick = onVoteClick
+                    isClosed = isPollClosed,
+                    onVoteClick = { if (!isPollClosed) onVoteClick(it) }
                 )
             }
             
@@ -614,6 +616,7 @@ fun PollView(
     options: List<String>,
     votes: Map<String, Long>,
     userVote: Long?,
+    isClosed: Boolean = false,
     onVoteClick: (Int) -> Unit
 ) {
     val totalVotes = votes.values.sum()
@@ -623,7 +626,23 @@ fun PollView(
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             .padding(12.dp)
     ) {
-        Text(text = question, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = question, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            if (isClosed) {
+                Surface(
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "CLOSED",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(12.dp))
         options.forEachIndexed { index, option ->
             val voteCount = votes[index.toString()] ?: 0L
@@ -635,7 +654,7 @@ fun PollView(
                     .padding(vertical = 4.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surface)
-                    .clickable { onVoteClick(index) }
+                    .then(if (!isClosed) Modifier.clickable { onVoteClick(index) } else Modifier)
                     .border(
                         width = if (userVote == index.toLong()) 2.dp else 1.dp,
                         color = if (userVote == index.toLong()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,

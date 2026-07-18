@@ -94,6 +94,8 @@ sealed interface Destination : NavKey {
     @Serializable
     data class OrganizationDashboard(val orgId: String) : Destination
     @Serializable
+    data class CreateOrganizationAnnouncement(val orgId: String) : Destination
+    @Serializable
     data object PrivacyPolicy : Destination
     @Serializable
     data object TermsOfService : Destination
@@ -326,6 +328,15 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
         entry<Destination.OrganizationDashboard> { key ->
             val orgViewModel: OrganizationViewModel = viewModel()
             OrganizationDashboardScreen(
+                orgId = key.orgId,
+                viewModel = orgViewModel,
+                onNavigateToCreateAnnouncement = { backStack.add(Destination.CreateOrganizationAnnouncement(key.orgId)) },
+                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+            )
+        }
+        entry<Destination.CreateOrganizationAnnouncement> { key ->
+            val orgViewModel: OrganizationViewModel = viewModel()
+            com.example.jamuione.ui.organization.CreateOrganizationAnnouncementScreen(
                 orgId = key.orgId,
                 viewModel = orgViewModel,
                 onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }

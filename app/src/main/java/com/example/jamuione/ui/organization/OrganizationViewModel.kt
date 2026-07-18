@@ -21,6 +21,9 @@ class OrganizationViewModel @Inject constructor(
     private val _createOrgResult = MutableStateFlow<Resource<String>>(Resource.Idle())
     val createOrgResult: StateFlow<Resource<String>> = _createOrgResult
 
+    private val _createAnnouncementResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
+    val createAnnouncementResult: StateFlow<Resource<Boolean>> = _createAnnouncementResult
+
     private val _managedOrgs = MutableStateFlow<Resource<List<Organization>>>(Resource.Idle())
     val managedOrgs: StateFlow<Resource<List<Organization>>> = _managedOrgs
 
@@ -109,5 +112,43 @@ class OrganizationViewModel @Inject constructor(
 
     fun resetCreateResult() {
         _createOrgResult.value = Resource.Idle()
+    }
+
+    fun createAnnouncement(orgId: String, title: String, content: String, imageUri: Uri?) {
+        val announcement = OrganizationAnnouncement(
+            organizationId = orgId,
+            title = title,
+            content = content
+        )
+        viewModelScope.launch {
+            organizationRepository.createAnnouncement(announcement, imageUri).collectLatest {
+                _createAnnouncementResult.value = it
+            }
+        }
+    }
+
+    fun resetCreateAnnouncementResult() {
+        _createAnnouncementResult.value = Resource.Idle()
+    }
+
+    fun loadOrganizationDetails(orgId: String) {
+        viewModelScope.launch {
+            organizationRepository.getOrganization(orgId).collectLatest {
+                _selectedOrg.value = it
+            }
+        }
+    }
+
+    fun checkAdminPermission(orgId: String, onResult: (Boolean) -> Unit) {
+        val userId = authRepository.getCurrentUser()?.uid ?: run { onResult(false); return }
+        viewModelScope.launch {
+            organizationRepository.getAdmins(orgId).first { it !is Resource.Loading }.let { resource ->
+                if (resource is Resource.Success) {
+                    onResult(resource.data?.any { it.userId == userId } ?: false)
+                } else {
+                    onResult(false)
+                }
+            }
+        }
     }
 }

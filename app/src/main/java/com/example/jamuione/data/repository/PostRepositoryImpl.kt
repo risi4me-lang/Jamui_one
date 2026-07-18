@@ -163,7 +163,20 @@ class PostRepositoryImpl @Inject constructor(
     override fun deletePost(postId: String): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
-            firestore.collection("posts").document(postId).delete().await()
+            val postRef = firestore.collection("posts").document(postId)
+            val postSnapshot = postRef.get().await()
+            val imageUrl = postSnapshot.getString("imageUrl")
+
+            // Delete the Storage image first (if one exists), then the Firestore doc.
+            if (!imageUrl.isNullOrBlank()) {
+                try {
+                    storage.getReferenceFromUrl(imageUrl).delete().await()
+                } catch (e: Exception) {
+                    Log.w("POST_DEBUG", "Failed to delete Storage image for post $postId: ${e.message}")
+                }
+            }
+
+            postRef.delete().await()
             emit(Resource.Success(true))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to delete post"))

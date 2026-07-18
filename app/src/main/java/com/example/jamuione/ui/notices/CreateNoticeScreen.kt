@@ -45,6 +45,7 @@ fun CreateNoticeScreen(
     var isPoll by remember { mutableStateOf(false) }
     var pollQuestion by remember { mutableStateOf("") }
     var pollOptions by remember { mutableStateOf(listOf("", "")) }
+    var pollDurationDays by remember { mutableStateOf(7) }
 
     val createResult by viewModel.createNoticeResult.collectAsState()
     var categoryExpanded by remember { mutableStateOf(false) }
@@ -233,6 +234,15 @@ fun CreateNoticeScreen(
                             Text("Add Option")
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "Poll closes in: $pollDurationDays days", style = MaterialTheme.typography.labelLarge)
+                    Slider(
+                        value = pollDurationDays.toFloat(),
+                        onValueChange = { pollDurationDays = it.toInt() },
+                        valueRange = 1f..14f,
+                        steps = 13
+                    )
                 }
             }
 
@@ -271,6 +281,7 @@ fun CreateNoticeScreen(
                             daysToExpiry = daysToExpiry,
                             pollQuestion = pollQuestion.takeIf { isPoll && it.isNotBlank() },
                             pollOptions = pollOptions.filter { it.isNotBlank() }.takeIf { isPoll && it.size >= 2 },
+                            pollClosesAt = if (isPoll) System.currentTimeMillis() + (pollDurationDays * 24 * 60 * 60 * 1000L) else null,
                             eventDate = eventDate.takeIf { selectedCategory == "Event" },
                             eventLocation = eventLocation.takeIf { selectedCategory == "Event" && it.isNotBlank() }
                         )
