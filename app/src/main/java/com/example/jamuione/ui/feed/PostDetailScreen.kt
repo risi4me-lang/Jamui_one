@@ -185,12 +185,16 @@ fun PostDetailScreen(
                         items(topLevelComments) { comment ->
                             CommentItem(
                                 comment = comment,
+                                currentUserId = userProfile.data?.uid,
                                 replies = repliesMap[comment.id] ?: emptyList(),
                                 onReplyClick = { replyingToCommentId = comment.id },
                                 onReportClick = { targetId, reason -> 
                                     viewModel.reportComment(postId, targetId, reason)
                                 },
-                                onAuthorClick = { onNavigateToUserProfile(it) }
+                                onAuthorClick = { onNavigateToUserProfile(it) },
+                                onDeleteComment = { commentId ->
+                                    viewModel.deleteComment(postId, commentId)
+                                }
                             )
                         }
                     }
@@ -213,15 +217,39 @@ fun PostDetailScreen(
 @Composable
 fun CommentItem(
     comment: Comment,
+    currentUserId: String? = null,
     replies: List<Comment>,
     onReplyClick: () -> Unit,
     onReportClick: (String, String) -> Unit,
-    onAuthorClick: (String) -> Unit = {}
+    onAuthorClick: (String) -> Unit = {},
+    onDeleteComment: (String) -> Unit = {}
 ) {
     var showReportDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var reportTargetId by remember { mutableStateOf<String?>(null) }
     var reportReason by remember { mutableStateOf("") }
     var showMenu by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text("Delete Comment") },
+            text = { Text("Are you sure you want to delete this comment?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteComment(comment.id)
+                    showDeleteConfirmDialog = false
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     if (showReportDialog) {
         AlertDialog(
@@ -319,6 +347,16 @@ fun CommentItem(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
                 ) {
+                    if (comment.userId == currentUserId) {
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                showMenu = false
+                                showDeleteConfirmDialog = true
+                            }
+                        )
+                    }
+
                     DropdownMenuItem(
                         text = { Text("Report") },
                         onClick = {
@@ -376,6 +414,16 @@ fun CommentItem(
                         expanded = showReplyMenu,
                         onDismissRequest = { showReplyMenu = false }
                     ) {
+                        if (reply.userId == currentUserId) {
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = {
+                                    showReplyMenu = false
+                                    onDeleteComment(reply.id)
+                                }
+                            )
+                        }
+
                         DropdownMenuItem(
                         text = { Text("Report") },
                         onClick = {

@@ -278,6 +278,24 @@ class PostRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    override fun deleteComment(postId: String, commentId: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            withTimeout(20000L) {
+                firestore.runTransaction { transaction ->
+                    val postRef = firestore.collection("posts").document(postId)
+                    val commentRef = postRef.collection("comments").document(commentId)
+                    
+                    transaction.delete(commentRef)
+                    transaction.update(postRef, "commentsCount", FieldValue.increment(-1))
+                }.await()
+            }
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to delete comment"))
+        }
+    }
+
     override fun reportPost(postId: String, reporterId: String, reason: String): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {

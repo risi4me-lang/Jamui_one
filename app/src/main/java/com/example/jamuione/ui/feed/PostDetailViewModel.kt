@@ -135,4 +135,12 @@ class PostDetailViewModel @Inject constructor(
     fun resetReportCommentResult() {
         _reportCommentResult.value = Resource.Idle()
     }
+
+    fun deleteComment(postId: String, commentId: String) {
+        viewModelScope.launch {
+            postRepository.deleteComment(postId, commentId).collectLatest {
+                // We could emit a delete state if we wanted to show a snackbar
+            }
+        }
+    }
 }
