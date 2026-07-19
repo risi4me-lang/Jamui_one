@@ -42,6 +42,23 @@ class PostDetailViewModel @Inject constructor(
     private val _reportCommentResult = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val reportCommentResult: StateFlow<Resource<Boolean>> = _reportCommentResult
 
+    private var currentUser: User? = null
+
+    init {
+        fetchAndObserveUserProfile()
+    }
+
+    private fun fetchAndObserveUserProfile() {
+        val uid = authRepository.getCurrentUser()?.uid ?: return
+        viewModelScope.launch {
+            userRepository.getUserProfile(uid).collectLatest { resource ->
+                if (resource is Resource.Success) {
+                    currentUser = resource.data
+                }
+            }
+        }
+    }
+
     fun loadPostDetails(postId: String) {
         val userId = authRepository.getCurrentUser()?.uid
         if (userId != null) {
@@ -52,14 +69,6 @@ class PostDetailViewModel @Inject constructor(
             }
         }
         fetchComments(postId)
-        fetchPostAndAuthor(postId)
-    }
-
-    private fun fetchPostAndAuthor(postId: String) {
-        // We need the post to get the authorId. For now we assume the authorId is available from feed or we fetch it.
-        // Actually, let's fetch the post document directly or just wait for it to be provided.
-        // For simplicity, let's assume we fetch the author once we have the postId if we had a getPost function.
-        // Since we don't have getPost(postId), we'll skip direct author fetch here and rely on feed passing or add it to repo.
     }
 
     fun setAuthor(user: User) {
@@ -75,11 +84,12 @@ class PostDetailViewModel @Inject constructor(
     }
 
     fun addComment(postId: String, content: String, parentCommentId: String? = null) {
-        val user = authRepository.getCurrentUser() ?: return
+        val user = currentUser ?: return
         val comment = Comment(
             userId = user.uid,
-            userName = user.displayName ?: "User",
-            userProfileImage = user.photoUrl?.toString(),
+            userName = user.name,
+            userProfileImage = user.profileImage,
+            isVerified = user.isVerified,
             content = content,
             parentCommentId = parentCommentId
         )
@@ -90,14 +100,14 @@ class PostDetailViewModel @Inject constructor(
     }
 
     fun toggleLike(postId: String) {
-        val user = authRepository.getCurrentUser() ?: return
+        val user = currentUser ?: return
         viewModelScope.launch {
             postRepository.toggleLike(
                 postId = postId,
                 userId = user.uid,
-                userName = user.displayName ?: "User",
-                userProfileImage = user.photoUrl?.toString(),
-                isVerified = false
+                userName = user.name,
+                userProfileImage = user.profileImage,
+                isVerified = user.isVerified
             ).collectLatest { }
         }
     }
@@ -139,7 +149,6 @@ class PostDetailViewModel @Inject constructor(
     fun deleteComment(postId: String, commentId: String) {
         viewModelScope.launch {
             postRepository.deleteComment(postId, commentId).collectLatest {
-                // We could emit a delete state if we wanted to show a snackbar
             }
         }
     }
