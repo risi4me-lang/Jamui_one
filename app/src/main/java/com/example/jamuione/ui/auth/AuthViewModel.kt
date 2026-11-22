@@ -241,6 +241,7 @@ class AuthViewModel @Inject constructor(
             profileCompleted = true,
             isVerified = originalVerified,
             role = currentProfile?.role ?: "user",
+            isActive = currentProfile?.isActive ?: true,
             joinedAt = originalJoinedAt,
             lastSeen = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
