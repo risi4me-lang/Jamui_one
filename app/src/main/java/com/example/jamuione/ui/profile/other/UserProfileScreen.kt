@@ -33,6 +33,7 @@ import java.util.*
 fun UserProfileScreen(
     userId: String,
     viewModel: UserProfileViewModel,
+    isAdmin: Boolean = false,
     onBack: () -> Unit
 ) {
     val profileState by viewModel.userProfile.collectAsState()

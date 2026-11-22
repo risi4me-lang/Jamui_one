@@ -48,6 +48,7 @@ import java.util.Locale
 @Composable
 fun ProfileScreen(
     viewModel: AuthViewModel,
+    isAdmin: Boolean = false,
     onNavigateToSavedPosts: () -> Unit,
     onNavigateToCommunities: () -> Unit,
     onNavigateToCreateOrg: () -> Unit,

@@ -11,6 +11,8 @@ import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +34,8 @@ sealed class AuthState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -40,6 +43,42 @@ class AuthViewModel @Inject constructor(
 
     private val _userProfile = MutableStateFlow<Resource<User?>>(Resource.Idle())
     val userProfile: StateFlow<Resource<User?>> = _userProfile
+
+    private val _isAdmin = MutableStateFlow<Boolean>(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin
+
+    private var userListener: ListenerRegistration? = null
+
+    init {
+        observeAdminStatus()
+    }
+
+    private fun observeAdminStatus() {
+        val currentUser = authRepository.getCurrentUser()
+        if (currentUser != null) {
+            userListener?.remove()
+            userListener = firestore.collection("users").document(currentUser.uid)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        _isAdmin.value = false
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null && snapshot.exists()) {
+                        val role = snapshot.getString("role") ?: "user"
+                        val isActive = snapshot.getBoolean("isActive") ?: true
+                        _isAdmin.value = role.equals("admin", ignoreCase = true) && isActive != false
+                    } else {
+                        _isAdmin.value = false
+                    }
+                }
+        } else {
+            _isAdmin.value = false
+        }
+    }
+
+    override fun onCleared() {
+        userListener?.remove()
+    }
 
     private val _profileSaved = MutableStateFlow<Resource<Boolean>>(Resource.Idle())
     val profileSaved: StateFlow<Resource<Boolean>> = _profileSaved
@@ -175,6 +214,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun fetchUserProfile() {
+        observeAdminStatus()
         val firebaseUser = authRepository.getCurrentUser()
         if (firebaseUser != null) {
             if (BuildConfig.DEBUG) {
@@ -287,6 +327,8 @@ class AuthViewModel @Inject constructor(
 
     fun logout() {
         Log.d("AUTH_TRACE", "Logout triggered from AuthViewModel")
+        userListener?.remove()
+        _isAdmin.value = false
         authRepository.signOut()
         _userProfile.value = Resource.Idle()
         _authState.value = AuthState.Unauthenticated

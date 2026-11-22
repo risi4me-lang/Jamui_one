@@ -54,6 +54,7 @@ import java.util.*
 @Composable
 fun NoticeBoardScreen(
     viewModel: NoticeViewModel,
+    isAdmin: Boolean = false,
     highlightNoticeId: String? = null,
     onCreateNoticeClick: () -> Unit,
     onNavigateToNotifications: () -> Unit,

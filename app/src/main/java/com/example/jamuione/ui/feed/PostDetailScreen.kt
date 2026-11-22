@@ -36,6 +36,7 @@ fun PostDetailScreen(
     postId: String,
     viewModel: PostDetailViewModel,
     feedViewModel: FeedViewModel,
+    isAdmin: Boolean = false,
     onBack: () -> Unit,
     onNavigateToUserProfile: (String) -> Unit = {}
 ) {

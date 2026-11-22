@@ -32,6 +32,7 @@ import kotlin.time.Duration.Companion.seconds
 @Composable
 fun FeedScreen(
     viewModel: FeedViewModel,
+    isAdmin: Boolean = false,
     onCreatePostClick: () -> Unit,
     onNavigateToDetail: (String) -> Unit,
     onNavigateToNotifications: () -> Unit,

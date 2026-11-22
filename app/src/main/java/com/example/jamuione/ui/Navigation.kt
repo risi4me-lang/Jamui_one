@@ -168,6 +168,8 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
         }
         entry<Destination.MainFeed> { key ->
             val feedViewModel: FeedViewModel = viewModel()
+            val authViewModel: AuthViewModel = viewModel()
+            val isAdmin by authViewModel.isAdmin.collectAsState()
             AdaptiveScaffoldWrapper(
                 currentDestination = key,
                 onNavigate = { 
@@ -178,6 +180,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             ) {
                 FeedScreen(
                     viewModel = feedViewModel,
+                    isAdmin = isAdmin,
                     onCreatePostClick = { backStack.add(Destination.CreatePost) },
                     onNavigateToDetail = { postId -> backStack.add(Destination.PostDetail(postId)) },
                     onNavigateToNotifications = { backStack.add(Destination.Notifications) },
@@ -192,6 +195,8 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
         }
         entry<Destination.NoticeBoard> { key ->
             val noticeViewModel: NoticeViewModel = viewModel()
+            val authViewModel: AuthViewModel = viewModel()
+            val isAdmin by authViewModel.isAdmin.collectAsState()
             AdaptiveScaffoldWrapper(
                 currentDestination = key,
                 onNavigate = { 
@@ -202,6 +207,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             ) {
                 NoticeBoardScreen(
                     viewModel = noticeViewModel,
+                    isAdmin = isAdmin,
                     highlightNoticeId = key.highlightId,
                     onCreateNoticeClick = { backStack.add(Destination.CreateNotice) },
                     onNavigateToNotifications = { backStack.add(Destination.Notifications) },
@@ -214,6 +220,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
         }
         entry<Destination.Profile> {
             val authViewModel: AuthViewModel = viewModel()
+            val isAdmin by authViewModel.isAdmin.collectAsState()
             AdaptiveScaffoldWrapper(
                 currentDestination = Destination.Profile,
                 onNavigate = { 
@@ -224,6 +231,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             ) {
                 ProfileScreen(
                     viewModel = authViewModel,
+                    isAdmin = isAdmin,
                     onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
                     onNavigateToCommunities = { backStack.add(Destination.Communities) },
                     onNavigateToCreateOrg = { backStack.add(Destination.CreateOrganization) },
@@ -240,9 +248,12 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
         }
         entry<Destination.UserProfile> { key ->
             val userProfileViewModel: UserProfileViewModel = viewModel()
+            val authViewModel: AuthViewModel = viewModel()
+            val isAdmin by authViewModel.isAdmin.collectAsState()
             UserProfileScreen(
                 userId = key.userId,
                 viewModel = userProfileViewModel,
+                isAdmin = isAdmin,
                 onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
             )
         }
@@ -370,10 +381,13 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
         entry<Destination.PostDetail> { key ->
             val postDetailViewModel: PostDetailViewModel = viewModel()
             val feedViewModel: FeedViewModel = viewModel()
+            val authViewModel: AuthViewModel = viewModel()
+            val isAdmin by authViewModel.isAdmin.collectAsState()
             PostDetailScreen(
                 postId = key.postId,
                 viewModel = postDetailViewModel,
                 feedViewModel = feedViewModel,
+                isAdmin = isAdmin,
                 onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) },
                 onNavigateToUserProfile = { userId -> backStack.add(Destination.UserProfile(userId)) }
             )
