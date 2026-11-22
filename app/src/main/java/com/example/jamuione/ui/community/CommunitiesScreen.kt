@@ -32,6 +32,7 @@ fun CommunitiesScreen(
     onNavigateToLocalityCommunity: () -> Unit,
     onNavigateToDistrictCommunity: () -> Unit,
     onNavigateToOrgDashboard: (String) -> Unit,
+    onNavigateToOrgProfile: (String) -> Unit,
     onBack: () -> Unit
 ) {
     val userProfileState by authViewModel.userProfile.collectAsState()
@@ -71,7 +72,7 @@ fun CommunitiesScreen(
                 if (selectedTab == 0) {
                     PeopleTab(user, onNavigateToNativeCommunity, onNavigateToLocalityCommunity, onNavigateToDistrictCommunity)
                 } else {
-                    OrganizationsTab(orgViewModel, user, onNavigateToOrgDashboard)
+                    OrganizationsTab(orgViewModel, user, onNavigateToOrgDashboard, onNavigateToOrgProfile)
                 }
             }
         }
@@ -153,13 +154,23 @@ fun PeopleTab(
 fun OrganizationsTab(
     viewModel: com.example.jamuione.ui.organization.OrganizationViewModel,
     user: com.example.jamuione.domain.model.User,
-    onNavigateToOrgDashboard: (String) -> Unit
+    onNavigateToOrgDashboard: (String) -> Unit,
+    onNavigateToOrgProfile: (String) -> Unit
 ) {
     val discoveryOrgs by viewModel.discoveryOrgs.collectAsState()
+    val managedOrgsResource by viewModel.managedOrgs.collectAsState()
     val isFollowingMap by viewModel.isFollowingMap.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.loadOrganizationsForDiscovery(state = user.state, district = user.district)
+        viewModel.loadManagedOrganizations()
+    }
+
+    val managedOrgs = (managedOrgsResource as? Resource.Success)?.data ?: emptyList()
+    val discoveryList = (discoveryOrgs as? Resource.Success)?.data ?: emptyList()
+
+    val filteredDiscoveryOrgs = discoveryList.filter { discoveryOrg ->
+        managedOrgs.none { it.organizationId == discoveryOrg.organizationId }
     }
 
     LazyColumn(
@@ -167,23 +178,56 @@ fun OrganizationsTab(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        if (managedOrgs.isNotEmpty()) {
+            item {
+                Text(
+                    text = "My Organizations",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(top = 4.dp, start = 4.dp, bottom = 4.dp)
+                )
+            }
+            items(managedOrgs) { org ->
+                OrganizationCard(
+                    org = org,
+                    isFollowing = isFollowingMap[org.organizationId] ?: false,
+                    onFollowClick = { viewModel.toggleFollow(org.organizationId) },
+                    onClick = { onNavigateToOrgDashboard(org.organizationId) }
+                )
+            }
+            item {
+                Text(
+                    text = "In your area",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(top = 8.dp, start = 4.dp, bottom = 4.dp)
+                )
+            }
+        }
+
         when (val resource = discoveryOrgs) {
             is Resource.Loading -> {
-                item { Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+                if (managedOrgs.isEmpty()) {
+                    item { Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
+                }
             }
             is Resource.Success -> {
-                val orgs = resource.data ?: emptyList()
-                if (orgs.isEmpty()) {
-                    item { Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) { Text("No organizations found in your area.", color = MaterialTheme.colorScheme.secondary) } }
+                if (filteredDiscoveryOrgs.isEmpty() && managedOrgs.isEmpty()) {
+                    item { Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { Text("No organizations found in your area.", color = MaterialTheme.colorScheme.secondary) } }
                 } else {
-                    items(orgs) { org ->
+                    items(filteredDiscoveryOrgs) { org ->
                         OrganizationCard(
                             org = org,
                             isFollowing = isFollowingMap[org.organizationId] ?: false,
                             onFollowClick = { viewModel.toggleFollow(org.organizationId) },
                             onClick = { 
-                                if (org.createdBy == user.uid) onNavigateToOrgDashboard(org.organizationId)
-                                // else onNavigateToOrgProfile(org.organizationId) 
+                                if (org.createdBy == user.uid) {
+                                    onNavigateToOrgDashboard(org.organizationId)
+                                } else {
+                                    onNavigateToOrgProfile(org.organizationId)
+                                }
                             }
                         )
                     }

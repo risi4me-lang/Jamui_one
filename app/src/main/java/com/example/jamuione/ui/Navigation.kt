@@ -42,6 +42,7 @@ import com.example.jamuione.ui.notifications.NotificationsScreen
 import com.example.jamuione.ui.notifications.NotificationsViewModel
 import com.example.jamuione.ui.organization.CreateOrganizationScreen
 import com.example.jamuione.ui.organization.OrganizationDashboardScreen
+import com.example.jamuione.ui.organization.OrganizationProfileScreen
 import com.example.jamuione.ui.organization.OrganizationViewModel
 import com.example.jamuione.ui.feed.FeedScreen
 import com.example.jamuione.ui.feed.FeedViewModel
@@ -81,6 +82,8 @@ sealed interface Destination : NavKey {
     data object SavedPosts : Destination
     @Serializable
     data object Communities : Destination
+    @Serializable
+    data class OrganizationProfile(val orgId: String) : Destination
     @Serializable
     data object NativeCommunity : Destination
     @Serializable
@@ -253,7 +256,16 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 onNavigateToLocalityCommunity = { backStack.add(Destination.LocalityCommunity) },
                 onNavigateToDistrictCommunity = { backStack.add(Destination.DistrictCommunity) },
                 onNavigateToOrgDashboard = { orgId -> backStack.add(Destination.OrganizationDashboard(orgId)) },
+                onNavigateToOrgProfile = { orgId -> backStack.add(Destination.OrganizationProfile(orgId)) },
                 onBack = { backStack.removeAt(backStack.size - 1) }
+            )
+        }
+        entry<Destination.OrganizationProfile> { key ->
+            val orgViewModel: OrganizationViewModel = viewModel()
+            OrganizationProfileScreen(
+                orgId = key.orgId,
+                viewModel = orgViewModel,
+                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
             )
         }
         entry<Destination.NativeCommunity> {

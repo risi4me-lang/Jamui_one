@@ -36,6 +36,17 @@ class OrganizationViewModel @Inject constructor(
     private val _isFollowingMap = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     val isFollowingMap: StateFlow<Map<String, Boolean>> = _isFollowingMap
 
+    private val _announcements = MutableStateFlow<Resource<List<OrganizationAnnouncement>>>(Resource.Idle())
+    val announcements: StateFlow<Resource<List<OrganizationAnnouncement>>> = _announcements
+
+    fun loadAnnouncements(orgId: String) {
+        viewModelScope.launch {
+            organizationRepository.getAnnouncements(orgId).collectLatest {
+                _announcements.value = it
+            }
+        }
+    }
+
     fun createOrganization(
         name: String,
         type: OrganizationType,
