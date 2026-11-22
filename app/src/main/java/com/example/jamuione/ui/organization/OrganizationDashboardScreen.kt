@@ -124,12 +124,6 @@ fun ContentSection(onCreateAnnouncement: () -> Unit) {
             Spacer(modifier = Modifier.width(8.dp))
             Text("Create Announcement")
         }
-        Spacer(modifier = Modifier.height(12.dp))
-        Button(onClick = { /* TODO */ }, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Default.Event, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Create Event")
-        }
     }
 }
 
