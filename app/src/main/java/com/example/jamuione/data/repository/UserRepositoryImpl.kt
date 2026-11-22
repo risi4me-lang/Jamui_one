@@ -14,6 +14,7 @@ import com.google.firebase.firestore.AggregateField
 import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -82,10 +83,33 @@ class UserRepositoryImpl @Inject constructor(
     override fun saveUserProfile(user: User): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
-            val finalUser = user.copy(updatedAt = System.currentTimeMillis())
+            val now = System.currentTimeMillis()
+            val finalUser = user.copy(updatedAt = now)
+            // Only write fields a user may edit. Never touch role, isActive,
+            // isVerified, fcmToken or lastPostTimestamp.
+            val editable = mapOf(
+                "uid" to finalUser.uid,
+                "name" to finalUser.name,
+                "email" to finalUser.email,
+                "state" to finalUser.state,
+                "district" to finalUser.district,
+                "locality" to finalUser.locality,
+                "nativeState" to finalUser.nativeState,
+                "nativeDistrict" to finalUser.nativeDistrict,
+                "profession" to finalUser.profession,
+                "company" to finalUser.company,
+                "bio" to finalUser.bio,
+                "isBloodDonor" to finalUser.isBloodDonor,
+                "showInCommunity" to finalUser.showInCommunity,
+                "profileImage" to finalUser.profileImage,
+                "profileCompleted" to true,
+                "joinedAt" to finalUser.joinedAt,
+                "lastSeen" to now,
+                "updatedAt" to now
+            )
             withTimeout(20000L) {
                 firestore.collection("users").document(finalUser.uid)
-                    .set(finalUser)
+                    .set(editable, SetOptions.merge())
                     .await()
             }
             userDao.upsertUser(finalUser.toEntity())

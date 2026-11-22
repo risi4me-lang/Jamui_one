@@ -240,6 +240,7 @@ class AuthViewModel @Inject constructor(
             profileImage = firebaseUser.photoUrl?.toString(),
             profileCompleted = true,
             isVerified = originalVerified,
+            role = currentProfile?.role ?: "user",
             joinedAt = originalJoinedAt,
             lastSeen = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
