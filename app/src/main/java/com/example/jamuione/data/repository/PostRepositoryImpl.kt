@@ -163,6 +163,30 @@ class PostRepositoryImpl @Inject constructor(
             val postSnapshot = postRef.get().await()
             val imageUrl = postSnapshot.getString("imageUrl")
 
+            // 1. Delete every document in likes and comments subcollections, in batches of at most 400
+            try {
+                val likesSnapshot = postRef.collection("likes").get().await()
+                likesSnapshot.documents.chunked(400).forEach { chunk ->
+                    val batch = firestore.batch()
+                    chunk.forEach { batch.delete(it.reference) }
+                    batch.commit().await()
+                }
+            } catch (e: Exception) {
+                Log.w("POST_DEBUG", "Failed to delete likes for post $postId: ${e.message}")
+            }
+
+            try {
+                val commentsSnapshot = postRef.collection("comments").get().await()
+                commentsSnapshot.documents.chunked(400).forEach { chunk ->
+                    val batch = firestore.batch()
+                    chunk.forEach { batch.delete(it.reference) }
+                    batch.commit().await()
+                }
+            } catch (e: Exception) {
+                Log.w("POST_DEBUG", "Failed to delete comments for post $postId: ${e.message}")
+            }
+
+            // 2. The Storage image
             if (!imageUrl.isNullOrBlank()) {
                 try {
                     storage.getReferenceFromUrl(imageUrl).delete().await()
@@ -171,9 +195,11 @@ class PostRepositoryImpl @Inject constructor(
                 }
             }
 
+            // 3. The post document LAST
             postRef.delete().await()
             emit(Resource.Success(true))
         } catch (e: Exception) {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             emit(Resource.Error(e.message ?: "Failed to delete post"))
         }
     }

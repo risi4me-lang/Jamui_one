@@ -136,9 +136,36 @@ class NoticeRepositoryImpl @Inject constructor(
     override fun deleteNotice(noticeId: String): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
-            firestore.collection("notices").document(noticeId).delete().await()
+            val noticeRef = firestore.collection("notices").document(noticeId)
+
+            // 1. Delete rsvps and helpful subcollections in batches of at most 400
+            try {
+                val rsvpsSnapshot = noticeRef.collection("rsvps").get().await()
+                rsvpsSnapshot.documents.chunked(400).forEach { chunk ->
+                    val batch = firestore.batch()
+                    chunk.forEach { batch.delete(it.reference) }
+                    batch.commit().await()
+                }
+            } catch (e: Exception) {
+                Log.w("NOTICE_DEBUG", "Failed to delete rsvps for notice $noticeId: ${e.message}")
+            }
+
+            try {
+                val helpfulSnapshot = noticeRef.collection("helpful").get().await()
+                helpfulSnapshot.documents.chunked(400).forEach { chunk ->
+                    val batch = firestore.batch()
+                    chunk.forEach { batch.delete(it.reference) }
+                    batch.commit().await()
+                }
+            } catch (e: Exception) {
+                Log.w("NOTICE_DEBUG", "Failed to delete helpful for notice $noticeId: ${e.message}")
+            }
+
+            // 2. The notice document LAST
+            noticeRef.delete().await()
             emit(Resource.Success(true))
         } catch (e: Exception) {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
             emit(Resource.Error(e.message ?: "Failed to delete notice"))
         }
     }
