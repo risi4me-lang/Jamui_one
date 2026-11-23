@@ -78,8 +78,13 @@ class OrganizationViewModel @Inject constructor(
     fun loadManagedOrganizations() {
         val userId = authRepository.getCurrentUser()?.uid ?: return
         viewModelScope.launch {
-            organizationRepository.getUserManagedOrganizations(userId).collectLatest {
-                _managedOrgs.value = it
+            organizationRepository.getUserManagedOrganizations(userId).collectLatest { resource ->
+                _managedOrgs.value = resource
+                if (resource is Resource.Success) {
+                    resource.data?.forEach { org ->
+                        observeFollowingState(org.organizationId, userId)
+                    }
+                }
             }
         }
     }
@@ -109,14 +114,22 @@ class OrganizationViewModel @Inject constructor(
         }
     }
 
-    fun toggleFollow(orgId: String) {
+    fun toggleFollow(orgId: String, onError: (String) -> Unit = {}) {
         val userId = authRepository.getCurrentUser()?.uid ?: return
         val isFollowing = _isFollowingMap.value[orgId] ?: false
         viewModelScope.launch {
             if (isFollowing) {
-                organizationRepository.unfollowOrganization(orgId, userId).collectLatest { }
+                organizationRepository.unfollowOrganization(orgId, userId).collectLatest { res ->
+                    if (res is Resource.Error) {
+                        onError(res.message ?: "Failed to unfollow")
+                    }
+                }
             } else {
-                organizationRepository.followOrganization(orgId, userId).collectLatest { }
+                organizationRepository.followOrganization(orgId, userId).collectLatest { res ->
+                    if (res is Resource.Error) {
+                        onError(res.message ?: "Failed to follow")
+                    }
+                }
             }
         }
     }
@@ -147,6 +160,10 @@ class OrganizationViewModel @Inject constructor(
             organizationRepository.getOrganization(orgId).collectLatest {
                 _selectedOrg.value = it
             }
+        }
+        val uid = authRepository.getCurrentUser()?.uid
+        if (uid != null) {
+            observeFollowingState(orgId, uid)
         }
     }
 

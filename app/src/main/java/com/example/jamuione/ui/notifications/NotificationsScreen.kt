@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -15,14 +14,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.AppNotification
+import com.example.jamuione.ui.components.EmptyState
+import com.example.jamuione.ui.components.ErrorState
 import com.example.jamuione.util.Resource
 import java.text.SimpleDateFormat
 import java.util.*
@@ -33,17 +32,20 @@ fun NotificationsScreen(
     viewModel: NotificationsViewModel,
     onNavigateToPost: (String) -> Unit,
     onNavigateToNotice: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    showBackArrow: Boolean = true
 ) {
     val notificationsResource by viewModel.notifications.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Notifications") },
+                title = { Text("Alerts") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    if (showBackArrow) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 }
             )
@@ -51,13 +53,17 @@ fun NotificationsScreen(
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
             when (val resource = notificationsResource) {
-                is Resource.Loading -> {
+                is Resource.Loading, is Resource.Idle -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 is Resource.Success -> {
                     val notifications = resource.data ?: emptyList()
                     if (notifications.isEmpty()) {
-                        EmptyNotifications()
+                        EmptyState(
+                            icon = Icons.Default.NotificationsNone,
+                            title = "No alerts yet",
+                            message = "Official announcements for your area will show up here."
+                        )
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(notifications) { notification ->
@@ -77,13 +83,11 @@ fun NotificationsScreen(
                     }
                 }
                 is Resource.Error -> {
-                    Text(
-                        text = resource.message ?: "Unknown error",
-                        modifier = Modifier.padding(16.dp).align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.error
+                    ErrorState(
+                        message = resource.message ?: "Error loading notifications",
+                        onRetry = { viewModel.loadNotifications() }
                     )
                 }
-                else -> {}
             }
         }
     }
@@ -106,7 +110,6 @@ fun NotificationItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon/Profile Image
         if (notification.senderProfileImage != null) {
             AsyncImage(
                 model = notification.senderProfileImage,
@@ -172,28 +175,6 @@ fun NotificationItem(
                 tint = MaterialTheme.colorScheme.outline
             )
         }
-    }
-}
-
-@Composable
-fun EmptyNotifications() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            Icons.Default.NotificationsNone,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "No notifications yet.",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.outline
-        )
     }
 }
 

@@ -128,14 +128,15 @@ class OrganizationRepositoryImpl @Inject constructor(
     override fun followOrganization(orgId: String, userId: String): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
-            val batch = firestore.batch()
-            val orgRef = firestore.collection("organizations").document(orgId)
-            val followerRef = orgRef.collection("followers").document(userId)
-
-            batch.set(followerRef, mapOf("userId" to userId, "followedAt" to System.currentTimeMillis()))
-            batch.update(orgRef, "followerCount", FieldValue.increment(1))
-
-            batch.commit().await()
+            firestore.runTransaction { transaction ->
+                val orgRef = firestore.collection("organizations").document(orgId)
+                val followerRef = orgRef.collection("followers").document(userId)
+                val snapshot = transaction.get(followerRef)
+                if (!snapshot.exists()) {
+                    transaction.set(followerRef, mapOf("userId" to userId, "followedAt" to System.currentTimeMillis()))
+                    transaction.update(orgRef, "followerCount", FieldValue.increment(1))
+                }
+            }.await()
             emit(Resource.Success(true))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to follow"))
@@ -145,14 +146,15 @@ class OrganizationRepositoryImpl @Inject constructor(
     override fun unfollowOrganization(orgId: String, userId: String): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
         try {
-            val batch = firestore.batch()
-            val orgRef = firestore.collection("organizations").document(orgId)
-            val followerRef = orgRef.collection("followers").document(userId)
-
-            batch.delete(followerRef)
-            batch.update(orgRef, "followerCount", FieldValue.increment(-1))
-
-            batch.commit().await()
+            firestore.runTransaction { transaction ->
+                val orgRef = firestore.collection("organizations").document(orgId)
+                val followerRef = orgRef.collection("followers").document(userId)
+                val snapshot = transaction.get(followerRef)
+                if (snapshot.exists()) {
+                    transaction.delete(followerRef)
+                    transaction.update(orgRef, "followerCount", FieldValue.increment(-1))
+                }
+            }.await()
             emit(Resource.Success(true))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to unfollow"))

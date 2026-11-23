@@ -100,7 +100,7 @@ fun ProfileSetupScreen(
                 company = user.company ?: ""
                 bio = user.bio ?: ""
                 isBloodDonor = user.isBloodDonor
-                showInCommunity = user.showInCommunity
+                showInCommunity = if (user.profileCompleted) user.showInCommunity else false
                 sameAsCurrent = nativeState.equals(state, ignoreCase = true) && nativeDistrict.equals(district, ignoreCase = true)
 
                 hasInitializedFromProfile = true

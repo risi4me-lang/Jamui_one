@@ -20,7 +20,7 @@ data class User(
     val profileImage: String? = null,
     val role: String = "user",
     val profileCompleted: Boolean = false,
-    val showInCommunity: Boolean = true,
+    val showInCommunity: Boolean = false,
     val fcmToken: String? = null,
     @get:PropertyName("isVerified")
     @set:PropertyName("isVerified")

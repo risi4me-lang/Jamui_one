@@ -28,6 +28,7 @@ import com.example.jamuione.ui.auth.AuthViewModel
 import com.example.jamuione.ui.components.AnimateIn
 import com.example.jamuione.util.BrandingUtil
 import com.example.jamuione.util.Resource
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,11 +46,14 @@ fun CommunitiesScreen(
 ) {
     val userProfileState by authViewModel.userProfile.collectAsState()
     val user = (userProfileState as? Resource.Success)?.data
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("People", "Organizations")
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Communities", style = MaterialTheme.typography.titleLarge) },
@@ -80,7 +84,9 @@ fun CommunitiesScreen(
                 if (selectedTab == 0) {
                     PeopleTab(user, onNavigateToNativeCommunity, onNavigateToLocalityCommunity, onNavigateToDistrictCommunity)
                 } else {
-                    OrganizationsTab(orgViewModel, user, onNavigateToCreateOrg, onNavigateToOrgDashboard, onNavigateToOrgProfile)
+                    OrganizationsTab(orgViewModel, user, onNavigateToCreateOrg, onNavigateToOrgDashboard, onNavigateToOrgProfile) { msg ->
+                        scope.launch { snackbarHostState.showSnackbar(msg) }
+                    }
                 }
             }
         }
@@ -264,7 +270,8 @@ fun OrganizationsTab(
     user: com.example.jamuione.domain.model.User,
     onNavigateToCreateOrg: () -> Unit,
     onNavigateToOrgDashboard: (String) -> Unit,
-    onNavigateToOrgProfile: (String) -> Unit
+    onNavigateToOrgProfile: (String) -> Unit,
+    onFollowError: (String) -> Unit
 ) {
     val discoveryOrgs by viewModel.discoveryOrgs.collectAsState()
     val managedOrgsResource by viewModel.managedOrgs.collectAsState()
@@ -314,7 +321,7 @@ fun OrganizationsTab(
                 OrganizationCard(
                     org = org,
                     isFollowing = isFollowingMap[org.organizationId] ?: false,
-                    onFollowClick = { viewModel.toggleFollow(org.organizationId) },
+                    onFollowClick = { viewModel.toggleFollow(org.organizationId, onFollowError) },
                     onClick = { onNavigateToOrgDashboard(org.organizationId) }
                 )
             }
@@ -344,7 +351,7 @@ fun OrganizationsTab(
                         OrganizationCard(
                             org = org,
                             isFollowing = isFollowingMap[org.organizationId] ?: false,
-                            onFollowClick = { viewModel.toggleFollow(org.organizationId) },
+                            onFollowClick = { viewModel.toggleFollow(org.organizationId, onFollowError) },
                             onClick = { 
                                 if (org.createdBy == user.uid) {
                                     onNavigateToOrgDashboard(org.organizationId)

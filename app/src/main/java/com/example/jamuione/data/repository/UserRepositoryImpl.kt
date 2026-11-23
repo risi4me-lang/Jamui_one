@@ -47,7 +47,7 @@ class UserRepositoryImpl @Inject constructor(
                 return@addSnapshotListener
             }
             if (snapshot != null && snapshot.exists()) {
-                if (snapshot.contains("email")) {
+                if (uid == firebaseAuth.currentUser?.uid && snapshot.contains("email")) {
                     snapshot.reference.update("email", com.google.firebase.firestore.FieldValue.delete())
                 }
                 val user = snapshot.toObject(User::class.java)

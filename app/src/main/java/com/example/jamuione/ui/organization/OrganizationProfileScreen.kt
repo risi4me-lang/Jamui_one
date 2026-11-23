@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.OrganizationAnnouncement
 import com.example.jamuione.util.Resource
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -33,6 +34,8 @@ fun OrganizationProfileScreen(
     val orgResource by viewModel.selectedOrg.collectAsState()
     val announcementsResource by viewModel.announcements.collectAsState()
     val isFollowingMap by viewModel.isFollowingMap.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(orgId) {
         viewModel.loadOrganizationDetails(orgId)
@@ -42,6 +45,7 @@ fun OrganizationProfileScreen(
     val isFollowing = isFollowingMap[orgId] ?: false
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -153,7 +157,11 @@ fun OrganizationProfileScreen(
                                     }
 
                                     Button(
-                                        onClick = { viewModel.toggleFollow(orgId) },
+                                        onClick = { 
+                                            viewModel.toggleFollow(orgId) { msg ->
+                                                scope.launch { snackbarHostState.showSnackbar(msg) }
+                                            }
+                                        },
                                         colors = if (isFollowing) {
                                             ButtonDefaults.buttonColors(
                                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
