@@ -353,7 +353,7 @@ fun EmptyCommunityState(district: String) {
             Button(
                 onClick = {
                     val communityName = com.example.jamuione.util.BrandingUtil.getCommunityName(district)
-                    val inviteMessage = "Join me on $communityName — the local community app for people from $district! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
+                    val inviteMessage = "Join me on $communityName — the local community app for people from $district! Download here: https://play.google.com/store/apps/details?id=${com.example.jamuione.BuildConfig.APPLICATION_ID}"
                     val sendIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, inviteMessage)

@@ -185,7 +185,7 @@ fun UserDetailContent(
                 
                 OutlinedButton(
                     onClick = { 
-                        val shareText = "Check out ${user.name}'s profile on District One! Download here: https://play.google.com/store/apps/details?id=com.example.jamuione"
+                        val shareText = "Check out ${user.name}'s profile on District One! Download here: https://play.google.com/store/apps/details?id=${com.example.jamuione.BuildConfig.APPLICATION_ID}"
                         val sendIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, shareText)

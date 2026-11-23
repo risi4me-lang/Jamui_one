@@ -388,7 +388,7 @@ fun PostCard(
                                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                             type = "image/png"
                                             putExtra(Intent.EXTRA_STREAM, uri)
-                                            putExtra(Intent.EXTRA_TEXT, "Shared from District One")
+                                            putExtra(Intent.EXTRA_TEXT, "Shared from District One - https://play.google.com/store/apps/details?id=${com.example.jamuione.BuildConfig.APPLICATION_ID}")
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         }
                                         context.startActivity(Intent.createChooser(shareIntent, "Share post"))
@@ -401,7 +401,7 @@ fun PostCard(
                             } else {
                                 val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, "${post.content}\n\nShared from District One")
+                                    putExtra(Intent.EXTRA_TEXT, "${post.content}\n\nShared from District One - https://play.google.com/store/apps/details?id=${com.example.jamuione.BuildConfig.APPLICATION_ID}")
                                 }
                                 context.startActivity(Intent.createChooser(sendIntent, "Share post"))
                             }
