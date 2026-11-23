@@ -9,6 +9,7 @@ import com.example.jamuione.domain.model.User
 import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.domain.repository.UserRepository
 import com.example.jamuione.util.Resource
+import com.example.jamuione.util.TopicManager
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.firestore.FirebaseFirestore
@@ -35,7 +36,8 @@ sealed class AuthState {
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userRepository: UserRepository,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val topicManager: TopicManager
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -229,6 +231,9 @@ class AuthViewModel @Inject constructor(
                         return@collectLatest
                     }
                     _userProfile.value = resource
+                    if (resource is Resource.Success && resource.data != null) {
+                        topicManager.updateTopics(resource.data)
+                    }
                 }
             }
         } else {
@@ -287,6 +292,7 @@ class AuthViewModel @Inject constructor(
             updatedAt = System.currentTimeMillis()
         )
         viewModelScope.launch {
+            topicManager.updateTopics(user)
             userRepository.saveUserProfile(user).collectLatest { resource ->
                 Log.d("AUTH_TRACE", "Firestore profile save result emission: $resource")
                 _profileSaved.value = resource
