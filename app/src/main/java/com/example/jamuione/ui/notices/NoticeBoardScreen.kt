@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -40,10 +41,10 @@ import androidx.compose.ui.util.fastFirstOrNull
 import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.Notice
 import com.example.jamuione.ui.notices.NoticeViewModel
-import com.example.jamuione.ui.components.HomeHeader
+import com.example.jamuione.ui.components.CompactTopBar
+import com.example.jamuione.ui.components.OfficialUpdatesRow
 import com.example.jamuione.ui.components.PostSkeletonLoader
-import com.example.jamuione.ui.feed.FeedScope
-import com.example.jamuione.ui.feed.ScopeSelector
+import com.example.jamuione.ui.components.ScopeSelector
 import com.example.jamuione.util.BrandingUtil
 import com.example.jamuione.util.Resource
 import kotlinx.coroutines.launch
@@ -103,7 +104,20 @@ fun NoticeBoardScreen(
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            CompactTopBar(
+                user = userProfile.data,
+                currentScope = currentScope,
+                onScopeSelected = { viewModel.setScope(it) },
+                searchQuery = searchQuery,
+                onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                scrollBehavior = scrollBehavior
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         LazyColumn(
@@ -112,42 +126,6 @@ fun NoticeBoardScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            item {
-                HomeHeader(
-                    user = userProfile.data,
-                    memberCount = memberCount,
-                    unreadCount = unreadCount,
-                    onNotificationsClick = onNavigateToNotifications,
-                    onProfileClick = onProfileClick
-                )
-            }
-
-            item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.setSearchQuery(it) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    placeholder = { Text("Search events...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear")
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    shape = CircleShape,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
-                )
-            }
-
             item {
                 ScopeSelector(
                     selectedScope = currentScope,
@@ -162,6 +140,10 @@ fun NoticeBoardScreen(
                     selectedCategory = selectedCategory,
                     onCategorySelected = { viewModel.setCategory(it) }
                 )
+            }
+
+            item {
+                OfficialUpdatesRow()
             }
 
             if (noticesResource is Resource.Loading) {

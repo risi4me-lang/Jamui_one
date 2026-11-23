@@ -3,26 +3,21 @@ package com.example.jamuione.ui.feed
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PostAdd
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
-import com.example.jamuione.ui.components.HomeHeader
+import com.example.jamuione.ui.components.CompactTopBar
+import com.example.jamuione.ui.components.OfficialUpdatesRow
+import com.example.jamuione.ui.components.ScopeSelector
 import com.example.jamuione.ui.components.PostSkeletonLoader
 import com.example.jamuione.util.Resource
 import kotlinx.coroutines.delay
@@ -46,8 +41,6 @@ fun FeedScreen(
     val currentScope by viewModel.currentScope.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
-    val memberCount by viewModel.memberCount.collectAsState()
-    val unreadCount by viewModel.unreadCount.collectAsState()
     val postAuthors by viewModel.postAuthors.collectAsState()
     val deleteResult by viewModel.deletePostResult.collectAsState()
     val reportResult by viewModel.reportPostResult.collectAsState()
@@ -84,7 +77,20 @@ fun FeedScreen(
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            CompactTopBar(
+                user = userProfile.data,
+                currentScope = currentScope,
+                onScopeSelected = { viewModel.setScope(it) },
+                searchQuery = searchQuery,
+                onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                scrollBehavior = scrollBehavior
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         LazyColumn(
@@ -94,46 +100,15 @@ fun FeedScreen(
                 .fillMaxSize()
         ) {
             item {
-                HomeHeader(
-                    user = userProfile.data,
-                    memberCount = memberCount,
-                    unreadCount = unreadCount,
-                    onNotificationsClick = onNavigateToNotifications,
-                    onProfileClick = onProfileClick
-                )
-            }
-
-            item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.setSearchQuery(it) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    placeholder = { Text("Search posts...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear")
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = CircleShape,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
-                )
-            }
-
-            item {
                 ScopeSelector(
                     selectedScope = currentScope,
                     nativeDistrict = userProfile.data?.nativeDistrict,
                     onScopeSelected = { viewModel.setScope(it) }
                 )
+            }
+
+            item {
+                OfficialUpdatesRow()
             }
 
             if (postsResource is Resource.Loading) {
@@ -201,50 +176,6 @@ fun FeedScreen(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun ScopeSelector(
-    selectedScope: FeedScope,
-    nativeDistrict: String?,
-    onScopeSelected: (FeedScope) -> Unit
-) {
-    ScrollableTabRow(
-        selectedTabIndex = selectedScope.ordinal,
-        edgePadding = 16.dp,
-        containerColor = Color.Transparent,
-        divider = {},
-        indicator = {}
-    ) {
-        FeedScope.entries.forEach { scope ->
-            if (scope == FeedScope.NATIVE_DISTRICT && nativeDistrict == null) return@forEach
-            
-            val label = when (scope) {
-                FeedScope.LOCALITY -> "My Locality"
-                FeedScope.DISTRICT -> "My District"
-                FeedScope.STATE -> "My State"
-                FeedScope.NATIVE_DISTRICT -> "From $nativeDistrict"
-            }
-            
-            Tab(
-                selected = selectedScope == scope,
-                onClick = { onScopeSelected(scope) },
-                modifier = Modifier
-                    .padding(vertical = 8.dp, horizontal = 4.dp)
-                    .background(
-                        color = if (selectedScope == scope) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                        shape = CircleShape
-                    ),
-                text = {
-                    Text(
-                        text = label,
-                        color = if (selectedScope == scope) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            )
         }
     }
 }
