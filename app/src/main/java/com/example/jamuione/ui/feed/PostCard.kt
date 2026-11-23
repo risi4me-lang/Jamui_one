@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -24,30 +25,33 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.domain.model.User
+import com.example.jamuione.util.RelativeTime
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
@@ -69,9 +73,9 @@ fun PostCard(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(20.dp)
         ) {
             Text(
                 text = "This post has been deleted.",
@@ -91,9 +95,33 @@ fun PostCard(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val graphicsLayer = rememberGraphicsLayer()
+    val haptic = LocalHapticFeedback.current
 
     var isImageLoaded by remember { mutableStateOf(post.imageUrl.isNullOrEmpty()) }
     var isSharing by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
+    var showReadMore by remember { mutableStateOf(false) }
+
+    // Shimmer for image placeholder
+    val transition = rememberInfiniteTransition(label = "postcard_shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_translate"
+    )
+    val shimmerBrush = Brush.linearGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+        ),
+        start = Offset.Zero,
+        end = Offset(x = translateAnim, y = translateAnim)
+    )
 
     // Animations
     val likeScale by animateFloatAsState(
@@ -184,16 +212,29 @@ fun PostCard(
         ShareableCard(post = post, authorProfile = authorProfile)
     }
 
+    val primaryColor = MaterialTheme.colorScheme.primary
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .then(
+                if (post.isOfficial) {
+                    Modifier.drawBehind {
+                        drawRect(
+                            color = primaryColor,
+                            size = androidx.compose.ui.geometry.Size(2.dp.toPx(), size.height)
+                        )
+                    }
+                } else Modifier
+            )
             .clickable { onDetailClick() },
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             val authorName = post.organizationName ?: post.userName
@@ -229,15 +270,18 @@ fun PostCard(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Text(
                             text = authorName,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.clickable { onAuthorClick(post.userId) }
                         )
                         if (post.isVerified || post.organizationId != null) {
-                            Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Default.Verified,
                                 contentDescription = "Verified",
@@ -245,128 +289,186 @@ fun PostCard(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                    }
-                    
-                    if (authorProfile?.profession?.isNotBlank() == true) {
-                        Text(
-                            text = authorProfile.profession,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
+                        if (post.isOfficial) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = "Official",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                     
                     val displayLocality = post.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-                    val metaText = if (post.organizationType != null) "${post.organizationType} • $displayLocality" else "$displayLocality • ${formatTimestamp(post.timestamp)}"
+                    val profession = authorProfile?.profession?.takeIf { it.isNotBlank() }
+                    val subtitle = if (profession != null) "$profession · $displayLocality" else displayLocality
                     
                     Text(
-                        text = metaText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options",
-                            tint = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        if (post.userId == currentUserId) {
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = RelativeTime.format(post.timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Box {
+                        IconButton(onClick = { showMenu = true }, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Options",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            if (post.userId == currentUserId) {
+                                DropdownMenuItem(
+                                    text = { Text("Delete") },
+                                    onClick = {
+                                        showMenu = false
+                                        showDeleteDialog = true
+                                    }
+                                )
+                            }
+
                             DropdownMenuItem(
-                                text = { Text("Delete") },
+                                text = { Text("Report") },
                                 onClick = {
                                     showMenu = false
-                                    showDeleteDialog = true
+                                    showReportDialog = true
                                 }
                             )
                         }
-                        
-                        DropdownMenuItem(
-                            text = { Text("Report") },
-                            onClick = {
-                                showMenu = false
-                                showReportDialog = true
-                            }
-                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = post.content,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
 
-            if (!post.imageUrl.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                AsyncImage(
-                    model = post.imageUrl,
-                    contentDescription = "Post Image",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 400.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop,
-                    onState = { state ->
-                        if (state is AsyncImagePainter.State.Success) {
-                            isImageLoaded = true
+            Column {
+                Text(
+                    text = post.content,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = if (expanded) Int.MAX_VALUE else 6,
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { result ->
+                        if (!expanded && result.hasVisualOverflow) {
+                            showReadMore = true
                         }
                     }
                 )
+                if (showReadMore && !expanded) {
+                    TextButton(
+                        onClick = { expanded = true },
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = "Read more",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            if (!post.imageUrl.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .clip(RoundedCornerShape(16.dp))
+                ) {
+                    AsyncImage(
+                        model = post.imageUrl,
+                        contentDescription = "Post Image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(4f / 3f),
+                        contentScale = ContentScale.Crop,
+                        onState = { state ->
+                            if (state is AsyncImagePainter.State.Success) {
+                                isImageLoaded = true
+                            }
+                        }
+                    )
+                    if (!isImageLoaded) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(shimmerBrush)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            Spacer(modifier = Modifier.height(8.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onLikeClick, modifier = Modifier.size(36.dp).scale(likeScale)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLikeClick()
+                        },
+                        modifier = Modifier.size(48.dp).scale(likeScale)
+                    ) {
                         Icon(
                             imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Like",
-                            tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.outline
+                            tint = if (isLiked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Text(
-                        text = if (post.likesCount > 0) "${post.likesCount}" else "Like",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (isLiked) Color.Red else MaterialTheme.colorScheme.outline
-                    )
+                    if (post.likesCount > 0) {
+                        Text(
+                            text = "${post.likesCount}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     
-                    Spacer(modifier = Modifier.width(20.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     
-                    IconButton(onClick = onCommentClick, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = onCommentClick, modifier = Modifier.size(48.dp)) {
                         Icon(
                             imageVector = Icons.Default.ChatBubbleOutline,
                             contentDescription = "Comment",
-                            tint = MaterialTheme.colorScheme.outline
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Text(
                         text = "${post.commentsCount}",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onSaveClick, modifier = Modifier.size(36.dp).scale(saveScale)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(onClick = onSaveClick, modifier = Modifier.size(48.dp).scale(saveScale)) {
                         Icon(
                             imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                             contentDescription = "Save",
-                            tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            tint = if (isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     
@@ -406,7 +508,7 @@ fun PostCard(
                                 context.startActivity(Intent.createChooser(sendIntent, "Share post"))
                             }
                         },
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(48.dp),
                         enabled = !isSharing
                     ) {
                         if (isSharing) {
@@ -415,7 +517,7 @@ fun PostCard(
                             Icon(
                                 imageVector = Icons.Default.Share,
                                 contentDescription = "Share",
-                                tint = MaterialTheme.colorScheme.outline
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -423,9 +525,4 @@ fun PostCard(
             }
         }
     }
-}
-
-private fun formatTimestamp(timestamp: Long): String {
-    val sdf = SimpleDateFormat("MMM dd, hh:mm a", Locale.getDefault())
-    return sdf.format(Date(timestamp))
 }

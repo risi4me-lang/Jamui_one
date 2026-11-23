@@ -9,6 +9,7 @@ data class Post(
     val userName: String = "",
     val userProfileImage: String? = null,
     val isVerified: Boolean = false,
+    val isOfficial: Boolean = false,
     val content: String = "",
     val imageUrl: String? = null,
     val state: String = "",
