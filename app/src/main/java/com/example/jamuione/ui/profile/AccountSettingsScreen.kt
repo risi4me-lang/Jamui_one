@@ -1,5 +1,6 @@
 package com.example.jamuione.ui.profile
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -20,6 +22,7 @@ fun AccountSettingsScreen(
     onDeleteAccount: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteFinalDialog by remember { mutableStateOf(false) }
@@ -124,7 +127,7 @@ fun AccountSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Card(
-                onClick = {},
+                onClick = { Toast.makeText(context, "Language selection coming soon (English / हिन्दी)", Toast.LENGTH_SHORT).show() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
@@ -144,7 +147,7 @@ fun AccountSettingsScreen(
             }
 
             Card(
-                onClick = {},
+                onClick = { Toast.makeText(context, "Notification settings coming soon", Toast.LENGTH_SHORT).show() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
