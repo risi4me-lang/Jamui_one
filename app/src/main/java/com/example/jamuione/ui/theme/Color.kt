@@ -2,54 +2,54 @@ package com.example.jamuione.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Premium Modern Palette
-val PrimaryLight = Color(0xFF4A6572) // Sophisticated Blue-Grey
-val OnPrimaryLight = Color(0xFFFFFFFF)
-val PrimaryContainerLight = Color(0xFFD1E4FF)
-val OnPrimaryContainerLight = Color(0xFF001D36)
-
-val SecondaryLight = Color(0xFF344955)
-val OnSecondaryLight = Color(0xFFFFFFFF)
-val SecondaryContainerLight = Color(0xFFF9AA33) // Accent Yellow-Orange for Youthful feel
-val OnSecondaryContainerLight = Color(0xFF231B00)
-
-val TertiaryLight = Color(0xFF232F34)
-val OnTertiaryLight = Color(0xFFFFFFFF)
-val TertiaryContainerLight = Color(0xFFCFE5FF)
-val OnTertiaryContainerLight = Color(0xFF001D31)
-
-val ErrorLight = Color(0xFFBA1A1A)
-val OnErrorLight = Color(0xFFFFFFFF)
-val ErrorContainerLight = Color(0xFFFFDAD6)
-val OnErrorContainerLight = Color(0xFF410002)
-
-val BackgroundLight = Color(0xFFF7F9FC) // Premium Soft Blue-Grey Background
-val OnBackgroundLight = Color(0xFF191C1E)
-val SurfaceLight = Color(0xFFFFFFFF) // Keep surface white to contrast with background
-val OnSurfaceLight = Color(0xFF191C1E)
-
-// Dark Scheme - Premium feel
-val PrimaryDark = Color(0xFFD1E4FF)
-val OnPrimaryDark = Color(0xFF003258)
-val PrimaryContainerDark = Color(0xFF00497D)
-val OnPrimaryContainerDark = Color(0xFFD1E4FF)
-
-val SecondaryDark = Color(0xFFF9AA33)
-val OnSecondaryDark = Color(0xFF3E2E00)
-val SecondaryContainerDark = Color(0xFF594400)
-val OnSecondaryContainerDark = Color(0xFFFFE08D)
-
-val TertiaryDark = Color(0xFFA5C8FF)
-val OnTertiaryDark = Color(0xFF00315E)
-val TertiaryContainerDark = Color(0xFF004786)
-val OnTertiaryContainerDark = Color(0xFFA5C8FF)
-
-val ErrorDark = Color(0xFFFFB4AB)
-val OnErrorDark = Color(0xFF690005)
+// Dark Palette
+val BackgroundDark = Color(0xFF0E1116)
+val SurfaceDark = Color(0xFF151A21)
+val SurfaceContainerLowDark = Color(0xFF171D25)
+val SurfaceContainerDark = Color(0xFF1B222B)
+val SurfaceContainerHighDark = Color(0xFF232C37)
+val OutlineVariantDark = Color(0xFF2E3844)
+val OnSurfaceDark = Color(0xFFEDEFF3)
+val OnSurfaceVariantDark = Color(0xFF9AA5B4)
+val PrimaryDark = Color(0xFFFFB347)
+val OnPrimaryDark = Color(0xFF2B1A00)
+val PrimaryContainerDark = Color(0xFF3A2A0E)
+val OnPrimaryContainerDark = Color(0xFFFFDDB0)
+val SecondaryDark = Color(0xFF4FD1C5)
+val OnSecondaryDark = Color(0xFF00332E)
+val SecondaryContainerDark = Color(0xFF0F3A37)
+val OnSecondaryContainerDark = Color(0xFFB5F2EC)
+val TertiaryDark = Color(0xFF8AB4FF)
+val OnTertiaryDark = Color(0xFF00224D)
+val TertiaryContainerDark = Color(0xFF003366)
+val OnTertiaryContainerDark = Color(0xFFD6E4FF)
+val ErrorDark = Color(0xFFFF6B6B)
+val OnErrorDark = Color(0xFF410002)
 val ErrorContainerDark = Color(0xFF93000A)
 val OnErrorContainerDark = Color(0xFFFFDAD6)
 
-val BackgroundDark = Color(0xFF191C1E)
-val OnBackgroundDark = Color(0xFFE2E2E6)
-val SurfaceDark = Color(0xFF191C1E)
-val OnSurfaceDark = Color(0xFFE2E2E6)
+// Light Palette
+val BackgroundLight = Color(0xFFFBF8F3)
+val SurfaceLight = Color(0xFFFFFFFF)
+val SurfaceContainerLowLight = Color(0xFFF8F3EB)
+val SurfaceContainerLight = Color(0xFFF4EFE7)
+val SurfaceContainerHighLight = Color(0xFFEDE6DA)
+val OutlineVariantLight = Color(0xFFE5DED2)
+val OnSurfaceLight = Color(0xFF1B1B1F)
+val OnSurfaceVariantLight = Color(0xFF5E6672)
+val PrimaryLight = Color(0xFFE8890C)
+val OnPrimaryLight = Color(0xFF2B1A00)
+val PrimaryContainerLight = Color(0xFFFFE2B8)
+val OnPrimaryContainerLight = Color(0xFF3A2200)
+val SecondaryLight = Color(0xFF0F8F86)
+val OnSecondaryLight = Color(0xFFFFFFFF)
+val SecondaryContainerLight = Color(0xFFCDF3EE)
+val OnSecondaryContainerLight = Color(0xFF00332E)
+val TertiaryLight = Color(0xFF2F6FDB)
+val OnTertiaryLight = Color(0xFFFFFFFF)
+val TertiaryContainerLight = Color(0xFFD6E4FF)
+val OnTertiaryContainerLight = Color(0xFF001D36)
+val ErrorLight = Color(0xFFC62828)
+val OnErrorLight = Color(0xFFFFFFFF)
+val ErrorContainerLight = Color(0xFFFFDAD6)
+val OnErrorContainerLight = Color(0xFF410002)

@@ -263,25 +263,6 @@ fun CategorySelector(
     }
 }
 
-data class CategoryStyle(
-    val icon: ImageVector,
-    val color: Color
-)
-
-@Composable
-fun getCategoryStyle(category: String): CategoryStyle {
-    return when (category.lowercase()) {
-        "blood donation" -> CategoryStyle(Icons.Default.Bloodtype, Color(0xFFE91E63))
-        "event" -> CategoryStyle(Icons.Default.Event, Color(0xFF4CAF50))
-        "help needed" -> CategoryStyle(Icons.Default.Favorite, Color(0xFFF44336))
-        "jobs" -> CategoryStyle(Icons.Default.Work, Color(0xFF2196F3))
-        "rent/flatmate" -> CategoryStyle(Icons.Default.Home, Color(0xFF4CAF50))
-        "buy & sell" -> CategoryStyle(Icons.Default.ShoppingCart, Color(0xFFFF9800))
-        "announcement" -> CategoryStyle(Icons.Default.Announcement, Color(0xFF9C27B0))
-        else -> CategoryStyle(Icons.Default.Info, MaterialTheme.colorScheme.primary)
-    }
-}
-
 @Composable
 fun NoticeItem(
     notice: Notice,
@@ -314,7 +295,7 @@ fun NoticeItem(
         return
     }
 
-    val style = getCategoryStyle(notice.category)
+    val style = com.example.jamuione.ui.theme.categoryStyle(notice.category)
     val displayCategory = notice.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
