@@ -29,7 +29,7 @@ class AuthRepositoryImpl @Inject constructor(
         Log.d("AUTH_TRACE", "Google signup started")
 
         val credentialManager = CredentialManager.create(context)
-        val webClientId = "651764912534-4ipea7aiql5c5j61fomp1r4ou7ph89nj.apps.googleusercontent.com"
+        val webClientId = context.getString(com.example.jamuione.R.string.default_web_client_id)
 
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)

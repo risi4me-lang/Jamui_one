@@ -331,7 +331,12 @@ fun LoginScreen(
                     enabled = authState !is AuthState.Loading && (!isSignUp || ageAcknowledged),
                     border = ButtonDefaults.outlinedButtonBorder(enabled = true)
                 ) {
-                    Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp)) // Placeholder for Google G
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(id = com.example.jamuione.R.drawable.ic_google_g),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = androidx.compose.ui.graphics.Color.Unspecified
+                    )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text("Continue with Google", fontWeight = FontWeight.Medium)
                 }

@@ -165,7 +165,6 @@ class AuthViewModel @Inject constructor(
                     val user = User(
                         uid = firebaseUser.uid,
                         name = (firebaseUser.displayName ?: "").trim(),
-                        email = (firebaseUser.email ?: "").trim(),
                         state = "bihar", // Default state normalized
                         district = "jamui", // Default district normalized
                         locality = "unknown", // Placeholder normalized
@@ -271,7 +270,6 @@ class AuthViewModel @Inject constructor(
         val user = User(
             uid = firebaseUser.uid,
             name = name.trim(),
-            email = (firebaseUser.email ?: "").trim(),
             state = state.trim().lowercase(),
             district = district.trim().lowercase(),
             locality = locality.trim().lowercase(),

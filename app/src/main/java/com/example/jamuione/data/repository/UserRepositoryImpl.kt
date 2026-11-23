@@ -15,6 +15,7 @@ import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -31,6 +32,7 @@ import javax.inject.Inject
 class UserRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val firebaseAuth: FirebaseAuth,
+    private val storage: FirebaseStorage,
     private val userDao: UserDao
 ) : UserRepository {
 
@@ -45,6 +47,9 @@ class UserRepositoryImpl @Inject constructor(
                 return@addSnapshotListener
             }
             if (snapshot != null && snapshot.exists()) {
+                if (snapshot.contains("email")) {
+                    snapshot.reference.update("email", com.google.firebase.firestore.FieldValue.delete())
+                }
                 val user = snapshot.toObject(User::class.java)
                 user?.let {
                     repositoryScope.launch {
@@ -90,7 +95,6 @@ class UserRepositoryImpl @Inject constructor(
             val editable = mapOf(
                 "uid" to finalUser.uid,
                 "name" to finalUser.name,
-                "email" to finalUser.email,
                 "state" to finalUser.state,
                 "district" to finalUser.district,
                 "locality" to finalUser.locality,
@@ -264,7 +268,25 @@ class UserRepositoryImpl @Inject constructor(
         emit(Resource.Loading())
         try {
             val timestamp = System.currentTimeMillis()
-            // TODO: clean up Storage images (profile + post photos) for this user
+            
+            // Delete user's post images from Storage
+            try {
+                val postsForStorage = firestore.collection("posts")
+                    .whereEqualTo("userId", uid)
+                    .get().await()
+                postsForStorage.documents.forEach { doc ->
+                    val imageUrl = doc.getString("imageUrl")
+                    if (!imageUrl.isNullOrBlank()) {
+                        try {
+                            storage.getReferenceFromUrl(imageUrl).delete().await()
+                        } catch (e: Exception) {
+                            Log.w("USER_DELETE", "Failed to delete post image $imageUrl: ${e.message}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("USER_DELETE", "Failed to query user posts for storage cleanup: ${e.message}")
+            }
             
             // Delete user document subcollections
             val savedPostsSnapshot = firestore.collection("users").document(uid)

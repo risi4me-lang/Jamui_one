@@ -1,5 +1,6 @@
 package com.example.jamuione.data.repository
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.example.jamuione.data.local.dao.PostDao
@@ -8,12 +9,16 @@ import com.example.jamuione.domain.model.Comment
 import com.example.jamuione.domain.model.Like
 import com.example.jamuione.domain.model.Post
 import com.example.jamuione.domain.repository.PostRepository
+import com.example.jamuione.util.ImageCompressor
 import com.example.jamuione.util.Resource
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.storageMetadata
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -32,7 +37,9 @@ import javax.inject.Inject
 class PostRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage,
-    private val postDao: PostDao
+    private val firebaseAuth: FirebaseAuth,
+    private val postDao: PostDao,
+    @ApplicationContext private val context: Context
 ) : PostRepository {
 
     private val repositoryScope = CoroutineScope(Dispatchers.IO)
@@ -106,10 +113,15 @@ class PostRepositoryImpl @Inject constructor(
             var imageUrl: String? = null
             if (imageUri != null) {
                 Log.d("POST_DEBUG", "createPost: uploading image")
+                val compressedUri = ImageCompressor.compressImage(context, imageUri, 1280)
                 val fileName = UUID.randomUUID().toString()
                 val ref = storage.reference.child("post_images/$fileName")
+                val currentUid = firebaseAuth.currentUser?.uid ?: ""
+                val metadata = storageMetadata {
+                    setCustomMetadata("ownerUid", currentUid)
+                }
                 withTimeout(30000L) {
-                    ref.putFile(imageUri).await()
+                    ref.putFile(compressedUri, metadata).await()
                     imageUrl = ref.downloadUrl.await().toString()
                 }
                 Log.d("POST_DEBUG", "createPost: image uploaded, url=$imageUrl")

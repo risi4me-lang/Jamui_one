@@ -1,13 +1,18 @@
 package com.example.jamuione.data.repository
 
+import android.content.Context
 import android.net.Uri
 import com.example.jamuione.domain.model.*
 import com.example.jamuione.domain.repository.OrganizationRepository
+import com.example.jamuione.util.ImageCompressor
 import com.example.jamuione.util.Resource
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.storageMetadata
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -19,7 +24,9 @@ import javax.inject.Inject
 
 class OrganizationRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    private val firebaseAuth: FirebaseAuth,
+    @ApplicationContext private val context: Context
 ) : OrganizationRepository {
 
     override fun createOrganization(organization: Organization, logoUri: Uri?): Flow<Resource<String>> = flow {
@@ -29,8 +36,13 @@ class OrganizationRepositoryImpl @Inject constructor(
             var logoUrl: String? = null
             
             if (logoUri != null) {
+                val compressedUri = ImageCompressor.compressImage(context, logoUri, 512)
                 val ref = storage.reference.child("org_logos/$orgId")
-                ref.putFile(logoUri).await()
+                val currentUid = firebaseAuth.currentUser?.uid ?: ""
+                val metadata = storageMetadata {
+                    setCustomMetadata("ownerUid", currentUid)
+                }
+                ref.putFile(compressedUri, metadata).await()
                 logoUrl = ref.downloadUrl.await().toString()
             }
 
@@ -162,8 +174,13 @@ class OrganizationRepositoryImpl @Inject constructor(
             val annId = UUID.randomUUID().toString()
             var imageUrl: String? = null
             if (imageUri != null) {
+                val compressedUri = ImageCompressor.compressImage(context, imageUri, 1280)
                 val ref = storage.reference.child("org_announcements/$annId")
-                ref.putFile(imageUri).await()
+                val currentUid = firebaseAuth.currentUser?.uid ?: ""
+                val metadata = storageMetadata {
+                    setCustomMetadata("ownerUid", currentUid)
+                }
+                ref.putFile(compressedUri, metadata).await()
                 imageUrl = ref.downloadUrl.await().toString()
             }
 
