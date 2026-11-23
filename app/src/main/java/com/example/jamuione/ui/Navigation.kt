@@ -5,10 +5,12 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.outlined.Assignment
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.*
@@ -16,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -104,6 +107,8 @@ sealed interface Destination : NavKey {
     data object TermsOfService : Destination
     @Serializable
     data class PostDetail(val postId: String) : Destination
+    @Serializable
+    data class CreateNoticeCategory(val category: String) : Destination
 }
 
 @Composable
@@ -350,6 +355,14 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
             )
         }
+        entry<Destination.CreateNoticeCategory> { key ->
+            val noticeViewModel: NoticeViewModel = viewModel()
+            CreateNoticeScreen(
+                viewModel = noticeViewModel,
+                preselectedCategory = key.category,
+                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+            )
+        }
         entry<Destination.CreateOrganization> {
             val orgViewModel: OrganizationViewModel = viewModel()
             CreateOrganizationScreen(
@@ -401,6 +414,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdaptiveScaffoldWrapper(
     currentDestination: Destination,
@@ -408,34 +422,287 @@ fun AdaptiveScaffoldWrapper(
     snackbarHost: @Composable () -> Unit = {},
     content: @Composable () -> Unit
 ) {
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            item(
-                selected = currentDestination is Destination.MainFeed,
-                onClick = { onNavigate(Destination.MainFeed()) },
-                icon = { Icon(Icons.Default.Home, contentDescription = "Feed") },
-                label = { Text("Feed") }
-            )
-            item(
-                selected = currentDestination is Destination.NoticeBoard,
-                onClick = { onNavigate(Destination.NoticeBoard()) },
-                icon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = "Events") },
-                label = { Text("Events") }
-            )
-            item(
-                selected = currentDestination == Destination.Profile,
-                onClick = { onNavigate(Destination.Profile) },
-                icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-                label = { Text("Profile") }
-            )
+    var showCreateSheet by remember { mutableStateOf(false) }
+    val notificationsViewModel: NotificationsViewModel = viewModel()
+    val hasUnread by notificationsViewModel.hasUnread.collectAsState()
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                // 1. Home
+                val isHomeSelected = currentDestination is Destination.MainFeed
+                NavigationBarItem(
+                    selected = isHomeSelected,
+                    onClick = { onNavigate(Destination.MainFeed()) },
+                    icon = {
+                        Icon(
+                            imageVector = if (isHomeSelected) Icons.Default.Home else Icons.Outlined.Home,
+                            contentDescription = "Home"
+                        )
+                    },
+                    label = { 
+                        Text(
+                            text = "Home", 
+                            color = if (isHomeSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        ) 
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    )
+                )
+
+                // 2. Board
+                val isBoardSelected = currentDestination is Destination.NoticeBoard
+                NavigationBarItem(
+                    selected = isBoardSelected,
+                    onClick = { onNavigate(Destination.NoticeBoard()) },
+                    icon = {
+                        Icon(
+                            imageVector = if (isBoardSelected) Icons.AutoMirrored.Filled.Assignment else Icons.AutoMirrored.Outlined.Assignment,
+                            contentDescription = "Board"
+                        )
+                    },
+                    label = { 
+                        Text(
+                            text = "Board", 
+                            color = if (isBoardSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        ) 
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    )
+                )
+
+                // 3. Create (Centre Button)
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { showCreateSheet = true },
+                    icon = {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(46.dp),
+                            shadowElevation = 4.dp
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Add, contentDescription = "Create", modifier = Modifier.size(24.dp))
+                            }
+                        }
+                    },
+                    label = { 
+                        Text(
+                            text = "Create",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        ) 
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        indicatorColor = Color.Transparent
+                    )
+                )
+
+                // 4. Alerts
+                val isAlertsSelected = currentDestination is Destination.Notifications
+                NavigationBarItem(
+                    selected = isAlertsSelected,
+                    onClick = { onNavigate(Destination.Notifications) },
+                    icon = {
+                        BadgedBox(
+                            badge = {
+                                if (hasUnread) {
+                                    Badge(modifier = Modifier.size(8.dp))
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (isAlertsSelected) Icons.Default.Notifications else Icons.Outlined.Notifications,
+                                contentDescription = "Alerts"
+                            )
+                        }
+                    },
+                    label = { 
+                        Text(
+                            text = "Alerts", 
+                            color = if (isAlertsSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        ) 
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    )
+                )
+
+                // 5. Profile
+                val isProfileSelected = currentDestination == Destination.Profile
+                NavigationBarItem(
+                    selected = isProfileSelected,
+                    onClick = { onNavigate(Destination.Profile) },
+                    icon = {
+                        Icon(
+                            imageVector = if (isProfileSelected) Icons.Default.Person else Icons.Outlined.Person,
+                            contentDescription = "Profile"
+                        )
+                    },
+                    label = { 
+                        Text(
+                            text = "Profile", 
+                            color = if (isProfileSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        ) 
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                    )
+                )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
-    ) {
-        Box {
+    ) { innerPadding ->
+        Box(modifier = Modifier.padding(innerPadding)) {
             content()
             Box(modifier = Modifier.align(Alignment.BottomCenter)) {
                 snackbarHost()
             }
+        }
+    }
+
+    if (showCreateSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showCreateSheet = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "What do you want to share?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                CreateActionRow(
+                    icon = Icons.Default.PostAdd,
+                    title = "Post",
+                    subtitle = "Share updates with your community",
+                    onClick = {
+                        showCreateSheet = false
+                        onNavigate(Destination.CreatePost)
+                    }
+                )
+                CreateActionRow(
+                    icon = Icons.Default.Campaign,
+                    title = "Notice",
+                    subtitle = "Post announcements and events",
+                    onClick = {
+                        showCreateSheet = false
+                        onNavigate(Destination.CreateNotice)
+                    }
+                )
+                CreateActionRow(
+                    icon = Icons.Default.Bloodtype,
+                    title = "Blood request",
+                    subtitle = "Request or offer blood donations",
+                    onClick = {
+                        showCreateSheet = false
+                        onNavigate(Destination.CreateNoticeCategory("Blood Donation"))
+                    }
+                )
+                CreateActionRow(
+                    icon = Icons.Default.Search,
+                    title = "Lost & Found",
+                    subtitle = "Report lost or found items",
+                    onClick = {
+                        showCreateSheet = false
+                        onNavigate(Destination.CreateNoticeCategory("Lost & Found"))
+                    }
+                )
+                CreateActionRow(
+                    icon = Icons.Default.Home,
+                    title = "Rent / Flatmate",
+                    subtitle = "List housing or flatmate requirements",
+                    onClick = {
+                        showCreateSheet = false
+                        onNavigate(Destination.CreateNoticeCategory("Rent/Flatmate"))
+                    }
+                )
+                CreateActionRow(
+                    icon = Icons.Default.ShoppingCart,
+                    title = "Buy & Sell",
+                    subtitle = "List items for sale or request items",
+                    onClick = {
+                        showCreateSheet = false
+                        onNavigate(Destination.CreateNoticeCategory("Buy & Sell"))
+                    }
+                )
+                CreateActionRow(
+                    icon = Icons.Default.Favorite,
+                    title = "Help needed",
+                    subtitle = "Ask for assistance or support",
+                    onClick = {
+                        showCreateSheet = false
+                        onNavigate(Destination.CreateNoticeCategory("Help Needed"))
+                    }
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun CreateActionRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
         }
     }
 }

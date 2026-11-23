@@ -7,9 +7,7 @@ import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.domain.repository.NotificationRepository
 import com.example.jamuione.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,6 +19,16 @@ class NotificationsViewModel @Inject constructor(
 
     private val _notifications = MutableStateFlow<Resource<List<AppNotification>>>(Resource.Idle())
     val notifications: StateFlow<Resource<List<AppNotification>>> = _notifications
+
+    val hasUnread: StateFlow<Boolean> = authRepository.getCurrentUser()?.uid?.let { uid ->
+        notificationRepository.getUnreadCount(uid)
+            .map { count -> count > 0 }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = false
+            )
+    } ?: MutableStateFlow(false)
 
     init {
         loadNotifications()

@@ -27,11 +27,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun CreateNoticeScreen(
     viewModel: NoticeViewModel,
+    preselectedCategory: String? = null,
     onBack: () -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Announcement") }
+    var selectedCategory by remember { mutableStateOf(preselectedCategory ?: "Announcement") }
     var contactNumber by remember { mutableStateOf("") }
     var daysToExpiry by remember { mutableIntStateOf(7) }
     
