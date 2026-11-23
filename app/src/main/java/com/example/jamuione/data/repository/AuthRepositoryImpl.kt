@@ -10,7 +10,11 @@ import com.example.jamuione.domain.repository.AuthRepository
 import com.example.jamuione.util.Resource
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.TimeoutCancellationException
@@ -23,6 +27,16 @@ import javax.inject.Inject
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth
 ) : AuthRepository {
+
+    private fun mapFirebaseException(e: Exception): String {
+        return when (e) {
+            is FirebaseAuthInvalidUserException -> "No account found for this email"
+            is FirebaseAuthInvalidCredentialsException -> "Enter a valid email address"
+            is FirebaseTooManyRequestsException -> "Too many attempts. Try again in a few minutes."
+            is FirebaseNetworkException -> "No internet connection"
+            else -> e.message ?: "Authentication failed"
+        }
+    }
 
     override fun signInWithGoogle(context: Context): Flow<Resource<FirebaseUser>> = flow {
         emit(Resource.Loading())
@@ -79,7 +93,7 @@ class AuthRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e("AUTH_TRACE", "Firebase Google signup failed", e)
-            emit(Resource.Error(e.message ?: "Google Sign-In failed"))
+            emit(Resource.Error(mapFirebaseException(e)))
         }
     }
 
@@ -99,7 +113,7 @@ class AuthRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e("AUTH_TRACE", "Firebase login failed", e)
-            emit(Resource.Error(e.message ?: "Login failed"))
+            emit(Resource.Error(mapFirebaseException(e)))
         }
     }
 
@@ -129,7 +143,7 @@ class AuthRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e("AUTH_TRACE", "Firebase signup failed", e)
-            emit(Resource.Error(e.message ?: "Registration failed"))
+            emit(Resource.Error(mapFirebaseException(e)))
         }
     }
 
@@ -143,7 +157,7 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: TimeoutCancellationException) {
             emit(Resource.Error("Taking longer than usual — please try again."))
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to send reset email"))
+            emit(Resource.Error(mapFirebaseException(e)))
         }
     }
 
@@ -159,7 +173,7 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: TimeoutCancellationException) {
             emit(Resource.Error("Verification request timed out. Please try again."))
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to send verification email"))
+            emit(Resource.Error(mapFirebaseException(e)))
         }
     }
 

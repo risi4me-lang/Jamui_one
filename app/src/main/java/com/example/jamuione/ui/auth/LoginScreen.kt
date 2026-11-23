@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.jamuione.util.BrandingUtil
 import com.example.jamuione.util.Resource
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -43,6 +45,7 @@ fun LoginScreen(
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -51,23 +54,34 @@ fun LoginScreen(
     var ageAcknowledged by remember { mutableStateOf(false) }
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
+    var resendCooldown by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Authenticated) {
-            snackbarHostState.showSnackbar("Welcome back!")
             onAuthSuccess()
         }
     }
 
     LaunchedEffect(passwordResetState) {
         if (passwordResetState is Resource.Success) {
-            snackbarHostState.showSnackbar("Password reset email sent — check your inbox")
-            viewModel.resetPasswordResetState()
             showForgotPasswordDialog = false
+            viewModel.resetPasswordResetState()
+            scope.launch {
+                snackbarHostState.showSnackbar("If an account exists for this email, a reset link is on its way. Check Spam too.")
+            }
+            resendCooldown = 60
+        }
+    }
+
+    LaunchedEffect(resendCooldown) {
+        if (resendCooldown > 0) {
+            delay(1000L)
+            resendCooldown -= 1
         }
     }
 
     if (showForgotPasswordDialog) {
+        val isResetEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(resetEmail).matches()
         AlertDialog(
             onDismissRequest = { 
                 showForgotPasswordDialog = false 
@@ -84,8 +98,17 @@ fun LoginScreen(
                         label = { Text("Email Address") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        isError = resetEmail.isNotBlank() && !isResetEmailValid
                     )
+                    if (resetEmail.isNotBlank() && !isResetEmailValid) {
+                        Text(
+                            text = "Enter a valid email address",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                        )
+                    }
                     if (passwordResetState is Resource.Error) {
                         Text(
                             text = (passwordResetState as Resource.Error).message ?: "Error sending reset email",
@@ -99,18 +122,23 @@ fun LoginScreen(
             confirmButton = {
                 Button(
                     onClick = { viewModel.sendPasswordResetEmail(resetEmail) },
-                    enabled = resetEmail.isNotBlank() && passwordResetState !is Resource.Loading,
+                    enabled = isResetEmailValid && passwordResetState !is Resource.Loading && resendCooldown == 0,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     if (passwordResetState is Resource.Loading) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    } else if (resendCooldown > 0) {
+                        Text("Resend in ${resendCooldown}s", fontWeight = FontWeight.Bold)
                     } else {
-                        Text("Send Reset Link")
+                        Text("Send Reset Link", fontWeight = FontWeight.Bold)
                     }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showForgotPasswordDialog = false }) {
+                TextButton(onClick = {
+                    showForgotPasswordDialog = false
+                    viewModel.resetPasswordResetState()
+                }) {
                     Text("Cancel")
                 }
             }
@@ -199,6 +227,12 @@ fun LoginScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
+                )
+                Text(
+                    text = "Signed up with Google? Use Continue with Google instead.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp, start = 4.dp)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -335,7 +369,7 @@ fun LoginScreen(
                         painter = androidx.compose.ui.res.painterResource(id = com.example.jamuione.R.drawable.ic_google_g),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
-                        tint = androidx.compose.ui.graphics.Color.Unspecified
+                        tint = Color.Unspecified
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text("Continue with Google", fontWeight = FontWeight.Medium)
