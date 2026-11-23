@@ -1,8 +1,12 @@
 package com.example.jamuione.ui.community
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -12,14 +16,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import androidx.compose.foundation.shape.CircleShape
 import com.example.jamuione.ui.auth.AuthViewModel
+import com.example.jamuione.ui.components.AnimateIn
+import com.example.jamuione.util.BrandingUtil
 import com.example.jamuione.util.Resource
 import java.util.Locale
 
@@ -31,6 +38,7 @@ fun CommunitiesScreen(
     onNavigateToNativeCommunity: () -> Unit,
     onNavigateToLocalityCommunity: () -> Unit,
     onNavigateToDistrictCommunity: () -> Unit,
+    onNavigateToCreateOrg: () -> Unit,
     onNavigateToOrgDashboard: (String) -> Unit,
     onNavigateToOrgProfile: (String) -> Unit,
     onBack: () -> Unit
@@ -54,7 +62,7 @@ fun CommunitiesScreen(
         }
     ) { innerPadding ->
         if (user == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
@@ -72,7 +80,7 @@ fun CommunitiesScreen(
                 if (selectedTab == 0) {
                     PeopleTab(user, onNavigateToNativeCommunity, onNavigateToLocalityCommunity, onNavigateToDistrictCommunity)
                 } else {
-                    OrganizationsTab(orgViewModel, user, onNavigateToOrgDashboard, onNavigateToOrgProfile)
+                    OrganizationsTab(orgViewModel, user, onNavigateToCreateOrg, onNavigateToOrgDashboard, onNavigateToOrgProfile)
                 }
             }
         }
@@ -86,66 +94,166 @@ fun PeopleTab(
     onNavigateToLocalityCommunity: () -> Unit,
     onNavigateToDistrictCommunity: () -> Unit
 ) {
+    val context = LocalContext.current
+    val nativeDistrict = user.nativeDistrict.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+    val locality = user.locality.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+    val district = user.district.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Hero Card for Native Community with gradient
         item {
-            val nativeDistrict = user.nativeDistrict.replaceFirstChar { it.titlecase(Locale.getDefault()) }
-            CommunityCategoryCard(
-                icon = Icons.Default.Home,
-                title = "People From $nativeDistrict",
-                subtitle = "Migrants from your hometown living nearby",
-                onClick = onNavigateToNativeCommunity
-            )
+            AnimateIn {
+                Card(
+                    onClick = onNavigateToNativeCommunity,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                )
+                            )
+                            .padding(20.dp)
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(52.dp),
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.Home, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "People From $nativeDistrict",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Be among the first neighbours",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Compact list rows for Locality & District
+        item {
+            AnimateIn {
+                CompactCommunityRow(
+                    icon = Icons.Default.LocationOn,
+                    title = "$locality Residents",
+                    subtitle = "Be among the first neighbours",
+                    onClick = onNavigateToLocalityCommunity
+                )
+            }
         }
 
         item {
-            val locality = user.locality.replaceFirstChar { it.titlecase(Locale.getDefault()) }
-            CommunityCategoryCard(
-                icon = Icons.Default.LocationOn,
-                title = "$locality Residents",
-                subtitle = "Connect with your immediate neighbors",
-                onClick = onNavigateToLocalityCommunity
-            )
+            AnimateIn {
+                CompactCommunityRow(
+                    icon = Icons.Default.LocationCity,
+                    title = "$district Neighbors",
+                    subtitle = "Be among the first neighbours",
+                    onClick = onNavigateToDistrictCommunity
+                )
+            }
         }
 
+        // Missing a community? Tell us row at bottom
         item {
-            val district = user.district.replaceFirstChar { it.titlecase(Locale.getDefault()) }
-            CommunityCategoryCard(
-                icon = Icons.Default.LocationCity,
-                title = "$district Neighbors",
-                subtitle = "People living in your current district",
-                onClick = onNavigateToDistrictCommunity
-            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Surface(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(BrandingUtil.SUPPORT_WHATSAPP_URL))
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        val emailIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${BrandingUtil.SUPPORT_EMAIL}?subject=Missing Community"))
+                        context.startActivity(emailIntent)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Missing a community? Tell us",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
+    }
+}
 
-        item {
-            Text(
-                text = "Explore More",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(top = 8.dp, start = 4.dp),
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.secondary
-            )
-        }
-
-        val soonCommunities = listOf(
-            Triple(Icons.Default.Work, "Professionals", "Network with industry peers"),
-            Triple(Icons.Default.Favorite, "Blood Donors", "Find or volunteer help"),
-            Triple(Icons.Default.School, "Alumni Groups", "Connect with fellow graduates"),
-            Triple(Icons.Default.SportsCricket, "Sports & Hobbies", "Find players and matches nearby")
-        )
-
-        items(soonCommunities) { (icon, title, subtitle) ->
-            CommunityCategoryCard(
-                icon = icon,
-                title = title,
-                subtitle = subtitle,
-                isComingSoon = true,
-                onClick = {}
-            )
+@Composable
+fun CompactCommunityRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(44.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(22.dp))
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
         }
     }
 }
@@ -154,6 +262,7 @@ fun PeopleTab(
 fun OrganizationsTab(
     viewModel: com.example.jamuione.ui.organization.OrganizationViewModel,
     user: com.example.jamuione.domain.model.User,
+    onNavigateToCreateOrg: () -> Unit,
     onNavigateToOrgDashboard: (String) -> Unit,
     onNavigateToOrgProfile: (String) -> Unit
 ) {
@@ -178,6 +287,19 @@ fun OrganizationsTab(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item {
+            Button(
+                onClick = onNavigateToCreateOrg,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Create organization")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         if (managedOrgs.isNotEmpty()) {
             item {
                 Text(
@@ -185,7 +307,7 @@ fun OrganizationsTab(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(top = 4.dp, start = 4.dp, bottom = 4.dp)
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
                 )
             }
             items(managedOrgs) { org ->
@@ -197,12 +319,13 @@ fun OrganizationsTab(
                 )
             }
             item {
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "In your area",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(top = 8.dp, start = 4.dp, bottom = 4.dp)
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
                 )
             }
         }
@@ -251,6 +374,8 @@ fun OrganizationCard(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -259,7 +384,7 @@ fun OrganizationCard(
             } else {
                 Surface(modifier = Modifier.size(50.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(org.name.take(1).uppercase(), style = MaterialTheme.typography.titleLarge)
+                        Text(org.name.take(1).uppercase(), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                 }
             }
@@ -274,70 +399,30 @@ fun OrganizationCard(
                         Icon(Icons.Default.Verified, contentDescription = "Verified", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
-                Text(text = "${org.type.name} • ${org.category}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                Spacer(modifier = Modifier.height(2.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Text(
+                        text = "${org.type.name} • ${org.category}",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(text = "${org.followerCount} followers • ${org.district}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
             }
             
             Button(
                 onClick = onFollowClick,
-                colors = if (isFollowing) ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer) else ButtonDefaults.buttonColors(),
+                colors = if (isFollowing) ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer) else ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                modifier = Modifier.height(32.dp)
+                modifier = Modifier.height(32.dp),
+                shape = RoundedCornerShape(8.dp)
             ) {
                 Text(if (isFollowing) "Following" else "Follow", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-fun CommunityCategoryCard(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    isComingSoon: Boolean = false,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = if (!isComingSoon) onClick else ({}),
-        modifier = Modifier.fillMaxWidth(),
-        enabled = !isComingSoon,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isComingSoon) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface
-        ),
-        elevation = if (isComingSoon) CardDefaults.cardElevation(0.dp) else CardDefaults.cardElevation(defaultElevation = 0.5.dp),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = if (isComingSoon) MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = if (isComingSoon) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-            }
-            
-            if (isComingSoon) {
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ) {
-                    Text("Soon", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                }
-            } else {
-                Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.outline)
             }
         }
     }

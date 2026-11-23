@@ -31,6 +31,7 @@ import com.example.jamuione.ui.auth.AuthViewModel
 import com.example.jamuione.ui.auth.LoginScreen
 import com.example.jamuione.ui.profile.ProfileSetupScreen
 import com.example.jamuione.ui.profile.ProfileScreen
+import com.example.jamuione.ui.profile.AccountSettingsScreen
 import com.example.jamuione.ui.profile.other.UserProfileScreen
 import com.example.jamuione.ui.profile.other.UserProfileViewModel
 import com.example.jamuione.ui.profile.SavedPostsScreen
@@ -97,6 +98,8 @@ sealed interface Destination : NavKey {
     data object Notifications : Destination
     @Serializable
     data object CreateOrganization : Destination
+    @Serializable
+    data object AccountSettings : Destination
     @Serializable
     data class OrganizationDashboard(val orgId: String) : Destination
     @Serializable
@@ -239,7 +242,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     isAdmin = isAdmin,
                     onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
                     onNavigateToCommunities = { backStack.add(Destination.Communities) },
-                    onNavigateToCreateOrg = { backStack.add(Destination.CreateOrganization) },
+                    onNavigateToAccountSettings = { backStack.add(Destination.AccountSettings) },
                     onEditProfile = { backStack.add(Destination.ProfileSetup) },
                     onViewPrivacyPolicy = { backStack.add(Destination.PrivacyPolicy) },
                     onViewTermsOfService = { backStack.add(Destination.TermsOfService) },
@@ -250,6 +253,22 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     }
                 )
             }
+        }
+        entry<Destination.AccountSettings> {
+            val authViewModel: AuthViewModel = viewModel()
+            AccountSettingsScreen(
+                onLogout = {
+                    authViewModel.logout()
+                    backStack.clear()
+                    backStack.add(Destination.Login)
+                },
+                onDeleteAccount = {
+                    authViewModel.deleteAccount()
+                    backStack.clear()
+                    backStack.add(Destination.Login)
+                },
+                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+            )
         }
         entry<Destination.UserProfile> { key ->
             val userProfileViewModel: UserProfileViewModel = viewModel()
@@ -271,6 +290,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 onNavigateToNativeCommunity = { backStack.add(Destination.NativeCommunity) },
                 onNavigateToLocalityCommunity = { backStack.add(Destination.LocalityCommunity) },
                 onNavigateToDistrictCommunity = { backStack.add(Destination.DistrictCommunity) },
+                onNavigateToCreateOrg = { backStack.add(Destination.CreateOrganization) },
                 onNavigateToOrgDashboard = { orgId -> backStack.add(Destination.OrganizationDashboard(orgId)) },
                 onNavigateToOrgProfile = { orgId -> backStack.add(Destination.OrganizationProfile(orgId)) },
                 onBack = { backStack.removeAt(backStack.size - 1) }

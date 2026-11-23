@@ -1,48 +1,38 @@
 package com.example.jamuione.ui.profile
 
+import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import android.content.Intent
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Stars
-import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.jamuione.BuildConfig
+import com.example.jamuione.domain.model.User
 import com.example.jamuione.ui.auth.AuthViewModel
+import com.example.jamuione.ui.components.*
 import com.example.jamuione.util.BrandingUtil
 import com.example.jamuione.util.Resource
-import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +41,7 @@ fun ProfileScreen(
     isAdmin: Boolean = false,
     onNavigateToSavedPosts: () -> Unit,
     onNavigateToCommunities: () -> Unit,
-    onNavigateToCreateOrg: () -> Unit,
+    onNavigateToAccountSettings: () -> Unit,
     onEditProfile: () -> Unit,
     onViewPrivacyPolicy: () -> Unit,
     onViewTermsOfService: () -> Unit,
@@ -61,13 +51,9 @@ fun ProfileScreen(
     val verificationEmailState by viewModel.verificationEmailState.collectAsState()
     val communityName = BrandingUtil.getCommunityName(userProfileState.data?.district)
     
-    var showLogoutDialog by remember { mutableStateOf(false) }
-    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-    var showDeleteFinalDialog by remember { mutableStateOf(false) }
-    var deleteInput by remember { mutableStateOf("") }
-    var resendCooldown by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    var resendCooldown by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         viewModel.reloadUser()
@@ -91,112 +77,43 @@ fun ProfileScreen(
         }
     }
 
-    if (showDeleteConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmDialog = false },
-            title = { Text("Delete Account?") },
-            text = { Text("This action cannot be undone. Your profile, posts, notices, comments and saved data may be permanently removed.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteConfirmDialog = false
-                    showDeleteFinalDialog = true
-                }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (showDeleteFinalDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteFinalDialog = false },
-            title = { Text("Confirm Deletion") },
-            text = {
-                Column {
-                    Text("Type DELETE to continue")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = deleteInput,
-                        onValueChange = { deleteInput = it },
-                        placeholder = { Text("DELETE") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deleteAccount()
-                        showDeleteFinalDialog = false
-                        onLogout()
-                    },
-                    enabled = deleteInput == "DELETE",
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Delete Permanently")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteFinalDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (showLogoutDialog) {
-        AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Logout") },
-            text = { Text("Are you sure you want to logout?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showLogoutDialog = false
-                    viewModel.logout()
-                    onLogout()
-                }) {
-                    Text("Logout")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(communityName) })
+            TopAppBar(
+                title = { Text(communityName) },
+                actions = {
+                    IconButton(onClick = onNavigateToAccountSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
+                }
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        val completion = (userProfileState as? Resource.Success)?.data?.let { viewModel.calculateProfileCompletion(it) } ?: 0
-        
+        val user = (userProfileState as? Resource.Success)?.data
+        val completion = user?.let { viewModel.calculateProfileCompletion(it) } ?: 0
+
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             if (completion == 100) {
                 ConfettiEffect()
             }
-            
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                when (val state = userProfileState) {
-                    is Resource.Loading -> Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                when (userProfileState) {
+                    is Resource.Loading -> {
+                        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
                     is Resource.Success -> {
-                        val user = state.data
                         if (user != null) {
-                            // Email Verification Banner
                             if (viewModel.isEmailPasswordUser() && !viewModel.isEmailVerified()) {
                                 EmailVerificationBanner(
                                     onResendClick = { viewModel.resendVerificationEmail() },
@@ -204,108 +121,89 @@ fun ProfileScreen(
                                 )
                             }
 
-                            ProfileHeader(user)
-                            
-                            ProfileCompletionSection(
-                                completion = completion,
-                                missingItems = viewModel.getMissingProfileItems(user),
-                                onClick = onEditProfile
-                            )
+                            ProfileHeader(user, onEditProfile)
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            ProfileStatsRow(user)
 
-                            // MENU ITEMS
-                            ProfileMenuItem(
-                                icon = Icons.Default.People,
-                                title = "Communities",
-                                subtitle = "Join local and professional groups",
-                                onClick = onNavigateToCommunities
-                            )
-                            ProfileMenuItem(
-                                icon = Icons.Default.Bookmark,
-                                title = "Saved Posts",
-                                subtitle = "Posts you've bookmarked",
-                                onClick = onNavigateToSavedPosts
-                            )
+                            if (completion < 100) {
+                                ProfileCompletionCard(
+                                    completion = completion,
+                                    missingItems = viewModel.getMissingProfileItems(user),
+                                    onClick = onEditProfile
+                                )
+                            }
 
-                            ProfileMenuItem(
-                                icon = Icons.Default.Business,
-                                title = "Create Organization",
-                                subtitle = "Business, Institution or Community",
-                                onClick = onNavigateToCreateOrg
-                            )
-                            ProfileMenuItem(
-                                icon = Icons.Default.Share,
-                                title = "Invite Neighbors",
-                                subtitle = "Grow your community on WhatsApp",
-                                onClick = {
-                                    val inviteMessage = "Join me on $communityName — the local community app for staying connected! Download here: https://play.google.com/store/apps/details?id=${com.example.jamuione.BuildConfig.APPLICATION_ID}"
-                                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, inviteMessage)
-                                        setPackage("com.whatsapp")
-                                    }
-                                    try {
-                                        context.startActivity(sendIntent)
-                                    } catch (e: Exception) {
-                                        val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                            MenuGroupSection(title = "My activity") {
+                                MenuRow(
+                                    icon = Icons.Default.Bookmark,
+                                    title = "Saved posts",
+                                    subtitle = "Bookmarks and saved items",
+                                    onClick = onNavigateToSavedPosts
+                                )
+                            }
+
+                            MenuGroupSection(title = "Community") {
+                                MenuRow(
+                                    icon = Icons.Default.People,
+                                    title = "Communities",
+                                    subtitle = "Local and professional groups",
+                                    onClick = onNavigateToCommunities
+                                )
+                                MenuRow(
+                                    icon = Icons.Default.Share,
+                                    title = "Invite neighbors",
+                                    subtitle = "Grow community on WhatsApp",
+                                    onClick = {
+                                        val inviteMessage = "Join me on $communityName — local community app! Download here: https://play.google.com/store/apps/details?id=${BuildConfig.APPLICATION_ID}"
+                                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                             type = "text/plain"
                                             putExtra(Intent.EXTRA_TEXT, inviteMessage)
+                                            setPackage("com.whatsapp")
                                         }
-                                        context.startActivity(Intent.createChooser(fallbackIntent, "Invite via"))
-                                    }
-                                }
-                            )
-
-                            ProfileMenuItem(
-                                icon = Icons.Default.Delete,
-                                title = "Delete Account",
-                                subtitle = "Permanently remove your data",
-                                onClick = { showDeleteConfirmDialog = true },
-                                isDestructive = true
-                            )
-                            
-                            if (com.example.jamuione.BuildConfig.DEBUG) {
-                                ProfileMenuItem(
-                                    icon = Icons.Default.BugReport,
-                                    title = "Test Crash",
-                                    subtitle = "Debug only",
-                                    onClick = { 
-                                        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().log("Crash Test")
-                                        throw RuntimeException("Crash Test")
+                                        try {
+                                            context.startActivity(sendIntent)
+                                        } catch (e: Exception) {
+                                            val fallback = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(Intent.EXTRA_TEXT, inviteMessage)
+                                            }
+                                            context.startActivity(Intent.createChooser(fallback, "Invite via"))
+                                        }
                                     }
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(24.dp))
-                            
-                            LegalFooter(
-                                onViewPrivacyPolicy = onViewPrivacyPolicy,
-                                onViewTermsOfService = onViewTermsOfService
-                            )
-
-                            Spacer(modifier = Modifier.height(32.dp))
-                            
-                            TextButton(
-                                onClick = { showLogoutDialog = true },
-                                modifier = Modifier.align(Alignment.CenterHorizontally),
-                                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                            ) {
-                                Icon(Icons.Default.Logout, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Logout")
+                            MenuGroupSection(title = "Account") {
+                                MenuRow(
+                                    icon = Icons.Default.Settings,
+                                    title = "Settings",
+                                    subtitle = "Language, notifications & account security",
+                                    onClick = onNavigateToAccountSettings
+                                )
+                                MenuRow(
+                                    icon = Icons.Default.PrivacyTip,
+                                    title = "Privacy policy",
+                                    subtitle = "Data handling and security",
+                                    onClick = onViewPrivacyPolicy
+                                )
+                                MenuRow(
+                                    icon = Icons.Default.Description,
+                                    title = "Terms of service",
+                                    subtitle = "Community guidelines and rules",
+                                    onClick = onViewTermsOfService
+                                )
                             }
-                            
-                            Spacer(modifier = Modifier.height(32.dp))
+
+                            Spacer(modifier = Modifier.height(16.dp))
                         } else {
-                            GuestState(onLogout)
+                            GuestState(onLoginClick = onLogout)
                         }
                     }
                     is Resource.Error -> {
-                        Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Error: ${state.message}")
-                            Button(onClick = { viewModel.fetchUserProfile() }) { Text("Retry") }
-                        }
+                        ErrorState(
+                            message = (userProfileState as Resource.Error).message ?: "Failed to load profile",
+                            onRetry = { viewModel.reloadUser() }
+                        )
                     }
                     else -> {}
                 }
@@ -315,40 +213,11 @@ fun ProfileScreen(
 }
 
 @Composable
-fun ConfettiEffect() {
-    val transition = rememberInfiniteTransition(label = "confetti")
-    val yAnim by transition.animateFloat(
-        initialValue = -100f,
-        targetValue = 2000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "confetti_y"
-    )
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val colors = listOf(Color.Red, Color.Blue, Color.Green, Color.Yellow, Color(0xFFFF9800), Color(0xFFE91E63), Color.Cyan)
-        repeat(60) { i ->
-            val x = (i * 45f + (i * i * 2f)) % size.width
-            val speed = (i % 7 + 1) * 0.4f
-            val y = (yAnim * speed + (i * 80f)) % size.height
-            val radius = (i % 5 + 5).toFloat()
-            drawCircle(
-                color = colors[i % colors.size].copy(alpha = 0.7f),
-                radius = radius,
-                center = Offset(x, y)
-            )
-        }
-    }
-}
-
-@Composable
 fun EmailVerificationBanner(onResendClick: () -> Unit, cooldown: Int) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
-        color = MaterialTheme.colorScheme.errorContainer,
-        shape = RoundedCornerShape(12.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -357,224 +226,369 @@ fun EmailVerificationBanner(onResendClick: () -> Unit, cooldown: Int) {
             Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Please verify your email address",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
-                Text(
-                    text = "Check your inbox for a verification link.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-                )
+                Text(text = "Email not verified", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                Text(text = "Please verify your email address for full access.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            TextButton(
-                onClick = onResendClick,
-                enabled = cooldown == 0,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text(if (cooldown > 0) "Resend in ${cooldown}s" else "Resend")
+            TextButton(onClick = onResendClick, enabled = cooldown == 0) {
+                Text(if (cooldown > 0) "${cooldown}s" else "Verify")
             }
         }
     }
 }
 
 @Composable
-fun ProfileHeader(user: com.example.jamuione.domain.model.User) {
+fun ConfettiEffect() {
+    Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(MaterialTheme.colorScheme.primary))
+}
+
+@Composable
+fun GuestState(onLoginClick: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
+        modifier = Modifier.fillMaxWidth().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outline)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "Guest Mode", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(text = "Sign in to access your profile and community.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onLoginClick, shape = RoundedCornerShape(12.dp)) {
+            Text("Sign In")
+        }
+    }
+}
+
+@Composable
+fun ProfileHeader(user: User, onEditProfile: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (user.profileImage != null) {
-            AsyncImage(
-                model = user.profileImage,
-                contentDescription = null,
-                modifier = Modifier.size(100.dp).clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Surface(modifier = Modifier.size(100.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = user.name, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            if (user.isVerified) {
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(Icons.Default.Verified, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-            }
-        }
-        
-        Text(text = user.profession, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
-        
-        val displayLocality = user.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-        val displayDistrict = user.district.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-        Text(text = "$displayLocality, $displayDistrict", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-    }
-}
-
-@Composable
-fun ProfileCompletionSection(completion: Int, missingItems: List<String>, onClick: () -> Unit) {
-    val isComplete = completion >= 100
-    
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.size(96.dp),
+            contentAlignment = Alignment.BottomEnd
         ) {
-            Text(
-                text = "Profile Strength",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = if (isComplete) "Verified" else "$completion%",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.ExtraBold
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        LinearProgressIndicator(
-            progress = { completion / 100f },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .clip(CircleShape),
-            color = if (isComplete) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-
-        if (!isComplete && missingItems.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Complete these tasks to reach 100%",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.secondary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                missingItems.forEach { task ->
-                    Surface(
-                        onClick = onClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AddCircleOutline,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = task,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(
-                                imageVector = Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.outline
-                            )
-                        }
+            if (!user.profileImage.isNullOrBlank()) {
+                AsyncImage(
+                    model = user.profileImage,
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier
+                        .size(96.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onEditProfile),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .size(96.dp)
+                        .clickable(onClick = onEditProfile),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = user.name.take(1).uppercase(),
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 }
             }
-        } else if (isComplete) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF4CAF50).copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                    .padding(8.dp)
+                    .size(32.dp)
+                    .clickable(onClick = onEditProfile),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary
             ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = "Change photo",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = user.name,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (user.isVerified) {
                 Icon(
-                    imageVector = Icons.Default.Stars,
-                    contentDescription = null,
-                    tint = Color(0xFF4CAF50),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Your profile is fully optimized!",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF4CAF50),
-                    fontWeight = FontWeight.Bold
+                    imageVector = Icons.Default.Verified,
+                    contentDescription = "Verified",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
-    }
-}
 
-@Composable
-fun ProfileMenuItem(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onClick: () -> Unit, isDestructive: Boolean = false) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
-    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
         Row(
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = if (isDestructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.width(20.dp))
+            val localityDisplay = user.locality.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+            val districtDisplay = user.district.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+            val nativeDisplay = user.nativeDistrict.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+
+            if (localityDisplay.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh
+                ) {
+                    Text(
+                        text = "$localityDisplay, $districtDisplay",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (nativeDisplay.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Text(
+                        text = "From $nativeDisplay",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        if (!user.bio.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = user.bio,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun ProfileStatsRow(user: User) {
+    val joinedText = if (user.joinedAt > 0L) {
+        SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(Date(user.joinedAt))
+    } else {
+        "Recently"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Community Member",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Active Status",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            VerticalDivider(modifier = Modifier.height(32.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Joined $joinedText",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Member Since",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ProfileCompletionCard(
+    completion: Int,
+    missingItems: List<String>,
+    onClick: () -> Unit
+) {
+    val nextItem = missingItems.firstOrNull() ?: "Add more details"
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val trackColor = MaterialTheme.colorScheme.outlineVariant
+
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier.size(48.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.size(48.dp)) {
+                    val strokeWidth = 4.dp.toPx()
+                    drawCircle(color = trackColor, style = androidx.compose.ui.graphics.drawscope.Stroke(strokeWidth))
+                    drawArc(
+                        color = primaryColor,
+                        startAngle = -90f,
+                        sweepAngle = (completion / 100f) * 360f,
+                        useCenter = false,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(strokeWidth, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                    )
+                }
+                Text(
+                    text = "$completion%",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.titleMedium, color = if (isDestructive) MaterialTheme.colorScheme.error else Color.Unspecified)
-                Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = if (isDestructive) MaterialTheme.colorScheme.error.copy(alpha = 0.7f) else MaterialTheme.colorScheme.secondary)
+                Text(
+                    text = "Complete your profile",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Next: $nextItem",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = if (isDestructive) MaterialTheme.colorScheme.error.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline)
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline
+            )
         }
     }
 }
 
 @Composable
-fun LegalFooter(onViewPrivacyPolicy: () -> Unit, onViewTermsOfService: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row {
-            TextButton(onClick = onViewTermsOfService) {
-                Text("Terms of Service", style = MaterialTheme.typography.labelSmall)
-            }
-            Text(" • ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline, modifier = Modifier.align(Alignment.CenterVertically))
-            TextButton(onClick = onViewPrivacyPolicy) {
-                Text("Privacy Policy", style = MaterialTheme.typography.labelSmall)
-            }
+fun MenuGroupSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                content = content
+            )
         }
-        Text(text = "District One Version 1.0", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = MaterialTheme.colorScheme.outline)
     }
 }
 
 @Composable
-fun GuestState(onLogout: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.outline)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "You are browsing as a guest.", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Text(text = "Sign in or create an account to unlock all features.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.secondary)
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("Sign In / Create Account") }
+fun MenuRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
