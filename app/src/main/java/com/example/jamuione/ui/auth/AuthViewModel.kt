@@ -331,6 +331,7 @@ class AuthViewModel @Inject constructor(
 
     fun logout() {
         Log.d("AUTH_TRACE", "Logout triggered from AuthViewModel")
+        topicManager.unsubscribeAll()
         userListener?.remove()
         _isAdmin.value = false
         authRepository.signOut()

@@ -112,20 +112,7 @@ fun NoticeBoardScreen(
                 scrollBehavior = scrollBehavior
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        floatingActionButton = {
-            val haptic = LocalHapticFeedback.current
-            FloatingActionButton(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onCreateNoticeClick()
-                },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Create Notice")
-            }
-        }
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         PullToRefreshBox(
             isRefreshing = isRefreshing,
