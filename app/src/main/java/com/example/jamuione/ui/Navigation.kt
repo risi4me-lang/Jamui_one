@@ -743,6 +743,41 @@ fun SplashScreen(
     onNavigate: (Destination) -> Unit
 ) {
     val userProfile by authViewModel.userProfile.collectAsState()
+    var showTimeoutError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        Log.d("AUTH_TRACE", "Splash decision: Checking auth status")
+        if (authViewModel.isUserLoggedIn()) {
+            authViewModel.fetchUserProfile()
+        } else {
+            onNavigate(Destination.Login)
+        }
+    }
+
+    LaunchedEffect(userProfile) {
+        when (userProfile) {
+            is Resource.Success -> {
+                showTimeoutError = false
+                val profile = userProfile.data
+                if (profile == null || !profile.profileCompleted) {
+                    onNavigate(Destination.ProfileSetup)
+                } else {
+                    onNavigate(Destination.MainFeed())
+                }
+            }
+            is Resource.Error -> onNavigate(Destination.Login)
+            else -> {}
+        }
+    }
+
+    LaunchedEffect(userProfile) {
+        if (userProfile is Resource.Loading || userProfile is Resource.Idle) {
+            delay(8000L)
+            if (userProfile is Resource.Loading || userProfile is Resource.Idle) {
+                showTimeoutError = true
+            }
+        }
+    }
 
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
 
@@ -783,6 +818,27 @@ fun SplashScreen(
             )
             Spacer(modifier = Modifier.height(48.dp))
             CircularProgressIndicator(color = Color.White, strokeWidth = 3.dp)
+            if (showTimeoutError) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Taking longer than usual",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        showTimeoutError = false
+                        authViewModel.fetchUserProfile()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Try again")
+                }
+            }
         }
     }
 }
