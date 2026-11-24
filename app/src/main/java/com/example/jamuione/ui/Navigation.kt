@@ -12,7 +12,6 @@ import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +60,20 @@ import com.example.jamuione.util.Resource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+
+private fun <T> MutableList<T>.pop() {
+    if (this.size > 1) {
+        this.removeAt(this.size - 1)
+    }
+}
+
+private fun navigateToTab(backStack: MutableList<NavKey>, dest: Destination) {
+    backStack.clear()
+    backStack.add(Destination.MainFeed() as NavKey)
+    if (dest !is Destination.MainFeed) {
+        backStack.add(dest as NavKey)
+    }
+}
 
 @Serializable
 sealed interface Destination : NavKey {
@@ -180,10 +193,8 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val isAdmin by authViewModel.isAdmin.collectAsState()
             AdaptiveScaffoldWrapper(
                 currentDestination = key,
-                onNavigate = { 
-                    backStack.clear()
-                    backStack.add(it) 
-                },
+                onNavigate = { navigateToTab(backStack, it) },
+                onCreate = { backStack.add(it) },
                 snackbarHost = { SnackbarHost(snackbarHostState) }
             ) {
                 FeedScreen(
@@ -191,11 +202,8 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     isAdmin = isAdmin,
                     onCreatePostClick = { backStack.add(Destination.CreatePost) },
                     onNavigateToDetail = { postId -> backStack.add(Destination.PostDetail(postId)) },
-                    onNavigateToNotifications = { backStack.add(Destination.Notifications) },
-                    onProfileClick = { 
-                        backStack.clear()
-                        backStack.add(Destination.Profile)
-                    },
+                    onNavigateToNotifications = { navigateToTab(backStack, Destination.Notifications) },
+                    onProfileClick = { navigateToTab(backStack, Destination.Profile) },
                     onNavigateToUserProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
                     highlightPostId = key.highlightPostId
                 )
@@ -207,10 +215,8 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val isAdmin by authViewModel.isAdmin.collectAsState()
             AdaptiveScaffoldWrapper(
                 currentDestination = key,
-                onNavigate = { 
-                    backStack.clear()
-                    backStack.add(it) 
-                },
+                onNavigate = { navigateToTab(backStack, it) },
+                onCreate = { backStack.add(it) },
                 snackbarHost = { SnackbarHost(snackbarHostState) }
             ) {
                 NoticeBoardScreen(
@@ -218,11 +224,8 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     isAdmin = isAdmin,
                     highlightNoticeId = key.highlightId,
                     onCreateNoticeClick = { backStack.add(Destination.CreateNotice) },
-                    onNavigateToNotifications = { backStack.add(Destination.Notifications) },
-                    onProfileClick = {
-                        backStack.clear()
-                        backStack.add(Destination.Profile)
-                    }
+                    onNavigateToNotifications = { navigateToTab(backStack, Destination.Notifications) },
+                    onProfileClick = { navigateToTab(backStack, Destination.Profile) }
                 )
             }
         }
@@ -231,10 +234,8 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val isAdmin by authViewModel.isAdmin.collectAsState()
             AdaptiveScaffoldWrapper(
                 currentDestination = Destination.Profile,
-                onNavigate = { 
-                    backStack.clear()
-                    backStack.add(it) 
-                },
+                onNavigate = { navigateToTab(backStack, it) },
+                onCreate = { backStack.add(it) },
                 snackbarHost = { SnackbarHost(snackbarHostState) }
             ) {
                 ProfileScreen(
@@ -267,7 +268,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     backStack.clear()
                     backStack.add(Destination.Login)
                 },
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.UserProfile> { key ->
@@ -278,7 +279,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 userId = key.userId,
                 viewModel = userProfileViewModel,
                 isAdmin = isAdmin,
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.Communities> {
@@ -293,7 +294,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 onNavigateToCreateOrg = { backStack.add(Destination.CreateOrganization) },
                 onNavigateToOrgDashboard = { orgId -> backStack.add(Destination.OrganizationDashboard(orgId)) },
                 onNavigateToOrgProfile = { orgId -> backStack.add(Destination.OrganizationProfile(orgId)) },
-                onBack = { backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.OrganizationProfile> { key ->
@@ -301,7 +302,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             OrganizationProfileScreen(
                 orgId = key.orgId,
                 viewModel = orgViewModel,
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.NativeCommunity> {
@@ -309,7 +310,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             NativeCommunityScreen(
                 viewModel = communityViewModel,
                 onNavigateToProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
-                onBack = { backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.LocalityCommunity> {
@@ -317,7 +318,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             LocalityCommunityScreen(
                 viewModel = communityViewModel,
                 onNavigateToProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
-                onBack = { backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.DistrictCommunity> {
@@ -325,32 +326,40 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             DistrictCommunityScreen(
                 viewModel = communityViewModel,
                 onNavigateToProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
-                onBack = { backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
-        entry<Destination.Notifications> {
+        entry<Destination.Notifications> { key ->
             val notificationsViewModel: NotificationsViewModel = viewModel()
-            NotificationsScreen(
-                viewModel = notificationsViewModel,
-                onNavigateToPost = { postId -> backStack.add(Destination.PostDetail(postId)) },
-                onNavigateToNotice = { noticeId -> 
-                    backStack.add(Destination.NoticeBoard(highlightId = noticeId))
-                },
-                onBack = { backStack.removeAt(backStack.size - 1) }
-            )
+            AdaptiveScaffoldWrapper(
+                currentDestination = key,
+                onNavigate = { navigateToTab(backStack, it) },
+                onCreate = { backStack.add(it) },
+                snackbarHost = { SnackbarHost(snackbarHostState) }
+            ) {
+                NotificationsScreen(
+                    viewModel = notificationsViewModel,
+                    onNavigateToPost = { postId -> backStack.add(Destination.PostDetail(postId)) },
+                    onNavigateToNotice = { noticeId ->
+                        backStack.add(Destination.NoticeBoard(highlightId = noticeId))
+                    },
+                    onBack = { backStack.pop() },
+                    showBackArrow = false
+                )
+            }
         }
         entry<Destination.PrivacyPolicy> {
-            PrivacyPolicyScreen(onBack = { backStack.removeAt(backStack.size - 1) })
+            PrivacyPolicyScreen(onBack = { backStack.pop() })
         }
         entry<Destination.TermsOfService> {
-            TermsOfServiceScreen(onBack = { backStack.removeAt(backStack.size - 1) })
+            TermsOfServiceScreen(onBack = { backStack.pop() })
         }
         entry<Destination.SavedPosts> {
             val feedViewModel: FeedViewModel = viewModel()
             SavedPostsScreen(
                 viewModel = feedViewModel,
                 onNavigateToDetail = { postId -> backStack.add(Destination.PostDetail(postId)) },
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) },
+                onBack = { backStack.pop() },
                 onNavigateToUserProfile = { userId -> backStack.add(Destination.UserProfile(userId)) }
             )
         }
@@ -358,9 +367,9 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val feedViewModel: FeedViewModel = viewModel()
             CreatePostScreen(
                 viewModel = feedViewModel,
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) },
+                onBack = { backStack.pop() },
                 onSuccess = { locality, postId ->
-                    backStack.removeAt(backStack.size - 1)
+                    backStack.clear()
                     backStack.add(Destination.MainFeed(highlightPostId = postId))
                     scope.launch {
                         snackbarHostState.showSnackbar("🎉 Your post is now live in $locality")
@@ -372,7 +381,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val noticeViewModel: NoticeViewModel = viewModel()
             CreateNoticeScreen(
                 viewModel = noticeViewModel,
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.CreateNoticeCategory> { key ->
@@ -380,16 +389,16 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             CreateNoticeScreen(
                 viewModel = noticeViewModel,
                 preselectedCategory = key.category,
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.CreateOrganization> {
             val orgViewModel: OrganizationViewModel = viewModel()
             CreateOrganizationScreen(
                 viewModel = orgViewModel,
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) },
+                onBack = { backStack.pop() },
                 onSuccess = { orgId ->
-                    backStack.removeAt(backStack.size - 1)
+                    backStack.clear()
                     backStack.add(Destination.OrganizationDashboard(orgId))
                 }
             )
@@ -400,7 +409,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 orgId = key.orgId,
                 viewModel = orgViewModel,
                 onNavigateToCreateAnnouncement = { backStack.add(Destination.CreateOrganizationAnnouncement(key.orgId)) },
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.CreateOrganizationAnnouncement> { key ->
@@ -408,7 +417,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             com.example.jamuione.ui.organization.CreateOrganizationAnnouncementScreen(
                 orgId = key.orgId,
                 viewModel = orgViewModel,
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) }
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.PostDetail> { key ->
@@ -421,7 +430,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 viewModel = postDetailViewModel,
                 feedViewModel = feedViewModel,
                 isAdmin = isAdmin,
-                onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) },
+                onBack = { backStack.pop() },
                 onNavigateToUserProfile = { userId -> backStack.add(Destination.UserProfile(userId)) }
             )
         }
@@ -429,7 +438,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
 
     NavDisplay(
         backStack = backStack,
-        onBack = { if (backStack.size > 1) backStack.removeAt(backStack.size - 1) },
+        onBack = { backStack.pop() },
         entryProvider = myEntryProvider
     )
 }
@@ -439,6 +448,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
 fun AdaptiveScaffoldWrapper(
     currentDestination: Destination,
     onNavigate: (Destination) -> Unit,
+    onCreate: (Destination) -> Unit,
     snackbarHost: @Composable () -> Unit = {},
     content: @Composable () -> Unit
 ) {
@@ -628,7 +638,7 @@ fun AdaptiveScaffoldWrapper(
                     subtitle = "Share updates with your community",
                     onClick = {
                         showCreateSheet = false
-                        onNavigate(Destination.CreatePost)
+                        onCreate(Destination.CreatePost)
                     }
                 )
                 CreateActionRow(
@@ -637,7 +647,7 @@ fun AdaptiveScaffoldWrapper(
                     subtitle = "Post announcements and events",
                     onClick = {
                         showCreateSheet = false
-                        onNavigate(Destination.CreateNotice)
+                        onCreate(Destination.CreateNotice)
                     }
                 )
                 CreateActionRow(
@@ -646,7 +656,7 @@ fun AdaptiveScaffoldWrapper(
                     subtitle = "Request or offer blood donations",
                     onClick = {
                         showCreateSheet = false
-                        onNavigate(Destination.CreateNoticeCategory("Blood Donation"))
+                        onCreate(Destination.CreateNoticeCategory("Blood Donation"))
                     }
                 )
                 CreateActionRow(
@@ -655,7 +665,7 @@ fun AdaptiveScaffoldWrapper(
                     subtitle = "Report lost or found items",
                     onClick = {
                         showCreateSheet = false
-                        onNavigate(Destination.CreateNoticeCategory("Lost & Found"))
+                        onCreate(Destination.CreateNoticeCategory("Lost & Found"))
                     }
                 )
                 CreateActionRow(
@@ -664,7 +674,7 @@ fun AdaptiveScaffoldWrapper(
                     subtitle = "List housing or flatmate requirements",
                     onClick = {
                         showCreateSheet = false
-                        onNavigate(Destination.CreateNoticeCategory("Rent/Flatmate"))
+                        onCreate(Destination.CreateNoticeCategory("Rent/Flatmate"))
                     }
                 )
                 CreateActionRow(
@@ -673,7 +683,7 @@ fun AdaptiveScaffoldWrapper(
                     subtitle = "List items for sale or request items",
                     onClick = {
                         showCreateSheet = false
-                        onNavigate(Destination.CreateNoticeCategory("Buy & Sell"))
+                        onCreate(Destination.CreateNoticeCategory("Buy & Sell"))
                     }
                 )
                 CreateActionRow(
@@ -682,7 +692,7 @@ fun AdaptiveScaffoldWrapper(
                     subtitle = "Ask for assistance or support",
                     onClick = {
                         showCreateSheet = false
-                        onNavigate(Destination.CreateNoticeCategory("Help Needed"))
+                        onCreate(Destination.CreateNoticeCategory("Help Needed"))
                     }
                 )
                 Spacer(modifier = Modifier.height(32.dp))
@@ -733,44 +743,6 @@ fun SplashScreen(
     onNavigate: (Destination) -> Unit
 ) {
     val userProfile by authViewModel.userProfile.collectAsState()
-    
-    LaunchedEffect(Unit) {
-        Log.d("AUTH_TRACE", "Splash decision: Checking auth status")
-        if (authViewModel.isUserLoggedIn()) {
-            Log.d("AUTH_TRACE", "Splash decision: User logged in, fetching profile")
-            authViewModel.fetchUserProfile()
-        } else {
-            Log.d("AUTH_TRACE", "Splash decision: No user logged in, going to Login")
-            onNavigate(Destination.Login)
-        }
-    }
-    
-    LaunchedEffect(userProfile) {
-        when (userProfile) {
-            is Resource.Success -> {
-                val profile = userProfile.data
-                Log.d("AUTH_TRACE", "Splash decision: Profile check Success. profileCompleted=${profile?.profileCompleted}")
-                if (profile == null) {
-                    Log.d("AUTH_TRACE", "Splash decision: Profile null, going to ProfileSetup")
-                    onNavigate(Destination.ProfileSetup)
-                } else if (!profile.profileCompleted) {
-                    Log.d("AUTH_TRACE", "Splash decision: Profile incomplete, going to ProfileSetup")
-                    onNavigate(Destination.ProfileSetup)
-                } else {
-                    Log.d("AUTH_TRACE", "Main feed opened")
-                    onNavigate(Destination.MainFeed())
-                }
-            }
-            is Resource.Error -> {
-                Log.e("AUTH_TRACE", "Splash decision: Profile fetch Error: ${userProfile.message}")
-                onNavigate(Destination.Login)
-            }
-            is Resource.Loading -> {
-                Log.d("AUTH_TRACE", "Splash decision: Profile fetch is Loading")
-            }
-            else -> {}
-        }
-    }
 
     val communityName = BrandingUtil.getCommunityName(userProfile.data?.district)
 
