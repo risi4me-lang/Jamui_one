@@ -49,6 +49,9 @@ class AuthViewModel @Inject constructor(
     private val _isAdmin = MutableStateFlow<Boolean>(false)
     val isAdmin: StateFlow<Boolean> = _isAdmin
 
+    private val _isOperator = MutableStateFlow<Boolean>(false)
+    val isOperator: StateFlow<Boolean> = _isOperator
+
     private var userListener: ListenerRegistration? = null
 
     init {
@@ -63,18 +66,23 @@ class AuthViewModel @Inject constructor(
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
                         _isAdmin.value = false
+                        _isOperator.value = false
                         return@addSnapshotListener
                     }
                     if (snapshot != null && snapshot.exists()) {
                         val role = snapshot.getString("role") ?: "user"
                         val isActive = snapshot.getBoolean("isActive") ?: true
                         _isAdmin.value = role.equals("admin", ignoreCase = true) && isActive != false
+                        val opVerified = snapshot.getBoolean("operatorVerified") ?: false
+                        _isOperator.value = opVerified
                     } else {
                         _isAdmin.value = false
+                        _isOperator.value = false
                     }
                 }
         } else {
             _isAdmin.value = false
+            _isOperator.value = false
         }
     }
 
@@ -334,6 +342,7 @@ class AuthViewModel @Inject constructor(
         topicManager.unsubscribeAll()
         userListener?.remove()
         _isAdmin.value = false
+        _isOperator.value = false
         authRepository.signOut()
         _userProfile.value = Resource.Idle()
         _authState.value = AuthState.Unauthenticated

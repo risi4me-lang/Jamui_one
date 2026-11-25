@@ -39,9 +39,11 @@ import java.util.*
 fun ProfileScreen(
     viewModel: AuthViewModel,
     isAdmin: Boolean = false,
+    isOperator: Boolean = false,
     onNavigateToSavedPosts: () -> Unit,
     onNavigateToCommunities: () -> Unit,
     onNavigateToTravel: () -> Unit,
+    onNavigateToMyTrips: () -> Unit,
     onNavigateToAccountSettings: () -> Unit,
     onEditProfile: () -> Unit,
     onViewPrivacyPolicy: () -> Unit,
@@ -156,6 +158,14 @@ fun ProfileScreen(
                                     subtitle = "Find local operators and share rides",
                                     onClick = onNavigateToTravel
                                 )
+                                if (isOperator) {
+                                    MenuRow(
+                                        icon = Icons.Default.ListAlt,
+                                        title = "My Trips",
+                                        subtitle = "Manage your offered rides and seats",
+                                        onClick = onNavigateToMyTrips
+                                    )
+                                }
                                 MenuRow(
                                     icon = Icons.Default.Share,
                                     title = "Invite neighbors",

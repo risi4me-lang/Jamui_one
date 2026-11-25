@@ -4,6 +4,14 @@ import com.google.firebase.firestore.PropertyName
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class OperatorProfile(
+    val businessName: String = "",
+    val vehicle: String = "Sumo",
+    val vehicleNumber: String = "",
+    val phone: String = ""
+)
+
+@Serializable
 data class User(
     val uid: String = "",
     val name: String = "",
@@ -21,6 +29,8 @@ data class User(
     val role: String = "user",
     val profileCompleted: Boolean = false,
     val showInCommunity: Boolean = false,
+    val operatorVerified: Boolean = false,
+    val operatorProfile: OperatorProfile = OperatorProfile(),
     val fcmToken: String? = null,
     @get:PropertyName("isVerified")
     @set:PropertyName("isVerified")

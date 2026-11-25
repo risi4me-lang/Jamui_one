@@ -1,5 +1,7 @@
 package com.example.jamuione.ui
 
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,6 +53,10 @@ import com.example.jamuione.ui.organization.OrganizationViewModel
 import com.example.jamuione.ui.feed.FeedScreen
 import com.example.jamuione.ui.travel.TravelScreen
 import com.example.jamuione.ui.travel.TravelViewModel
+import com.example.jamuione.ui.travel.PostTripScreen
+import com.example.jamuione.ui.travel.PostTripViewModel
+import com.example.jamuione.ui.travel.MyTripsScreen
+import com.example.jamuione.ui.travel.MyTripsViewModel
 import com.example.jamuione.ui.feed.FeedViewModel
 import com.example.jamuione.ui.feed.CreatePostScreen
 import com.example.jamuione.ui.feed.PostDetailScreen
@@ -59,6 +66,7 @@ import com.example.jamuione.ui.notices.NoticeViewModel
 import com.example.jamuione.ui.notices.CreateNoticeScreen
 import com.example.jamuione.util.BrandingUtil
 import com.example.jamuione.util.Resource
+import com.example.jamuione.util.TravelConstants
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -129,6 +137,10 @@ sealed interface Destination : NavKey {
     data class CreateNoticeCategory(val category: String) : Destination
     @Serializable
     data object Travel : Destination
+    @Serializable
+    data object PostTrip : Destination
+    @Serializable
+    data object MyTrips : Destination
 }
 
 @Composable
@@ -236,6 +248,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
         entry<Destination.Profile> {
             val authViewModel: AuthViewModel = viewModel()
             val isAdmin by authViewModel.isAdmin.collectAsState()
+            val isOperator by authViewModel.isOperator.collectAsState()
             AdaptiveScaffoldWrapper(
                 currentDestination = Destination.Profile,
                 onNavigate = { navigateToTab(backStack, it) },
@@ -245,9 +258,11 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 ProfileScreen(
                     viewModel = authViewModel,
                     isAdmin = isAdmin,
+                    isOperator = isOperator,
                     onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
                     onNavigateToCommunities = { backStack.add(Destination.Communities) },
                     onNavigateToTravel = { backStack.add(Destination.Travel) },
+                    onNavigateToMyTrips = { backStack.add(Destination.MyTrips) },
                     onNavigateToAccountSettings = { backStack.add(Destination.AccountSettings) },
                     onEditProfile = { backStack.add(Destination.ProfileSetup) },
                     onViewPrivacyPolicy = { backStack.add(Destination.PrivacyPolicy) },
@@ -264,6 +279,21 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val travelViewModel: TravelViewModel = viewModel()
             TravelScreen(
                 viewModel = travelViewModel,
+                onBack = { backStack.pop() }
+            )
+        }
+        entry<Destination.PostTrip> {
+            val postTripViewModel: PostTripViewModel = viewModel()
+            PostTripScreen(
+                viewModel = postTripViewModel,
+                onBack = { backStack.pop() },
+                onSuccess = { backStack.pop() }
+            )
+        }
+        entry<Destination.MyTrips> {
+            val myTripsViewModel: MyTripsViewModel = viewModel()
+            MyTripsScreen(
+                viewModel = myTripsViewModel,
                 onBack = { backStack.pop() }
             )
         }
@@ -465,8 +495,12 @@ fun AdaptiveScaffoldWrapper(
     content: @Composable () -> Unit
 ) {
     var showCreateSheet by remember { mutableStateOf(false) }
+    var showOperatorOnboardingDialog by remember { mutableStateOf(false) }
+    val authViewModel: AuthViewModel = viewModel()
+    val isOperator by authViewModel.isOperator.collectAsState()
     val notificationsViewModel: NotificationsViewModel = viewModel()
     val hasUnread by notificationsViewModel.hasUnread.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         bottomBar = {
@@ -645,6 +679,19 @@ fun AdaptiveScaffoldWrapper(
                 )
 
                 CreateActionRow(
+                    icon = Icons.Default.DirectionsCar,
+                    title = "Offer seats",
+                    subtitle = "List your sumo, bus, or cab for passengers",
+                    onClick = {
+                        showCreateSheet = false
+                        if (isOperator) {
+                            onCreate(Destination.PostTrip)
+                        } else {
+                            showOperatorOnboardingDialog = true
+                        }
+                    }
+                )
+                CreateActionRow(
                     icon = Icons.Default.PostAdd,
                     title = "Post",
                     subtitle = "Share updates with your community",
@@ -669,6 +716,15 @@ fun AdaptiveScaffoldWrapper(
                     onClick = {
                         showCreateSheet = false
                         onCreate(Destination.CreateNoticeCategory("Blood Donation"))
+                    }
+                )
+                CreateActionRow(
+                    icon = Icons.Default.TravelExplore,
+                    title = "Travel",
+                    subtitle = "Find local operators and share rides",
+                    onClick = {
+                        showCreateSheet = false
+                        onCreate(Destination.Travel)
                     }
                 )
                 CreateActionRow(
@@ -711,41 +767,35 @@ fun AdaptiveScaffoldWrapper(
             }
         }
     }
-}
 
-@Composable
-fun CreateActionRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(48.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+    if (showOperatorOnboardingDialog) {
+        AlertDialog(
+            onDismissRequest = { showOperatorOnboardingDialog = false },
+            title = { Text("Want to list your sumo, bus or cab?") },
+            text = { Text("Contact us to become a verified operator and start offering seats to passengers.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showOperatorOnboardingDialog = false
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${TravelConstants.OPERATOR_WHATSAPP_PHONE}?text=Hi,+I+want+to+become+a+verified+operator+on+District+One"))
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("WhatsApp Us")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showOperatorOnboardingDialog = false
+                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${TravelConstants.OPERATOR_SUPPORT_EMAIL}?subject=Operator%20Verification%20Request"))
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("Email Us")
                 }
             }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
-        }
+        )
     }
 }
 
@@ -851,6 +901,42 @@ fun SplashScreen(
                     Text("Try again")
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun CreateActionRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(48.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
         }
     }
 }
