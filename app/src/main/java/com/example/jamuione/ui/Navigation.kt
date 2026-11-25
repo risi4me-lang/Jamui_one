@@ -57,6 +57,8 @@ import com.example.jamuione.ui.travel.PostTripScreen
 import com.example.jamuione.ui.travel.PostTripViewModel
 import com.example.jamuione.ui.travel.MyTripsScreen
 import com.example.jamuione.ui.travel.MyTripsViewModel
+import com.example.jamuione.ui.travel.RequestRideScreen
+import com.example.jamuione.ui.travel.RequestRideViewModel
 import com.example.jamuione.ui.feed.FeedViewModel
 import com.example.jamuione.ui.feed.CreatePostScreen
 import com.example.jamuione.ui.feed.PostDetailScreen
@@ -98,7 +100,7 @@ sealed interface Destination : NavKey {
     @Serializable
     data object CreatePost : Destination
     @Serializable
-    data class NoticeBoard(val highlightId: String? = null) : Destination
+    data class NoticeBoard(val highlightId: String? = null, val category: String? = null) : Destination
     @Serializable
     data object CreateNotice : Destination
     @Serializable
@@ -141,6 +143,8 @@ sealed interface Destination : NavKey {
     data object PostTrip : Destination
     @Serializable
     data object MyTrips : Destination
+    @Serializable
+    data object RequestRide : Destination
 }
 
 @Composable
@@ -221,6 +225,9 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     onNavigateToNotifications = { navigateToTab(backStack, Destination.Notifications) },
                     onProfileClick = { navigateToTab(backStack, Destination.Profile) },
                     onNavigateToUserProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
+                    onNavigateToTravel = { backStack.add(Destination.Travel) },
+                    onCreateNoticeCategory = { category -> backStack.add(Destination.CreateNoticeCategory(category)) },
+                    onNavigateToNoticeBoardCategory = { category -> backStack.add(Destination.NoticeBoard(category = category)) },
                     highlightPostId = key.highlightPostId
                 )
             }
@@ -229,6 +236,13 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             val noticeViewModel: NoticeViewModel = viewModel()
             val authViewModel: AuthViewModel = viewModel()
             val isAdmin by authViewModel.isAdmin.collectAsState()
+
+            LaunchedEffect(key.category) {
+                if (key.category != null) {
+                    noticeViewModel.setCategory(key.category)
+                }
+            }
+
             AdaptiveScaffoldWrapper(
                 currentDestination = key,
                 onNavigate = { navigateToTab(backStack, it) },
@@ -241,7 +255,8 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     highlightNoticeId = key.highlightId,
                     onCreateNoticeClick = { backStack.add(Destination.CreateNotice) },
                     onNavigateToNotifications = { navigateToTab(backStack, Destination.Notifications) },
-                    onProfileClick = { navigateToTab(backStack, Destination.Profile) }
+                    onProfileClick = { navigateToTab(backStack, Destination.Profile) },
+                    onNavigateToTravel = { backStack.add(Destination.Travel) }
                 )
             }
         }
@@ -295,6 +310,14 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             MyTripsScreen(
                 viewModel = myTripsViewModel,
                 onBack = { backStack.pop() }
+            )
+        }
+        entry<Destination.RequestRide> {
+            val requestRideViewModel: RequestRideViewModel = viewModel()
+            RequestRideScreen(
+                viewModel = requestRideViewModel,
+                onBack = { backStack.pop() },
+                onSuccess = { backStack.pop() }
             )
         }
         entry<Destination.AccountSettings> {
@@ -689,6 +712,15 @@ fun AdaptiveScaffoldWrapper(
                         } else {
                             showOperatorOnboardingDialog = true
                         }
+                    }
+                )
+                CreateActionRow(
+                    icon = Icons.Default.DirectionsBus,
+                    title = "I need a ride",
+                    subtitle = "Request a ride or share a cab",
+                    onClick = {
+                        showCreateSheet = false
+                        onCreate(Destination.RequestRide)
                     }
                 )
                 CreateActionRow(

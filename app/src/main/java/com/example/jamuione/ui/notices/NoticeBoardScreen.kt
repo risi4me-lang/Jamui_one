@@ -53,7 +53,8 @@ fun NoticeBoardScreen(
     highlightNoticeId: String? = null,
     onCreateNoticeClick: () -> Unit,
     onNavigateToNotifications: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    onNavigateToTravel: () -> Unit = {}
 ) {
     val noticesResource by viewModel.notices.collectAsState()
     val currentScope by viewModel.currentScope.collectAsState()
@@ -138,7 +139,13 @@ fun NoticeBoardScreen(
                     CategorySelector(
                         categories = viewModel.categories,
                         selectedCategory = selectedCategory,
-                        onCategorySelected = { viewModel.setCategory(it) }
+                        onCategorySelected = { cat ->
+                            if (cat.equals("Travel", ignoreCase = true)) {
+                                onNavigateToTravel()
+                            } else {
+                                viewModel.setCategory(cat)
+                            }
+                        }
                     )
                 }
 

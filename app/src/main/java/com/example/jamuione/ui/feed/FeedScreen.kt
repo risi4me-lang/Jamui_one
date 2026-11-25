@@ -13,12 +13,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.jamuione.ui.components.CompactTopBar
 import com.example.jamuione.ui.components.OfficialUpdatesRow
 import com.example.jamuione.ui.components.ScopeSelector
 import com.example.jamuione.ui.components.PostSkeletonLoader
+import com.example.jamuione.ui.theme.categoryStyle
 import com.example.jamuione.util.Resource
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
@@ -33,6 +36,9 @@ fun FeedScreen(
     onNavigateToNotifications: () -> Unit,
     onProfileClick: () -> Unit,
     onNavigateToUserProfile: (String) -> Unit = {},
+    onNavigateToTravel: () -> Unit = {},
+    onCreateNoticeCategory: (String) -> Unit = {},
+    onNavigateToNoticeBoardCategory: (String) -> Unit = {},
     highlightPostId: String? = null
 ) {
     val postsResource by viewModel.posts.collectAsState()
@@ -108,6 +114,18 @@ fun FeedScreen(
             }
 
             item {
+                val posts = (postsResource as? Resource.Success)?.data ?: emptyList()
+                val hasOfficialPosts = posts.any { it.isOfficial }
+                HomeQuickActionsRow(
+                    hasOfficialPosts = hasOfficialPosts,
+                    onRidesClick = onNavigateToTravel,
+                    onBloodClick = { onCreateNoticeCategory("Blood Donation") },
+                    onJobsClick = { onNavigateToNoticeBoardCategory("Jobs") },
+                    onOfficialClick = {}
+                )
+            }
+
+            item {
                 OfficialUpdatesRow()
             }
 
@@ -176,6 +194,86 @@ fun FeedScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun HomeQuickActionsRow(
+    hasOfficialPosts: Boolean,
+    onRidesClick: () -> Unit,
+    onBloodClick: () -> Unit,
+    onJobsClick: () -> Unit,
+    onOfficialClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        val travelStyle = categoryStyle("Travel")
+        QuickActionTile(
+            title = "Rides",
+            icon = travelStyle.icon,
+            tint = travelStyle.color,
+            modifier = Modifier.weight(1f),
+            onClick = onRidesClick
+        )
+
+        val bloodStyle = categoryStyle("Blood Donation")
+        QuickActionTile(
+            title = "Blood",
+            icon = bloodStyle.icon,
+            tint = bloodStyle.color,
+            modifier = Modifier.weight(1f),
+            onClick = onBloodClick
+        )
+
+        val jobsStyle = categoryStyle("Jobs")
+        QuickActionTile(
+            title = "Jobs",
+            icon = jobsStyle.icon,
+            tint = jobsStyle.color,
+            modifier = Modifier.weight(1f),
+            onClick = onJobsClick
+        )
+
+        if (hasOfficialPosts) {
+            val announcementStyle = categoryStyle("Announcement")
+            QuickActionTile(
+                title = "Official",
+                icon = announcementStyle.icon,
+                tint = announcementStyle.color,
+                modifier = Modifier.weight(1f),
+                onClick = onOfficialClick
+            )
+        }
+    }
+}
+
+@Composable
+fun QuickActionTile(
+    title: String,
+    icon: ImageVector,
+    tint: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.height(72.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = title, tint = tint, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = title, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
         }
     }
 }
