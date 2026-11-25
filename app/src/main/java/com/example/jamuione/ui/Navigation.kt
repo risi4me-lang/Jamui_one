@@ -48,6 +48,8 @@ import com.example.jamuione.ui.organization.OrganizationDashboardScreen
 import com.example.jamuione.ui.organization.OrganizationProfileScreen
 import com.example.jamuione.ui.organization.OrganizationViewModel
 import com.example.jamuione.ui.feed.FeedScreen
+import com.example.jamuione.ui.travel.TravelScreen
+import com.example.jamuione.ui.travel.TravelViewModel
 import com.example.jamuione.ui.feed.FeedViewModel
 import com.example.jamuione.ui.feed.CreatePostScreen
 import com.example.jamuione.ui.feed.PostDetailScreen
@@ -125,6 +127,8 @@ sealed interface Destination : NavKey {
     data class PostDetail(val postId: String) : Destination
     @Serializable
     data class CreateNoticeCategory(val category: String) : Destination
+    @Serializable
+    data object Travel : Destination
 }
 
 @Composable
@@ -243,6 +247,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     isAdmin = isAdmin,
                     onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
                     onNavigateToCommunities = { backStack.add(Destination.Communities) },
+                    onNavigateToTravel = { backStack.add(Destination.Travel) },
                     onNavigateToAccountSettings = { backStack.add(Destination.AccountSettings) },
                     onEditProfile = { backStack.add(Destination.ProfileSetup) },
                     onViewPrivacyPolicy = { backStack.add(Destination.PrivacyPolicy) },
@@ -254,6 +259,13 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     }
                 )
             }
+        }
+        entry<Destination.Travel> {
+            val travelViewModel: TravelViewModel = viewModel()
+            TravelScreen(
+                viewModel = travelViewModel,
+                onBack = { backStack.pop() }
+            )
         }
         entry<Destination.AccountSettings> {
             val authViewModel: AuthViewModel = viewModel()

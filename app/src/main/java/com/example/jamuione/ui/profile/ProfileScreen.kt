@@ -41,6 +41,7 @@ fun ProfileScreen(
     isAdmin: Boolean = false,
     onNavigateToSavedPosts: () -> Unit,
     onNavigateToCommunities: () -> Unit,
+    onNavigateToTravel: () -> Unit,
     onNavigateToAccountSettings: () -> Unit,
     onEditProfile: () -> Unit,
     onViewPrivacyPolicy: () -> Unit,
@@ -148,6 +149,12 @@ fun ProfileScreen(
                                     title = "Communities",
                                     subtitle = "Local and professional groups",
                                     onClick = onNavigateToCommunities
+                                )
+                                MenuRow(
+                                    icon = Icons.Default.DirectionsCar,
+                                    title = "Travel & Rides",
+                                    subtitle = "Find local operators and share rides",
+                                    onClick = onNavigateToTravel
                                 )
                                 MenuRow(
                                     icon = Icons.Default.Share,
