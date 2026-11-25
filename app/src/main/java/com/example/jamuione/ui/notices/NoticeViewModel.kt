@@ -61,7 +61,7 @@ class NoticeViewModel @Inject constructor(
     private val _unreadCount = MutableStateFlow(0)
     val unreadCount: StateFlow<Int> = _unreadCount
 
-    val categories = listOf("Blood Donation", "Event", "Help Needed", "Jobs", "Rent/Flatmate", "Buy & Sell", "Announcement")
+    val categories = listOf("Blood Donation", "Travel", "Event", "Help Needed", "Jobs", "Rent/Flatmate", "Buy & Sell", "Announcement")
 
     val isGuest: Boolean
         get() = authRepository.getCurrentUser() == null

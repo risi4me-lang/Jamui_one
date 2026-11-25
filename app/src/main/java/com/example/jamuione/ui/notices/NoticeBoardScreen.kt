@@ -169,15 +169,19 @@ fun NoticeBoardScreen(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            QuickStartTile("Need blood?", Icons.Default.Bloodtype, Modifier.weight(1f)) { onCreateNoticeClick() }
-                                            QuickStartTile("Lost something?", Icons.Default.Search, Modifier.weight(1f)) { onCreateNoticeClick() }
+                                            val bloodStyle = com.example.jamuione.ui.theme.categoryStyle("Blood Donation")
+                                            val travelStyle = com.example.jamuione.ui.theme.categoryStyle("Travel")
+                                            QuickStartTile("Need blood?", bloodStyle.icon, Modifier.weight(1f), bloodStyle.color) { onCreateNoticeClick() }
+                                            QuickStartTile("Travel", travelStyle.icon, Modifier.weight(1f), travelStyle.color) { onCreateNoticeClick() }
                                         }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            QuickStartTile("List a room", Icons.Default.Home, Modifier.weight(1f)) { onCreateNoticeClick() }
-                                            QuickStartTile("Ask for help", Icons.Default.Favorite, Modifier.weight(1f)) { onCreateNoticeClick() }
+                                            val lostStyle = com.example.jamuione.ui.theme.categoryStyle("Lost & Found")
+                                            val roomStyle = com.example.jamuione.ui.theme.categoryStyle("Rent/Flatmate")
+                                            QuickStartTile("Lost something?", lostStyle.icon, Modifier.weight(1f), lostStyle.color) { onCreateNoticeClick() }
+                                            QuickStartTile("List a room", roomStyle.icon, Modifier.weight(1f), roomStyle.color) { onCreateNoticeClick() }
                                         }
                                     }
                                 },
@@ -236,7 +240,7 @@ fun NoticeBoardScreen(
 }
 
 @Composable
-fun QuickStartTile(title: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun QuickStartTile(title: String, icon: ImageVector, modifier: Modifier = Modifier, iconTint: Color = MaterialTheme.colorScheme.primary, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         modifier = modifier.height(56.dp),
@@ -248,7 +252,7 @@ fun QuickStartTile(title: String, icon: ImageVector, modifier: Modifier = Modifi
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = iconTint)
             Text(text = title, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         }
     }
