@@ -1,7 +1,6 @@
 package com.example.jamuione.ui.travel
 
-import android.content.Intent
-import android.net.Uri
+import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,7 +17,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.jamuione.domain.model.Place
-import com.example.jamuione.domain.model.Trip
 import com.example.jamuione.ui.components.EmptyState
 import com.example.jamuione.ui.components.ErrorState
 import com.example.jamuione.util.PlaceCatalog
@@ -261,10 +259,8 @@ fun TravelScreen(
                             items(trips, key = { it.id }) { trip ->
                                 TripCard(
                                     trip = trip,
-                                    onCallClick = { phone ->
-                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
-                                        context.startActivity(intent)
-                                    }
+                                    currentUserId = viewModel.currentUserId,
+                                    onMarkFull = { tripId -> viewModel.markFull(tripId) }
                                 )
                             }
                         }
@@ -358,111 +354,6 @@ fun PlacePickerDialog(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun TripCard(
-    trip: Trip,
-    onCallClick: (String) -> Unit
-) {
-    val context = LocalContext.current
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Text(
-                            text = trip.vehicle,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                    Text(
-                        text = trip.operatorName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Text(
-                    text = if (trip.farePerSeat == 0) "Ask fare" else "₹${trip.farePerSeat} / seat",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "${trip.fromName} → ${trip.toName}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                val timeStr = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(trip.departureAt))
-                Text(
-                    text = "Departure: $timeStr",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${trip.seatsLeft} seats left (Total: ${trip.seatsTotal})",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (trip.seatsLeft > 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
-                )
-                if (trip.phone.isNotBlank()) {
-                    Button(
-                        onClick = { onCallClick(trip.phone) },
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Call")
-                    }
-                }
-            }
-
-            if (trip.pickupPoint.isNotBlank()) {
-                Text(
-                    text = "Pickup: ${trip.pickupPoint}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
-            if (trip.notes.isNotBlank()) {
-                Text(
-                    text = trip.notes,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }

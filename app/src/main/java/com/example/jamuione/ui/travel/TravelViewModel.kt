@@ -43,12 +43,15 @@ class TravelViewModel @Inject constructor(
     private val _userProfile = MutableStateFlow<Resource<com.example.jamuione.domain.model.User?>>(Resource.Idle())
     val userProfile: StateFlow<Resource<com.example.jamuione.domain.model.User?>> = _userProfile
 
+    val currentUserId: String?
+        get() = authRepository.getCurrentUser()?.uid
+
     init {
         loadUserProfile()
     }
 
     private fun loadUserProfile() {
-        val uid = authRepository.getCurrentUser()?.uid ?: return
+        val uid = currentUserId ?: return
         viewModelScope.launch {
             userRepository.getUserProfile(uid).collectLatest { resource ->
                 _userProfile.value = resource
@@ -87,6 +90,12 @@ class TravelViewModel @Inject constructor(
     fun dismissBanner() {
         _bannerDismissed.value = true
         prefs.edit().putBoolean("banner_dismissed", true).apply()
+    }
+
+    fun markFull(tripId: String) {
+        viewModelScope.launch {
+            tripRepository.updateTripStatus(tripId, "full").collectLatest { }
+        }
     }
 
     val trips: StateFlow<Resource<List<Trip>>> = combine(
