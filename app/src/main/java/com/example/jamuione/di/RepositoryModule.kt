@@ -5,6 +5,7 @@ import com.example.jamuione.data.repository.NoticeRepositoryImpl
 import com.example.jamuione.data.repository.NotificationRepositoryImpl
 import com.example.jamuione.data.repository.OrganizationRepositoryImpl
 import com.example.jamuione.data.repository.PostRepositoryImpl
+import com.example.jamuione.data.repository.TripRepositoryImpl
 import com.example.jamuione.data.repository.UserRepositoryImpl
 import com.example.jamuione.domain.repository.*
 import dagger.Binds
@@ -52,4 +53,10 @@ abstract class RepositoryModule {
     abstract fun bindOrganizationRepository(
         organizationRepositoryImpl: OrganizationRepositoryImpl
     ): OrganizationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTripRepository(
+        tripRepositoryImpl: TripRepositoryImpl
+    ): TripRepository
 }

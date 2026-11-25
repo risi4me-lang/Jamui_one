@@ -1,0 +1,13 @@
+[
+  {"key": "jamui", "name": "Jamui", "nameHi": "जमुई", "type": "city"},
+  {"key": "jamui_railway_station", "name": "Jamui Railway Station", "nameHi": "जमुई रेलवे स्टेशन", "type": "station"},
+  {"key": "jhajha", "name": "Jhajha", "nameHi": "झाझा", "type": "city"},
+  {"key": "sikandra", "name": "Sikandra", "nameHi": "सिकंदरा", "type": "city"},
+  {"key": "patna", "name": "Patna", "nameHi": "पटना", "type": "city"},
+  {"key": "patna_airport", "name": "Patna Airport", "nameHi": "पटना एयरपोर्ट", "type": "airport"},
+  {"key": "patna_junction", "name": "Patna Junction", "nameHi": "पटना जंक्शन", "type": "station"},
+  {"key": "gaya", "name": "Gaya", "nameHi": "गया", "type": "city"},
+  {"key": "kiul_junction", "name": "Kiul Junction", "nameHi": "क्युल जंक्शन", "type": "station"},
+  {"key": "bhagalpur", "name": "Bhagalpur", "nameHi": "भागलपुर", "type": "city"},
+  {"key": "ranchi", "name": "Ranchi", "nameHi": "रांची", "type": "city"}
+]
