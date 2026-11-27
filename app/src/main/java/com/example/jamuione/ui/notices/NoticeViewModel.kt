@@ -203,7 +203,10 @@ class NoticeViewModel @Inject constructor(
         pollOptions: List<String>? = null,
         pollClosesAt: Long? = null,
         eventDate: Long? = null,
-        eventLocation: String? = null
+        eventLocation: String? = null,
+        state: String,
+        district: String,
+        locality: String
     ) {
         Log.d("NOTICE_DEBUG", "createNotice button clicked in ViewModel")
         val user = currentUser
@@ -224,9 +227,9 @@ class NoticeViewModel @Inject constructor(
             title = title,
             description = description,
             category = category,
-            state = user.state,
-            district = user.district,
-            locality = user.locality,
+            state = state.trim().lowercase(),
+            district = district.trim().lowercase(),
+            locality = locality.trim().lowercase(),
             expiryDate = expiryDate,
             contactNumber = contact,
             pollQuestion = pollQuestion,

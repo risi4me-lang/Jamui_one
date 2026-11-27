@@ -234,7 +234,7 @@ class FeedViewModel @Inject constructor(
         }
     }
 
-    fun createPost(content: String, imageUri: Uri?) {
+    fun createPost(content: String, imageUri: Uri?, state: String, district: String, locality: String) {
         Log.d("POST_DEBUG", "createPost button clicked in ViewModel")
         val user = currentUser
         if (user == null) {
@@ -257,9 +257,9 @@ class FeedViewModel @Inject constructor(
             userProfileImage = user.profileImage,
             isVerified = user.isVerified,
             content = content,
-            state = user.state,
-            district = user.district,
-            locality = user.locality
+            state = state.trim().lowercase(),
+            district = district.trim().lowercase(),
+            locality = locality.trim().lowercase()
         )
         viewModelScope.launch {
             postRepository.createPost(post, imageUri).collectLatest { result ->

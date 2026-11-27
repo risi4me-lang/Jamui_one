@@ -1,27 +1,28 @@
 package com.example.jamuione.ui.notices
 
-import androidx.compose.animation.*
+import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.example.jamuione.ui.components.AudienceOption
+import com.example.jamuione.ui.components.AudiencePickerRow
 import com.example.jamuione.util.NetworkUtils
 import com.example.jamuione.util.Resource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +43,21 @@ fun CreateNoticeScreen(
     var pollDurationDays by remember { mutableStateOf(7) }
 
     val createResult by viewModel.createNoticeResult.collectAsState()
+    val userProfile by viewModel.userProfile.collectAsState()
+    val user = (userProfile as? Resource.Success)?.data
+
+    var selectedAudience by remember(user) {
+        mutableStateOf<AudienceOption>(
+            if (user?.locality?.isNotBlank() == true && user.locality != "unknown") {
+                AudienceOption.Locality(user.locality)
+            } else if (user?.district?.isNotBlank() == true) {
+                AudienceOption.District(user.district)
+            } else {
+                AudienceOption.Locality("")
+            }
+        )
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -70,25 +86,20 @@ fun CreateNoticeScreen(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState()
+        val calendar = Calendar.getInstance()
         DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    eventDate = datePickerState.selectedDateMillis
-                    showDatePicker = false
-                }) {
-                    Text("OK")
+            LocalContext.current,
+            { _, year, month, dayOfMonth ->
+                val cal = Calendar.getInstance().apply {
+                    set(year, month, dayOfMonth)
                 }
+                eventDate = cal.timeInMillis
+                showDatePicker = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).show()
     }
 
     Scaffold(
@@ -106,6 +117,11 @@ fun CreateNoticeScreen(
                     TextButton(
                         onClick = {
                             if (NetworkUtils.isNetworkAvailable(context)) {
+                                val (st, dist, loc) = when (val aud = selectedAudience) {
+                                    is AudienceOption.Locality -> Triple(user?.state ?: "", user?.district ?: "", aud.value)
+                                    is AudienceOption.District -> Triple(user?.state ?: "", aud.value, "")
+                                    is AudienceOption.Hometown -> Triple(user?.nativeState ?: "", aud.value, "")
+                                }
                                 viewModel.createNotice(
                                     title = title,
                                     description = description,
@@ -116,7 +132,10 @@ fun CreateNoticeScreen(
                                     pollOptions = pollOptions.filter { it.isNotBlank() }.takeIf { isPoll && it.size >= 2 },
                                     pollClosesAt = if (isPoll) System.currentTimeMillis() + (pollDurationDays * 24 * 60 * 60 * 1000L) else null,
                                     eventDate = eventDate.takeIf { selectedCategory == "Event" },
-                                    eventLocation = eventLocation.takeIf { selectedCategory == "Event" && it.isNotBlank() }
+                                    eventLocation = eventLocation.takeIf { selectedCategory == "Event" && it.isNotBlank() },
+                                    state = st,
+                                    district = dist,
+                                    locality = loc
                                 )
                             } else {
                                 scope.launch {
@@ -139,6 +158,14 @@ fun CreateNoticeScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            AudiencePickerRow(
+                user = user,
+                selectedAudience = selectedAudience,
+                onAudienceSelected = { selectedAudience = it }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             
@@ -185,149 +212,92 @@ fun CreateNoticeScreen(
                 onValueChange = { if (it.length <= 100) title = it },
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                supportingText = { Text("${title.length}/100") }
+                singleLine = true
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = description,
-                onValueChange = { if (it.length <= 500) description = it },
+                onValueChange = { if (it.length <= 2000) description = it },
                 label = { Text("Description") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                supportingText = { Text("${description.length}/500") }
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 120.dp)
             )
-            Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text("Additional Options", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = contactNumber,
-                onValueChange = { if (it.all { char -> char.isDigit() || char == '+' || char == '-' }) contactNumber = it },
-                label = { Text("Contact Number (Optional)") },
+                onValueChange = { contactNumber = it },
+                label = { Text("Contact Phone (Optional)") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(text = "Expires in: $daysToExpiry days", style = MaterialTheme.typography.labelLarge)
-            Slider(
-                value = daysToExpiry.toFloat(),
-                onValueChange = { daysToExpiry = it.toInt() },
-                valueRange = 1f..30f,
-                steps = 29
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // POLL SECTION
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = isPoll, onCheckedChange = { isPoll = it })
-                Text("Add a Poll")
+                Checkbox(
+                    checked = isPoll,
+                    onCheckedChange = { isPoll = it }
+                )
+                Text("Attach a poll to this notice")
             }
 
             if (isPoll) {
-                Column(modifier = Modifier.padding(start = 8.dp)) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = pollQuestion,
+                    onValueChange = { pollQuestion = it },
+                    label = { Text("Poll Question") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                pollOptions.forEachIndexed { idx, opt ->
                     OutlinedTextField(
-                        value = pollQuestion,
-                        onValueChange = { pollQuestion = it },
-                        label = { Text("Poll Question") },
-                        modifier = Modifier.fillMaxWidth()
+                        value = opt,
+                        onValueChange = { newText ->
+                            pollOptions = pollOptions.toMutableList().also { it[idx] = newText }
+                        },
+                        label = { Text("Option ${idx + 1}") },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    pollOptions.forEachIndexed { index, option ->
-                        OutlinedTextField(
-                            value = option,
-                            onValueChange = { newVal ->
-                                val newList = pollOptions.toMutableList()
-                                newList[index] = newVal
-                                pollOptions = newList
-                            },
-                            label = { Text("Option ${index + 1}") },
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            trailingIcon = {
-                                if (pollOptions.size > 2) {
-                                    IconButton(onClick = {
-                                        pollOptions = pollOptions.toMutableList().apply { removeAt(index) }
-                                    }) {
-                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.drawclip(CircleShape)) // Actually need Close icon
-                                    }
-                                }
-                            }
-                        )
+                }
+                if (pollOptions.size < 5) {
+                    TextButton(onClick = { pollOptions = pollOptions + "" }) {
+                        Text("+ Add Option")
                     }
-                    if (pollOptions.size < 5) {
-                        TextButton(onClick = { pollOptions = pollOptions + "" }) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Add Option")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = "Poll closes in: $pollDurationDays days", style = MaterialTheme.typography.labelLarge)
-                    Slider(
-                        value = pollDurationDays.toFloat(),
-                        onValueChange = { pollDurationDays = it.toInt() },
-                        valueRange = 1f..14f,
-                        steps = 13
-                    )
                 }
             }
         }
     }
 
     if (showProgressOverlay) {
-        PostingProgressOverlay(stage = currentStage)
-    }
-}
-
-@Composable
-fun PostingProgressOverlay(stage: Int) {
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = { },
-        properties = androidx.compose.ui.window.DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-    ) {
-        Surface(
-            modifier = Modifier.width(280.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp
+        Dialog(
+            onDismissRequest = { },
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Surface(
+                modifier = Modifier.width(280.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(48.dp),
-                    strokeWidth = 4.dp
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                val text = when (stage) {
-                    1 -> "Uploading image..."
-                    2 -> "Publishing notice..."
-                    3 -> "Updating board..."
-                    else -> "Processing..."
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(48.dp), strokeWidth = 4.dp)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = if (currentStage == 2) "Publishing notice..." else "Updating board...",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
                 }
-                
-                Text(
-                    text = text,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "Please wait while we share your notice with the community.",
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.secondary
-                )
             }
         }
     }
 }
-
-fun Modifier.drawclip(shape: androidx.compose.ui.graphics.Shape): Modifier = this.clip(shape)

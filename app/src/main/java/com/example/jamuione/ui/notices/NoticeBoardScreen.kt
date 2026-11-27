@@ -220,6 +220,8 @@ fun NoticeBoardScreen(
                                 NoticeItem(
                                     notice = notice,
                                     currentUserId = userProfile.data?.uid,
+                                    viewerLocality = userProfile.data?.locality,
+                                    viewerDistrict = userProfile.data?.district,
                                     isRsvped = rsvpedNotices[notice.id] ?: false,
                                     isHelpful = helpfulNotices[notice.id] ?: false,
                                     onDeleteClick = { viewModel.deleteNotice(notice.id) },
@@ -306,6 +308,8 @@ fun CategorySelector(
 fun NoticeItem(
     notice: Notice,
     currentUserId: String? = null,
+    viewerLocality: String? = null,
+    viewerDistrict: String? = null,
     isRsvped: Boolean = false,
     isHelpful: Boolean = false,
     onDeleteClick: () -> Unit = {},
@@ -419,6 +423,28 @@ fun NoticeItem(
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            val isDifferentArea = if (notice.locality.isNotBlank()) {
+                notice.locality.lowercase() != viewerLocality?.lowercase()
+            } else {
+                notice.district.lowercase() != viewerDistrict?.lowercase()
+            }
+            val placeName = if (notice.locality.isNotBlank()) {
+                notice.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+            } else if (notice.district.isNotBlank()) {
+                notice.district.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+            } else {
+                ""
+            }
+            if (isDifferentArea && placeName.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Posted in $placeName",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+            }
             // Row 1: Category chip and relative time
             Row(
                 verticalAlignment = Alignment.CenterVertically,

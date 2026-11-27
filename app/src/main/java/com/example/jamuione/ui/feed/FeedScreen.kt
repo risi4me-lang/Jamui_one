@@ -162,6 +162,8 @@ fun FeedScreen(
                                 post = post,
                                 authorProfile = postAuthors[post.userId],
                                 currentUserId = userProfile.data?.uid,
+                                viewerLocality = userProfile.data?.locality,
+                                viewerDistrict = userProfile.data?.district,
                                 isLiked = likedPosts[post.id] ?: false,
                                 isSaved = isSavedMap[post.id] ?: false,
                                 onLikeClick = { viewModel.toggleLike(post.id) },

@@ -1,7 +1,6 @@
 package com.example.jamuione.ui.feed
 
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -20,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import com.example.jamuione.ui.components.AudienceOption
+import com.example.jamuione.ui.components.AudiencePickerRow
 import com.example.jamuione.util.NetworkUtils
 import com.example.jamuione.util.Resource
 import kotlinx.coroutines.delay
@@ -45,6 +45,20 @@ fun CreatePostScreen(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     val createResult by viewModel.createPostResult.collectAsState()
     val userProfile by viewModel.userProfile.collectAsState()
+    val user = (userProfile as? Resource.Success)?.data
+
+    var selectedAudience by remember(user) {
+        mutableStateOf<AudienceOption>(
+            if (user?.locality?.isNotBlank() == true && user.locality != "unknown") {
+                AudienceOption.Locality(user.locality)
+            } else if (user?.district?.isNotBlank() == true) {
+                AudienceOption.District(user.district)
+            } else {
+                AudienceOption.Locality("")
+            }
+        )
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -90,7 +104,12 @@ fun CreatePostScreen(
                     TextButton(
                         onClick = { 
                             if (NetworkUtils.isNetworkAvailable(context)) {
-                                viewModel.createPost(content, selectedImageUri)
+                                val (st, dist, loc) = when (val aud = selectedAudience) {
+                                    is AudienceOption.Locality -> Triple(user?.state ?: "", user?.district ?: "", aud.value)
+                                    is AudienceOption.District -> Triple(user?.state ?: "", aud.value, "")
+                                    is AudienceOption.Hometown -> Triple(user?.nativeState ?: "", aud.value, "")
+                                }
+                                viewModel.createPost(content, selectedImageUri, st, dist, loc)
                             } else {
                                 scope.launch {
                                     snackbarHostState.showSnackbar("You're offline. Please check your connection and try again.")
@@ -112,6 +131,14 @@ fun CreatePostScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            AudiencePickerRow(
+                user = user,
+                selectedAudience = selectedAudience,
+                onAudienceSelected = { selectedAudience = it }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             OutlinedTextField(
                 value = content,
                 onValueChange = { if (it.length <= 1000) content = it },

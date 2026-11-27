@@ -59,6 +59,8 @@ fun PostCard(
     post: Post,
     authorProfile: User? = null,
     currentUserId: String? = null,
+    viewerLocality: String? = null,
+    viewerDistrict: String? = null,
     isLiked: Boolean = false,
     isSaved: Boolean = false,
     onLikeClick: () -> Unit = {},
@@ -314,6 +316,28 @@ fun PostCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    val isDifferentArea = if (post.locality.isNotBlank()) {
+                        post.locality.lowercase() != viewerLocality?.lowercase()
+                    } else {
+                        post.district.lowercase() != viewerDistrict?.lowercase()
+                    }
+                    val placeName = if (post.locality.isNotBlank()) {
+                        post.locality.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                    } else if (post.district.isNotBlank()) {
+                        post.district.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+                    } else {
+                        ""
+                    }
+                    if (isDifferentArea && placeName.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Posted in $placeName",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
