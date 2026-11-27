@@ -2,6 +2,7 @@ package com.example.jamuione.data.repository
 
 import android.content.Context
 import android.os.Bundle
+import com.example.jamuione.domain.model.OperatorApplication
 import com.example.jamuione.domain.model.Trip
 import com.example.jamuione.domain.repository.TripRepository
 import com.example.jamuione.util.Resource
@@ -191,6 +192,43 @@ class TripRepositoryImpl @Inject constructor(
             emit(Resource.Success(countSnapshot.count))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to count requests"))
+        }
+    }
+
+    override fun submitOperatorApplication(application: OperatorApplication): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            firestore.collection("operatorApplications").document(application.userId).set(application).await()
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to submit application"))
+        }
+    }
+
+    override fun observeOperatorApplication(uid: String): Flow<Resource<OperatorApplication?>> = callbackFlow {
+        trySend(Resource.Loading())
+        val listener = firestore.collection("operatorApplications").document(uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(Resource.Error(error.message ?: "Failed to fetch application"))
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    trySend(Resource.Success(snapshot.toObject(OperatorApplication::class.java)))
+                } else {
+                    trySend(Resource.Success(null))
+                }
+            }
+        awaitClose { listener.remove() }
+    }
+
+    override fun withdrawOperatorApplication(uid: String): Flow<Resource<Boolean>> = flow {
+        emit(Resource.Loading())
+        try {
+            firestore.collection("operatorApplications").document(uid).delete().await()
+            emit(Resource.Success(true))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to withdraw application"))
         }
     }
 }

@@ -1,8 +1,6 @@
 package com.example.jamuione.ui.travel
 
 import android.app.DatePickerDialog
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,7 +23,6 @@ import com.example.jamuione.ui.components.EmptyState
 import com.example.jamuione.ui.components.ErrorState
 import com.example.jamuione.util.PlaceCatalog
 import com.example.jamuione.util.Resource
-import com.example.jamuione.util.TravelConstants
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -36,6 +33,7 @@ fun TravelScreen(
     onRequestRideClick: () -> Unit,
     onPostTripClick: () -> Unit,
     onMyTripsClick: () -> Unit,
+    onApplyOperatorClick: () -> Unit,
     initialTab: Int = 0,
     onBack: () -> Unit
 ) {
@@ -58,7 +56,6 @@ fun TravelScreen(
 
     var showFromPicker by remember { mutableStateOf(false) }
     var showToPicker by remember { mutableStateOf(false) }
-    var showOnboardingDialog by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
     val fromPlace = PlaceCatalog.byKey(context, fromKey) ?: Place(fromKey, fromKey, fromKey, "city")
@@ -97,7 +94,7 @@ fun TravelScreen(
                             Text("My trips")
                         }
                     } else {
-                        TextButton(onClick = { showOnboardingDialog = true }) {
+                        TextButton(onClick = onApplyOperatorClick) {
                             Text("Offer seats")
                         }
                     }
@@ -505,32 +502,6 @@ fun TravelScreen(
             onSelect = { place ->
                 viewModel.setTo(place.key)
                 showToPicker = false
-            }
-        )
-    }
-
-    if (showOnboardingDialog) {
-        AlertDialog(
-            onDismissRequest = { showOnboardingDialog = false },
-            title = { Text("Want to list your sumo, bus or cab?") },
-            text = { Text("Contact us to become a verified operator and start offering seats to passengers.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showOnboardingDialog = false
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${TravelConstants.OPERATOR_WHATSAPP_PHONE}?text=Hi,+I+want+to+become+a+verified+operator+on+District+One"))
-                        context.startActivity(intent)
-                    }
-                ) { Text("WhatsApp Us") }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showOnboardingDialog = false
-                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${TravelConstants.OPERATOR_SUPPORT_EMAIL}?subject=Operator%20Verification%20Request"))
-                        context.startActivity(intent)
-                    }
-                ) { Text("Email Us") }
             }
         )
     }

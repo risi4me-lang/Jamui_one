@@ -61,6 +61,8 @@ import com.example.jamuione.ui.travel.MyTripsScreen
 import com.example.jamuione.ui.travel.MyTripsViewModel
 import com.example.jamuione.ui.travel.RequestRideScreen
 import com.example.jamuione.ui.travel.RequestRideViewModel
+import com.example.jamuione.ui.travel.ApplyOperatorScreen
+import com.example.jamuione.ui.travel.ApplyOperatorViewModel
 import com.example.jamuione.ui.feed.FeedViewModel
 import com.example.jamuione.ui.feed.CreatePostScreen
 import com.example.jamuione.ui.feed.PostDetailScreen
@@ -147,6 +149,8 @@ sealed interface Destination : NavKey {
     data object MyTrips : Destination
     @Serializable
     data object RequestRide : Destination
+    @Serializable
+    data object ApplyOperator : Destination
 }
 
 @Composable
@@ -304,6 +308,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     onRequestRideClick = { backStack.add(Destination.RequestRide) },
                     onPostTripClick = { backStack.add(Destination.PostTrip) },
                     onMyTripsClick = { backStack.add(Destination.MyTrips) },
+                    onApplyOperatorClick = { backStack.add(Destination.ApplyOperator) },
                     initialTab = key.initialTab,
                     onBack = { backStack.pop() }
                 )
@@ -336,6 +341,13 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                         snackbarHostState.showSnackbar("Request posted")
                     }
                 }
+            )
+        }
+        entry<Destination.ApplyOperator> {
+            val applyOperatorViewModel: ApplyOperatorViewModel = viewModel()
+            ApplyOperatorScreen(
+                viewModel = applyOperatorViewModel,
+                onBack = { backStack.pop() }
             )
         }
         entry<Destination.AccountSettings> {

@@ -1,5 +1,6 @@
 package com.example.jamuione.domain.repository
 
+import com.example.jamuione.domain.model.OperatorApplication
 import com.example.jamuione.domain.model.Trip
 import com.example.jamuione.util.Resource
 import kotlinx.coroutines.flow.Flow
@@ -14,4 +15,7 @@ interface TripRepository {
     fun deleteTrip(id: String): Flow<Resource<Boolean>>
     fun observeRequests(fromKey: String, toKey: String, dayStart: Long, dayEnd: Long): Flow<Resource<List<Trip>>>
     fun countRequests(fromKey: String, toKey: String, dayStart: Long, dayEnd: Long): Flow<Resource<Long>>
+    fun submitOperatorApplication(application: OperatorApplication): Flow<Resource<Boolean>>
+    fun observeOperatorApplication(uid: String): Flow<Resource<OperatorApplication?>>
+    fun withdrawOperatorApplication(uid: String): Flow<Resource<Boolean>>
 }
