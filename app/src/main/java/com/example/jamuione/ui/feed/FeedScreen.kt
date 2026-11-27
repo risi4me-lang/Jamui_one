@@ -94,6 +94,7 @@ fun FeedScreen(
                 onScopeSelected = { viewModel.setScope(it) },
                 searchQuery = searchQuery,
                 onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                onProfileClick = onProfileClick,
                 scrollBehavior = scrollBehavior
             )
         },

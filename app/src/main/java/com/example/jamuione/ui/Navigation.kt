@@ -6,8 +6,10 @@ import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.outlined.Assignment
@@ -223,9 +225,9 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     onCreatePostClick = { backStack.add(Destination.CreatePost) },
                     onNavigateToDetail = { postId -> backStack.add(Destination.PostDetail(postId)) },
                     onNavigateToNotifications = { navigateToTab(backStack, Destination.Notifications) },
-                    onProfileClick = { navigateToTab(backStack, Destination.Profile) },
+                    onProfileClick = { backStack.add(Destination.Profile) },
                     onNavigateToUserProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
-                    onNavigateToTravel = { backStack.add(Destination.Travel) },
+                    onNavigateToTravel = { navigateToTab(backStack, Destination.Travel) },
                     onCreateNoticeCategory = { category -> backStack.add(Destination.CreateNoticeCategory(category)) },
                     onNavigateToNoticeBoardCategory = { category -> backStack.add(Destination.NoticeBoard(category = category)) },
                     highlightPostId = key.highlightPostId
@@ -255,8 +257,8 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     highlightNoticeId = key.highlightId,
                     onCreateNoticeClick = { backStack.add(Destination.CreateNotice) },
                     onNavigateToNotifications = { navigateToTab(backStack, Destination.Notifications) },
-                    onProfileClick = { navigateToTab(backStack, Destination.Profile) },
-                    onNavigateToTravel = { backStack.add(Destination.Travel) }
+                    onProfileClick = { backStack.add(Destination.Profile) },
+                    onNavigateToTravel = { navigateToTab(backStack, Destination.Travel) }
                 )
             }
         }
@@ -276,7 +278,6 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     isOperator = isOperator,
                     onNavigateToSavedPosts = { backStack.add(Destination.SavedPosts) },
                     onNavigateToCommunities = { backStack.add(Destination.Communities) },
-                    onNavigateToTravel = { backStack.add(Destination.Travel) },
                     onNavigateToMyTrips = { backStack.add(Destination.MyTrips) },
                     onNavigateToAccountSettings = { backStack.add(Destination.AccountSettings) },
                     onEditProfile = { backStack.add(Destination.ProfileSetup) },
@@ -292,10 +293,17 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
         }
         entry<Destination.Travel> {
             val travelViewModel: TravelViewModel = viewModel()
-            TravelScreen(
-                viewModel = travelViewModel,
-                onBack = { backStack.pop() }
-            )
+            AdaptiveScaffoldWrapper(
+                currentDestination = Destination.Travel,
+                onNavigate = { navigateToTab(backStack, it) },
+                onCreate = { backStack.add(it) },
+                snackbarHost = { SnackbarHost(snackbarHostState) }
+            ) {
+                TravelScreen(
+                    viewModel = travelViewModel,
+                    onBack = { backStack.pop() }
+                )
+            }
         }
         entry<Destination.PostTrip> {
             val postTripViewModel: PostTripViewModel = viewModel()
@@ -518,12 +526,8 @@ fun AdaptiveScaffoldWrapper(
     content: @Composable () -> Unit
 ) {
     var showCreateSheet by remember { mutableStateOf(false) }
-    var showOperatorOnboardingDialog by remember { mutableStateOf(false) }
-    val authViewModel: AuthViewModel = viewModel()
-    val isOperator by authViewModel.isOperator.collectAsState()
     val notificationsViewModel: NotificationsViewModel = viewModel()
     val hasUnread by notificationsViewModel.hasUnread.collectAsState()
-    val context = LocalContext.current
 
     Scaffold(
         bottomBar = {
@@ -647,21 +651,21 @@ fun AdaptiveScaffoldWrapper(
                     )
                 )
 
-                // 5. Profile
-                val isProfileSelected = currentDestination == Destination.Profile
+                // 5. Travel
+                val isTravelSelected = currentDestination is Destination.Travel
                 NavigationBarItem(
-                    selected = isProfileSelected,
-                    onClick = { onNavigate(Destination.Profile) },
+                    selected = isTravelSelected,
+                    onClick = { onNavigate(Destination.Travel) },
                     icon = {
                         Icon(
-                            imageVector = if (isProfileSelected) Icons.Default.Person else Icons.Outlined.Person,
-                            contentDescription = "Profile"
+                            imageVector = if (isTravelSelected) Icons.Default.DirectionsCar else Icons.Outlined.DirectionsCar,
+                            contentDescription = "Travel"
                         )
                     },
                     label = { 
                         Text(
-                            text = "Profile", 
-                            color = if (isProfileSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Travel",
+                            color = if (isTravelSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         ) 
                     },
                     colors = NavigationBarItemDefaults.colors(
@@ -691,6 +695,7 @@ fun AdaptiveScaffoldWrapper(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -701,28 +706,6 @@ fun AdaptiveScaffoldWrapper(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                CreateActionRow(
-                    icon = Icons.Default.DirectionsCar,
-                    title = "Offer seats",
-                    subtitle = "List your sumo, bus, or cab for passengers",
-                    onClick = {
-                        showCreateSheet = false
-                        if (isOperator) {
-                            onCreate(Destination.PostTrip)
-                        } else {
-                            showOperatorOnboardingDialog = true
-                        }
-                    }
-                )
-                CreateActionRow(
-                    icon = Icons.Default.DirectionsBus,
-                    title = "I need a ride",
-                    subtitle = "Request a ride or share a cab",
-                    onClick = {
-                        showCreateSheet = false
-                        onCreate(Destination.RequestRide)
-                    }
-                )
                 CreateActionRow(
                     icon = Icons.Default.PostAdd,
                     title = "Post",
@@ -750,84 +733,9 @@ fun AdaptiveScaffoldWrapper(
                         onCreate(Destination.CreateNoticeCategory("Blood Donation"))
                     }
                 )
-                CreateActionRow(
-                    icon = Icons.Default.TravelExplore,
-                    title = "Travel",
-                    subtitle = "Find local operators and share rides",
-                    onClick = {
-                        showCreateSheet = false
-                        onCreate(Destination.Travel)
-                    }
-                )
-                CreateActionRow(
-                    icon = Icons.Default.Search,
-                    title = "Lost & Found",
-                    subtitle = "Report lost or found items",
-                    onClick = {
-                        showCreateSheet = false
-                        onCreate(Destination.CreateNoticeCategory("Lost & Found"))
-                    }
-                )
-                CreateActionRow(
-                    icon = Icons.Default.Home,
-                    title = "Rent / Flatmate",
-                    subtitle = "List housing or flatmate requirements",
-                    onClick = {
-                        showCreateSheet = false
-                        onCreate(Destination.CreateNoticeCategory("Rent/Flatmate"))
-                    }
-                )
-                CreateActionRow(
-                    icon = Icons.Default.ShoppingCart,
-                    title = "Buy & Sell",
-                    subtitle = "List items for sale or request items",
-                    onClick = {
-                        showCreateSheet = false
-                        onCreate(Destination.CreateNoticeCategory("Buy & Sell"))
-                    }
-                )
-                CreateActionRow(
-                    icon = Icons.Default.Favorite,
-                    title = "Help needed",
-                    subtitle = "Ask for assistance or support",
-                    onClick = {
-                        showCreateSheet = false
-                        onCreate(Destination.CreateNoticeCategory("Help Needed"))
-                    }
-                )
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
-    }
-
-    if (showOperatorOnboardingDialog) {
-        AlertDialog(
-            onDismissRequest = { showOperatorOnboardingDialog = false },
-            title = { Text("Want to list your sumo, bus or cab?") },
-            text = { Text("Contact us to become a verified operator and start offering seats to passengers.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showOperatorOnboardingDialog = false
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${TravelConstants.OPERATOR_WHATSAPP_PHONE}?text=Hi,+I+want+to+become+a+verified+operator+on+District+One"))
-                        context.startActivity(intent)
-                    }
-                ) {
-                    Text("WhatsApp Us")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showOperatorOnboardingDialog = false
-                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${TravelConstants.OPERATOR_SUPPORT_EMAIL}?subject=Operator%20Verification%20Request"))
-                        context.startActivity(intent)
-                    }
-                ) {
-                    Text("Email Us")
-                }
-            }
-        )
     }
 }
 

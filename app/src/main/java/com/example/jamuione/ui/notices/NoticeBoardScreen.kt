@@ -110,6 +110,7 @@ fun NoticeBoardScreen(
                 onScopeSelected = { viewModel.setScope(it) },
                 searchQuery = searchQuery,
                 onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                onProfileClick = onProfileClick,
                 scrollBehavior = scrollBehavior
             )
         },
@@ -137,7 +138,7 @@ fun NoticeBoardScreen(
             ) {
                 item {
                     CategorySelector(
-                        categories = viewModel.categories,
+                        categories = listOf("Travel") + viewModel.categories,
                         selectedCategory = selectedCategory,
                         onCategorySelected = { cat ->
                             if (cat.equals("Travel", ignoreCase = true)) {

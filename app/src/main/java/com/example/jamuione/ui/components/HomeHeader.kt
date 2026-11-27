@@ -1,6 +1,7 @@
 package com.example.jamuione.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -12,9 +13,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.jamuione.domain.model.User
 import com.example.jamuione.ui.feed.FeedScope
 
@@ -26,6 +30,7 @@ fun CompactTopBar(
     onScopeSelected: (FeedScope) -> Unit,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
+    onProfileClick: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior
 ) {
     var isSearchExpanded by remember { mutableStateOf(false) }
@@ -120,6 +125,34 @@ fun CompactTopBar(
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(onClick = onProfileClick) {
+                    if (user?.profileImage != null) {
+                        AsyncImage(
+                            model = user.profileImage,
+                            contentDescription = "Profile",
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Surface(
+                            modifier = Modifier.size(32.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = user?.name?.take(1)?.uppercase() ?: "U",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -193,7 +226,6 @@ fun CompactTopBar(
 
 @Composable
 fun OfficialUpdatesRow() {
-    // Renders nothing when empty
     val officialUpdates = emptyList<Any>()
     if (officialUpdates.isNotEmpty()) {
         androidx.compose.foundation.lazy.LazyRow(
@@ -204,7 +236,6 @@ fun OfficialUpdatesRow() {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(officialUpdates.size) { _ ->
-                // item content
             }
         }
     }

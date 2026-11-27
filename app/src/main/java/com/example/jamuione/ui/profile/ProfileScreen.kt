@@ -42,7 +42,6 @@ fun ProfileScreen(
     isOperator: Boolean = false,
     onNavigateToSavedPosts: () -> Unit,
     onNavigateToCommunities: () -> Unit,
-    onNavigateToTravel: () -> Unit,
     onNavigateToMyTrips: () -> Unit,
     onNavigateToAccountSettings: () -> Unit,
     onEditProfile: () -> Unit,
@@ -151,12 +150,6 @@ fun ProfileScreen(
                                     title = "Communities",
                                     subtitle = "Local and professional groups",
                                     onClick = onNavigateToCommunities
-                                )
-                                MenuRow(
-                                    icon = Icons.Default.DirectionsCar,
-                                    title = "Travel & Rides",
-                                    subtitle = "Find local operators and share rides",
-                                    onClick = onNavigateToTravel
                                 )
                                 if (isOperator) {
                                     MenuRow(

@@ -142,31 +142,17 @@ fun CreateNoticeScreen(
             Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             
-            var expanded by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedTextField(
-                    value = selectedCategory,
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true).fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    viewModel.categories.forEach { category ->
-                        DropdownMenuItem(
-                            text = { Text(category) },
-                            onClick = {
-                                selectedCategory = category
-                                expanded = false
-                            }
-                        )
-                    }
+                items(viewModel.categories.size) { index ->
+                    val cat = viewModel.categories[index]
+                    FilterChip(
+                        selected = selectedCategory == cat,
+                        onClick = { selectedCategory = cat },
+                        label = { Text(cat) }
+                    )
                 }
             }
 
