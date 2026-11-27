@@ -140,7 +140,7 @@ sealed interface Destination : NavKey {
     @Serializable
     data class CreateNoticeCategory(val category: String) : Destination
     @Serializable
-    data object Travel : Destination
+    data class Travel(val initialTab: Int = 0) : Destination
     @Serializable
     data object PostTrip : Destination
     @Serializable
@@ -227,7 +227,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     onNavigateToNotifications = { navigateToTab(backStack, Destination.Notifications) },
                     onProfileClick = { backStack.add(Destination.Profile) },
                     onNavigateToUserProfile = { userId -> backStack.add(Destination.UserProfile(userId)) },
-                    onNavigateToTravel = { navigateToTab(backStack, Destination.Travel) },
+                    onNavigateToTravel = { navigateToTab(backStack, Destination.Travel()) },
                     onCreateNoticeCategory = { category -> backStack.add(Destination.CreateNoticeCategory(category)) },
                     onNavigateToNoticeBoardCategory = { category -> backStack.add(Destination.NoticeBoard(category = category)) },
                     highlightPostId = key.highlightPostId
@@ -258,7 +258,7 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                     onCreateNoticeClick = { backStack.add(Destination.CreateNotice) },
                     onNavigateToNotifications = { navigateToTab(backStack, Destination.Notifications) },
                     onProfileClick = { backStack.add(Destination.Profile) },
-                    onNavigateToTravel = { navigateToTab(backStack, Destination.Travel) }
+                    onNavigateToTravel = { navigateToTab(backStack, Destination.Travel()) }
                 )
             }
         }
@@ -291,16 +291,20 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
                 )
             }
         }
-        entry<Destination.Travel> {
+        entry<Destination.Travel> { key ->
             val travelViewModel: TravelViewModel = viewModel()
             AdaptiveScaffoldWrapper(
-                currentDestination = Destination.Travel,
+                currentDestination = key,
                 onNavigate = { navigateToTab(backStack, it) },
                 onCreate = { backStack.add(it) },
                 snackbarHost = { SnackbarHost(snackbarHostState) }
             ) {
                 TravelScreen(
                     viewModel = travelViewModel,
+                    onRequestRideClick = { backStack.add(Destination.RequestRide) },
+                    onPostTripClick = { backStack.add(Destination.PostTrip) },
+                    onMyTripsClick = { backStack.add(Destination.MyTrips) },
+                    initialTab = key.initialTab,
                     onBack = { backStack.pop() }
                 )
             }
@@ -325,7 +329,13 @@ fun JamuiOneNavigation(initialPostId: String? = null) {
             RequestRideScreen(
                 viewModel = requestRideViewModel,
                 onBack = { backStack.pop() },
-                onSuccess = { backStack.pop() }
+                onSuccess = {
+                    backStack.clear()
+                    backStack.add(Destination.Travel(initialTab = 1))
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Request posted")
+                    }
+                }
             )
         }
         entry<Destination.AccountSettings> {
@@ -655,7 +665,7 @@ fun AdaptiveScaffoldWrapper(
                 val isTravelSelected = currentDestination is Destination.Travel
                 NavigationBarItem(
                     selected = isTravelSelected,
-                    onClick = { onNavigate(Destination.Travel) },
+                    onClick = { onNavigate(Destination.Travel()) },
                     icon = {
                         Icon(
                             imageVector = if (isTravelSelected) Icons.Default.DirectionsCar else Icons.Outlined.DirectionsCar,

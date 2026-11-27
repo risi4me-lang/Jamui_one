@@ -34,6 +34,9 @@ class TravelViewModel @Inject constructor(
     private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
     val selectedDate: StateFlow<Long> = _selectedDate
 
+    private val _selectedTab = MutableStateFlow(0) // 0: Find a ride, 1: Requests
+    val selectedTab: StateFlow<Int> = _selectedTab
+
     private val _hideFullTrips = MutableStateFlow(false)
     val hideFullTrips: StateFlow<Boolean> = _hideFullTrips
 
@@ -45,6 +48,10 @@ class TravelViewModel @Inject constructor(
 
     val currentUserId: String?
         get() = authRepository.getCurrentUser()?.uid
+
+    val isOperator: StateFlow<Boolean> = _userProfile.map { res ->
+        (res as? Resource.Success)?.data?.operatorVerified == true
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     init {
         loadUserProfile()
@@ -63,6 +70,10 @@ class TravelViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun setTab(tab: Int) {
+        _selectedTab.value = tab
     }
 
     fun setFrom(key: String) {
@@ -98,6 +109,69 @@ class TravelViewModel @Inject constructor(
         }
     }
 
+    fun cancelRequest(tripId: String) {
+        viewModelScope.launch {
+            tripRepository.deleteTrip(tripId).collectLatest { }
+        }
+    }
+
+    private fun getDayRange(timestamp: Long): Pair<Long, Long> {
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = timestamp
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val start = cal.timeInMillis
+        cal.add(Calendar.DAY_OF_YEAR, 1)
+        val end = cal.timeInMillis - 1
+        return Pair(start, end)
+    }
+
+    val requestCount: StateFlow<Resource<Long>> = combine(
+        _fromKey,
+        _toKey,
+        _selectedDate
+    ) { from, to, date ->
+        Triple(from, to, date)
+    }.flatMapLatest { (from, to, date) ->
+        val (start, end) = getDayRange(date)
+        tripRepository.countRequests(from, to, start, end)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = Resource.Loading()
+    )
+
+    val myRequests: StateFlow<Resource<List<Trip>>> = currentUserId?.let { uid ->
+        tripRepository.observeMyTrips(uid).map { res ->
+            if (res is Resource.Success) {
+                Resource.Success(res.data?.filter { it.type == "request" } ?: emptyList())
+            } else {
+                res
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = Resource.Loading()
+        )
+    } ?: flowOf<Resource<List<Trip>>>(Resource.Success(emptyList())).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = Resource.Success(emptyList())
+    )
+
+    val operatorDemand: StateFlow<Resource<List<Trip>>> = flow {
+        val now = System.currentTimeMillis()
+        val next7Days = now + (7 * 24 * 3600 * 1000L)
+        tripRepository.observeRequests("", "", now, next7Days).collect { emit(it) }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = Resource.Loading()
+    )
+
     val trips: StateFlow<Resource<List<Trip>>> = combine(
         _fromKey,
         _toKey,
@@ -107,16 +181,7 @@ class TravelViewModel @Inject constructor(
         Triple(Triple(from, to, date), hideFull, Unit)
     }.flatMapLatest { (params, hideFull, _) ->
         val (from, to, date) = params
-        val cal = Calendar.getInstance().apply {
-            timeInMillis = date
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        val dayStart = cal.timeInMillis
-        cal.add(Calendar.DAY_OF_YEAR, 1)
-        val dayEnd = cal.timeInMillis - 1
+        val (dayStart, dayEnd) = getDayRange(date)
 
         tripRepository.observeTrips(from, to, dayStart, dayEnd).map { resource ->
             if (resource is Resource.Success) {
